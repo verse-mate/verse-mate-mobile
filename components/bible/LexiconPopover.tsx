@@ -27,11 +27,12 @@ import {
   BottomSheetScrollView,
   useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
-import type { AlignedToken, LexEntry, RelatedWord } from '@versemate/lexicon';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { type AlignedToken, type LexEntry, loadStrongsIndex } from '@versemate/lexicon';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { type LemmaCard, useLemma } from '@/hooks/use-lemma';
+import { useLemma } from '@/hooks/use-lemma';
+import { canonicalStrongs, mergeLemmaCard } from '@/lib/lexicon/lemma-card';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
 // Hebrew + Aramaic Unicode block — RTL render for `<Text>` containing
@@ -54,46 +55,12 @@ export interface LexiconPopoverProps {
   /**
    * When set, the popover treats `entry` as a stub (synthesized from the
    * chapter endpoint's `?tagged=1` tokens) and resolves the real card via
-   * `useLemma()` against the backend `/lemma` endpoint in this language.
-   * Used for non-English Bibles, where the bundled `@versemate/lexicon`
-   * has no entries.
+   * `useLemma()` against the backend `/lemma` endpoint in this language,
+   * layered over the bundled English entry for the same Strong's number.
+   * Used for non-English Bibles.
    */
   apiLang?: string;
   testID?: string;
-}
-
-/**
- * Adapt the backend's snake_case `LemmaCard` shape to the bundled
- * `@versemate/lexicon` `LexEntry` shape the popover renders. Field
- * mapping mirrors the typebox schema in
- * `packages/backend-base/src/lemmas/lemma.plugin.ts`.
- *
- * `LexEntry.related` requires a `lemma` field that the API doesn't
- * carry (the API only ships `translit` + `note`). Reuse `translit` as
- * the displayed lemma so the existing renderer (which surfaces
- * `lemma` as the main related-word heading) shows the translit form —
- * still readable, just no original-script form for non-English cards.
- */
-function lemmaCardToLexEntry(card: LemmaCard): LexEntry {
-  const related: RelatedWord[] = (card.related ?? []).map((r) => ({
-    lemma: r.translit,
-    translit: r.translit,
-    note: r.note,
-  }));
-  return {
-    lemma: card.lemma,
-    translit: card.translit ?? '',
-    pronunciation: card.pronunciation ?? undefined,
-    strongs: card.strongs,
-    pos: card.pos ?? '',
-    basicGloss: card.basic_gloss ?? '',
-    semanticRange: card.semantic_range ?? undefined,
-    ntFrequency: card.nt_frequency ?? undefined,
-    otFrequency: card.ot_frequency ?? undefined,
-    loaded: card.loaded,
-    related: related.length > 0 ? related : undefined,
-    notes: card.notes ?? undefined,
-  };
 }
 
 export function LexiconPopover({
@@ -121,12 +88,35 @@ export function LexiconPopover({
     { enabled: enableApi }
   );
 
-  // Resolve the entry the body renders: prefer API card when present,
-  // fall back to the stub (which has at least strongs + lemma slug for
-  // English, or the same for non-English while the request is pending).
+  // Non-English: the bundled English entry for this Strong's is the base
+  // layer, so a word the backend has no text for (most lemmas outside the
+  // `loaded` set) still shows a definition — in English — instead of "No
+  // detailed lexicon entry". `loadStrongsIndex` is cached after the first
+  // call, so only the first tap pays for loading the lexicon.
+  const [bundled, setBundled] = useState<LexEntry | null>(null);
+  const bundledKey = enableApi ? canonicalStrongs(stubEntry.strongs) : null;
+  useEffect(() => {
+    setBundled(null);
+    if (!bundledKey) return;
+    let cancelled = false;
+    loadStrongsIndex()
+      .then((index) => {
+        if (!cancelled) setBundled(index[bundledKey] ?? null);
+      })
+      .catch(() => {
+        // No bundled entry: the API card (or the stub) still renders.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bundledKey]);
+
+  // Resolve the entry the body renders: the API card over the bundled entry
+  // when present; otherwise the bundled entry, then the stub (strongs +
+  // lemma slug) while the request is pending.
   const entry: LexEntry = useMemo(
-    () => (card ? lemmaCardToLexEntry(card) : stubEntry),
-    [card, stubEntry]
+    () => (card ? mergeLemmaCard(card, bundled, stubEntry) : (bundled ?? stubEntry)),
+    [card, bundled, stubEntry]
   );
   const isApiFetching = enableApi && !card && isApiLoading;
 

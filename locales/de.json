@@ -79,6 +79,7 @@
     "first_name_placeholder": "Vorname eingeben",
     "last_name_placeholder": "Nachname eingeben",
     "email_placeholder": "E-Mail-Adresse eingeben",
+    "pending_email": "Suche in {{email}} nach einer Nachricht von uns, um die Änderung deiner E-Mail-Adresse abzuschließen.",
     "go_back": "Zurück",
     "sign_in_message": "Melde dich an, um automatische Markierungen und Profileinstellungen zu nutzen.",
     "errors": {

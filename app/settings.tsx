@@ -21,6 +21,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCallback is still used for useFocusEffect which requires it
 import { useTranslation } from 'react-i18next';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Platform,
@@ -201,6 +202,38 @@ export default function SettingsScreen() {
     }
   };
 
+  const syncedProfileRef = useRef({ firstName: '', lastName: '', email: '' });
+  const syncProfileFields = (account: NonNullable<typeof user>) => {
+    const prev = syncedProfileRef.current;
+    const next = {
+      firstName: account.firstName || '',
+      lastName: account.lastName || '',
+      email: account.email || '',
+    };
+    syncedProfileRef.current = next;
+    const follow = (key: keyof typeof next) => (current: string) =>
+      current === prev[key] ? next[key] : current;
+    setFirstName(follow('firstName'));
+    setLastName(follow('lastName'));
+    setEmail(follow('email'));
+  };
+
+  const pendingEmail = typeof user?.pendingEmail === 'string' ? user.pendingEmail : null;
+  useEffect(() => {
+    if (pendingEmail && Platform.OS === 'ios') {
+      AccessibilityInfo.announceForAccessibility(
+        t('settings.pending_email', { email: pendingEmail })
+      );
+    }
+  }, [pendingEmail, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated && !isDeviceOffline) restoreSession();
+      // biome-ignore lint/correctness/useExhaustiveDependencies: refresh on focus and when sign-in or connectivity changes, not on every session change
+    }, [isAuthenticated, isDeviceOffline])
+  );
+
   // Update form fields when user session changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: isOffline intentionally included to re-run effect when connectivity changes
   useEffect(() => {
@@ -210,12 +243,7 @@ export default function SettingsScreen() {
         const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
         if (storedLang) {
           setSelectedLanguage(storedLang);
-          // Still update profile fields if user is logged in
-          if (user) {
-            setFirstName(user.firstName || '');
-            setLastName(user.lastName || '');
-            setEmail(user.email || '');
-          }
+          if (user) syncProfileFields(user);
           return;
         }
       } catch (error) {
@@ -224,9 +252,7 @@ export default function SettingsScreen() {
 
       // Fall back to user's preferred language from session
       if (user) {
-        setFirstName(user.firstName || '');
-        setLastName(user.lastName || '');
-        setEmail(user.email || '');
+        syncProfileFields(user);
         setSelectedLanguage(user.preferred_language || 'en-US');
       }
     };
@@ -398,19 +424,18 @@ export default function SettingsScreen() {
   }, [isDeviceOffline, isAuthenticated, user?.preferred_language, restoreSession]);
 
   const hasProfileChanges = () => {
+    const synced = syncedProfileRef.current;
+    const edited = (value: string, accountValue: string, syncedValue: string) =>
+      value !== accountValue && value !== syncedValue;
     return (
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '')
+      edited(firstName, user?.firstName || '', synced.firstName) ||
+      edited(lastName, user?.lastName || '', synced.lastName) ||
+      edited(email, user?.email || '', synced.email)
     );
   };
 
   const saveProfile = async () => {
-    // Check for changes inline to avoid dependency on hasProfileChanges
-    const hasChanges =
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '');
+    const hasChanges = hasProfileChanges();
 
     if (!hasChanges) return;
 
@@ -429,8 +454,13 @@ export default function SettingsScreen() {
     setSaveStatus('saving');
     if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
 
+    const sentEmail = email;
+    const keepCurrentEmail = () => {
+      const accountEmail = user?.email || '';
+      setEmail((current) => (current === sentEmail ? accountEmail : current));
+    };
     try {
-      const { error } = await putAuthProfile({
+      const { error, response } = await putAuthProfile({
         body: {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -439,49 +469,23 @@ export default function SettingsScreen() {
       });
 
       if (error) {
+        if (response?.status === 429) keepCurrentEmail();
         throw error;
       }
 
-      // Refresh user session to get updated profile data
       await restoreSession();
+      keepCurrentEmail();
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error: unknown) {
       let errorMessage = 'An error occurred while saving your changes.';
 
-      const err = error as {
-        message?: string;
-        data?: { value?: { message?: string } };
-        value?: { message?: string } | string;
-      };
+      const err = error as { value?: string };
 
-      // Check for error in data.value.message structure (API error format)
-      if (
-        err?.data?.value &&
-        typeof err.data.value === 'object' &&
-        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Check for error in value.message structure (alternative format)
-      else if (
-        err?.value &&
-        typeof err.value === 'object' &&
-        err.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Check for direct message
-      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Generic value string
-      else if (err?.value && typeof err.value === 'string') {
+      if (err?.value && typeof err.value === 'string') {
         errorMessage = err.value;
-      }
-      // Direct string error
-      else if (typeof error === 'string') {
+      } else if (typeof error === 'string') {
         errorMessage = error;
       }
 
@@ -513,11 +517,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    // Check if there are actual changes
-    const hasChanges =
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '');
+    const hasChanges = hasProfileChanges();
 
     if (!hasChanges) return;
 
@@ -528,19 +528,14 @@ export default function SettingsScreen() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, user, firstName, lastName, email]);
 
-  // Save pending changes when screen loses focus
-  // Note: saveProfile is auto-memoized by React Compiler
   useFocusEffect(
     useCallback(() => {
-      // Cleanup function runs when screen loses focus
       return () => {
         if (hasPendingChangesRef.current && isAuthenticated) {
-          // Save synchronously on blur (don't await to avoid blocking navigation)
-          saveProfile();
+          saveProfileRef.current();
         }
       };
-      // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
-    }, [isAuthenticated, saveProfile])
+    }, [isAuthenticated])
   );
 
   const handleBibleVersionChange = async (version: BibleVersion) => {
@@ -783,6 +778,15 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 testID="settings-email-input"
               />
+              {pendingEmail ? (
+                <Text
+                  style={styles.pendingEmailText}
+                  testID="settings-pending-email"
+                  accessibilityLiveRegion="polite"
+                >
+                  {t('settings.pending_email', { email: pendingEmail })}
+                </Text>
+              ) : null}
             </View>
           </View>
         )}
@@ -1226,6 +1230,13 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     profileErrorText: {
       fontSize: 12,
       color: colors.error,
+    },
+    pendingEmailText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: -12,
+      marginBottom: 16,
+      marginLeft: 4,
     },
     form: {
       marginBottom: 8,

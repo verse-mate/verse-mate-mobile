@@ -79,6 +79,7 @@
     "first_name_placeholder": "Entrez votre prénom",
     "last_name_placeholder": "Entrez votre nom de famille",
     "email_placeholder": "Entrez votre adresse e-mail",
+    "pending_email": "Cherchez dans {{email}} un message de notre part pour terminer le changement de votre adresse e-mail.",
     "go_back": "Retour",
     "sign_in_message": "Connectez-vous pour accéder au surlignage automatique et aux paramètres du profil.",
     "errors": {

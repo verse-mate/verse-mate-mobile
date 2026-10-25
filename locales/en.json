@@ -79,6 +79,7 @@
     "first_name_placeholder": "Enter your first name",
     "last_name_placeholder": "Enter your last name",
     "email_placeholder": "Enter your email",
+    "pending_email": "Check {{email}} for a message from us to finish changing your email.",
     "go_back": "Go back",
     "sign_in_message": "Sign in to access auto-highlights and profile settings.",
     "errors": {
