@@ -50,6 +50,7 @@ import type { ContentTabType } from '@/types/bible';
 import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { AudioInlineEntry } from './AudioInlineEntry';
+import { ByLineSection, ByLineToggleAll, useByLineExpansion } from './ByLineSections';
 import { ShareButton } from './ShareButton';
 import { StudyPanel } from './StudyPanel';
 import { VerseJumpButton } from './VerseJumpButton';
@@ -128,6 +129,11 @@ export interface BibleExplanationsPanelProps {
  *
  * Displays AI-generated explanations in the right panel of split view.
  */
+/** A By Line section's fold key: its verse plus position, since a verse can head two sections. */
+function byLineSectionId(section: { verseNumber: number }, index: number): string {
+  return `${section.verseNumber}-${index}`;
+}
+
 export function BibleExplanationsPanel({
   bookId,
   chapterNumber,
@@ -278,6 +284,9 @@ export function BibleExplanationsPanel({
     () => byLineSections.map((section) => section.verseNumber).filter((v) => v > 0),
     [byLineSections]
   );
+
+  // Which By Line verses are folded; a new chapter opens with all of them unfolded.
+  const byLineExpansion = useByLineExpansion(`${bookId}:${chapterNumber}`);
 
   const handleByLineVerseJump = useCallback((verseNumber: number) => {
     const node = byLineSectionRefs.current[verseNumber];
@@ -545,23 +554,31 @@ export function BibleExplanationsPanel({
                   />
                 ) : null}
                 {tab.key === 'byline' && byLineSections.length > 0 ? (
-                  byLineSections.map((section, index) => (
-                    <View
-                      // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single parsed render
-                      key={`byline-section-${section.verseNumber}-${index}`}
-                      ref={(node) => {
-                        if (node === null) {
-                          delete byLineSectionRefs.current[section.verseNumber];
-                        } else {
-                          byLineSectionRefs.current[section.verseNumber] = node;
-                        }
-                      }}
-                      testID={`byline-verse-section-${section.verseNumber}`}
-                      collapsable={false}
-                    >
-                      <Markdown style={markdownStyles}>{section.markdown}</Markdown>
-                    </View>
-                  ))
+                  <>
+                    <ByLineToggleAll
+                      allOpen={byLineExpansion.allOpen}
+                      onPress={() => byLineExpansion.setAll(!byLineExpansion.allOpen)}
+                      testID={`${testID}-byline-toggle-all`}
+                    />
+                    {byLineSections.map((section, index) => (
+                      <ByLineSection
+                        // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single parsed render
+                        key={`byline-section-${section.verseNumber}-${index}`}
+                        markdown={section.markdown}
+                        open={byLineExpansion.isOpen(byLineSectionId(section, index))}
+                        onToggle={() => byLineExpansion.toggle(byLineSectionId(section, index))}
+                        markdownStyles={markdownStyles}
+                        sectionRef={(node) => {
+                          if (node === null) {
+                            delete byLineSectionRefs.current[section.verseNumber];
+                          } else {
+                            byLineSectionRefs.current[section.verseNumber] = node;
+                          }
+                        }}
+                        testID={`byline-verse-section-${section.verseNumber}`}
+                      />
+                    ))}
+                  </>
                 ) : (
                   <Markdown style={markdownStyles}>{tab.data}</Markdown>
                 )}

@@ -27,12 +27,13 @@ import {
   BottomSheetScrollView,
   useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
-import { type AlignedToken, type LexEntry, loadStrongsIndex } from '@versemate/lexicon';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AlignedToken, LexEntry } from '@versemate/lexicon';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBundledLexEntry } from '@/hooks/use-bundled-lex-entry';
 import { useLemma } from '@/hooks/use-lemma';
-import { canonicalStrongs, mergeLemmaCard } from '@/lib/lexicon/lemma-card';
+import { mergeLemmaCard } from '@/lib/lexicon/lemma-card';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
 // Hebrew + Aramaic Unicode block — RTL render for `<Text>` containing
@@ -88,28 +89,15 @@ export function LexiconPopover({
     { enabled: enableApi }
   );
 
-  // Non-English: the bundled English entry for this Strong's is the base
-  // layer, so a word the backend has no text for (most lemmas outside the
-  // `loaded` set) still shows a definition — in English — instead of "No
-  // detailed lexicon entry". `loadStrongsIndex` is cached after the first
-  // call, so only the first tap pays for loading the lexicon.
-  const [bundled, setBundled] = useState<LexEntry | null>(null);
-  const bundledKey = enableApi ? canonicalStrongs(stubEntry.strongs) : null;
-  useEffect(() => {
-    setBundled(null);
-    if (!bundledKey) return;
-    let cancelled = false;
-    loadStrongsIndex()
-      .then((index) => {
-        if (!cancelled) setBundled(index[bundledKey] ?? null);
-      })
-      .catch(() => {
-        // No bundled entry: the API card (or the stub) still renders.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [bundledKey]);
+  // Non-English: a word the backend has no text for (the lemmas outside the
+  // `loaded` set) falls back to the bundled English entry for its Strong's,
+  // instead of "No detailed lexicon entry". Loaded only when the card lacks
+  // text: it costs a ~2s import of the whole lexicon on a phone.
+  const { bundled, isPending: isBundledPending } = useBundledLexEntry(
+    enableApi ? stubEntry.strongs : null,
+    card,
+    isApiLoading
+  );
 
   // Resolve the entry the body renders: the API card over the bundled entry
   // when present; otherwise the bundled entry, then the stub (strongs +
@@ -118,7 +106,7 @@ export function LexiconPopover({
     () => (card ? mergeLemmaCard(card, bundled, stubEntry) : (bundled ?? stubEntry)),
     [card, bundled, stubEntry]
   );
-  const isApiFetching = enableApi && !card && isApiLoading;
+  const isApiFetching = enableApi && ((!card && isApiLoading) || isBundledPending);
 
   // gorhom uses an imperative ref API for show/dismiss. Bridge it to our
   // declarative `visible` prop so the call sites in ChapterReader don't

@@ -1,6 +1,6 @@
 import type { LexEntry } from '@versemate/lexicon';
 import type { LemmaCard } from '@/hooks/use-lemma';
-import { canonicalStrongs, mergeLemmaCard } from '@/lib/lexicon/lemma-card';
+import { canonicalStrongs, cardLacksText, mergeLemmaCard } from '@/lib/lexicon/lemma-card';
 
 const STUB: LexEntry = {
   lemma: 'H5483',
@@ -80,6 +80,28 @@ describe('mergeLemmaCard', () => {
     expect(entry.basicGloss).toBe('');
     expect(entry.lemma).toBe('סוּס');
     expect(entry.related?.[0].lemma).toBe('rekhev');
+  });
+});
+
+describe('cardLacksText', () => {
+  const FULL: LemmaCard = {
+    ...BARE_CARD,
+    pos: 'Sustantivo (masc.)',
+    basic_gloss: 'caballo',
+    semantic_range: ['caballo'],
+    notes: 'Un arma de guerra.',
+  };
+
+  it('is false when the card has every prose field', () => {
+    expect(cardLacksText(FULL)).toBe(false);
+  });
+
+  it('is true when the card is bare or missing any prose field', () => {
+    expect(cardLacksText(BARE_CARD)).toBe(true);
+    expect(cardLacksText({ ...FULL, basic_gloss: null })).toBe(true);
+    expect(cardLacksText({ ...FULL, pos: '' })).toBe(true);
+    expect(cardLacksText({ ...FULL, semantic_range: [] })).toBe(true);
+    expect(cardLacksText({ ...FULL, notes: null })).toBe(true);
   });
 });
 

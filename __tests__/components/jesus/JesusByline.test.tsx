@@ -1,17 +1,15 @@
 /**
- * The By-Line tab renders its commentary OPEN.
+ * The By-Line tab renders its commentary OPEN, and folds only when the reader asks.
  *
- * The first version made every verse a collapsed accordion row, so the tab
- * arrived as a bare list of references and reading it cost one tap per verse.
- * Nobody asked for that — the reader's own By-Line tab has no toggle at all
- * (ChapterReader maps `parseByLineSections` straight into <Markdown>), and the
- * Jesus feature should not be the one place in the app where a commentary
- * arrives folded up.
+ * The first version made every verse a collapsed accordion row, so the tab arrived as a bare list of
+ * references and reading it cost one tap per verse. Then Andy asked for web's Expand All / Collapse
+ * All on the reader's By Line ("expand/contract all missing on line by line"), and this tab shares
+ * that component — so the rows can fold now, but they still arrive open.
  *
- * This pins the behaviour rather than the markup: the words are on screen
- * after a plain render, with no press.
+ * This pins the behaviour rather than the markup: the words are on screen after a plain render,
+ * with no press.
  */
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { translateFallback as mockTranslate } from '@/__tests__/mocks/i18n';
 import { JesusTabBodies } from '@/components/jesus/JesusTabBodies';
 import type { JesusEventDetail } from '@/types/jesus';
@@ -104,13 +102,30 @@ describe('By-Line tab', () => {
     expect(screen.getByText(/Mark opens at the Jordan/)).toBeTruthy();
   });
 
-  it('has no expand control to press', () => {
+  it('folds every account from Collapse All and unfolds it from Expand All', () => {
     render(<JesusTabBodies tab="byline" detail={DETAIL} />);
 
-    // The accordion this replaced; and web's Expand All, which mobile has no
-    // equivalent of elsewhere and deliberately did not copy.
-    expect(screen.queryByTestId('jesus-byline-expand-all')).toBeNull();
-    expect(screen.queryByRole('button', { name: /expand|collapse/i })).toBeNull();
+    fireEvent.press(screen.getByTestId('jesus-byline-toggle-all'));
+    expect(screen.queryByText(/He comes to be baptised/)).toBeNull();
+    expect(screen.queryByText(/Mark opens at the Jordan/)).toBeNull();
+    // The references stay, so a folded tab is still a list to pick from.
+    expect(screen.getByText('Matthew 3:13')).toBeTruthy();
+    expect(screen.getByText('Expand All')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('jesus-byline-toggle-all'));
+    expect(screen.getByText(/He comes to be baptised/)).toBeTruthy();
+    expect(screen.getByText(/Mark opens at the Jordan/)).toBeTruthy();
+    expect(screen.getByText('Collapse All')).toBeTruthy();
+  });
+
+  it('folds one verse from its reference and leaves the rest open', () => {
+    render(<JesusTabBodies tab="byline" detail={DETAIL} />);
+
+    fireEvent.press(screen.getByTestId('jesus-byline-row-40-3-13-toggle'));
+    expect(screen.queryByText(/He comes to be baptised/)).toBeNull();
+    expect(screen.getByText(/John protests the order of it/)).toBeTruthy();
+    // Something is folded, so the control offers to expand.
+    expect(screen.getByText('Expand All')).toBeTruthy();
   });
 
   it('keeps each account’s rows to the verses the event spans', () => {

@@ -35,12 +35,18 @@ import {
   View,
 } from 'react-native';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import {
+  ByLineSection,
+  ByLineToggleAll,
+  useByLineExpansion,
+} from '@/components/bible/ByLineSections';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { createInsightMarkdownStyles as createMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
@@ -353,6 +359,8 @@ export function ChapterReader({
     () => createMarkdownStyles(colors, userFontSize),
     [colors, userFontSize]
   );
+  // Which By Line verses are folded; a new chapter opens with all of them unfolded.
+  const byLineExpansion = useByLineExpansion(`${chapter.bookId}:${chapter.chapterNumber}`);
 
   // Use Bible Interaction Context for highlights and interactions
   const {
@@ -416,6 +424,19 @@ export function ChapterReader({
     token: AlignedToken;
     isTheme: boolean;
   } | null>(null);
+
+  /**
+   * A tapped word with no lexicon entry, shown in the English dictionary sheet.
+   *
+   * Andy (App Store build): "expand the definitions to all words". The lexicon only knows the words
+   * its Greek/Hebrew alignment matched — about half to four fifths of a chapter's English (it was
+   * aligned against a different translation, so "prudent", "punishment" and most small words are
+   * missing). Every other word now opens Easton's / Strong's / Webster's, which ship with the app and
+   * so work offline too.
+   */
+  const [wordToDefine, setWordToDefine] = useState<{ word: string; verseNumber: number } | null>(
+    null
+  );
 
   // Line layout information for paragraph groups (for accurate tap detection)
   const paragraphLineLayoutsRef = useRef<
@@ -1023,6 +1044,7 @@ export function ChapterReader({
                         onLexiconWordPress={handleLexiconWordPress}
                         onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
                         onVerseTap={handleVerseTap}
+                        onWordPress={setWordToDefine}
                         redLetterVerses={redLetterVerses}
                         showLexUnderlines={showLexUnderlines}
                         style={styles.verseTextParagraph}
@@ -1253,16 +1275,28 @@ export function ChapterReader({
                     typeof maxBylineSections === 'number' && maxBylineSections < sections.length
                       ? sections.slice(0, Math.max(1, maxBylineSections))
                       : sections;
-                  return visible.map((section, index) => (
-                    <View
-                      key={`byline-section-${section.verseNumber}-${index}`}
-                      ref={(node) => onByLineSectionRegister(section.verseNumber, node)}
-                      testID={`byline-verse-section-${section.verseNumber}`}
-                      collapsable={false}
-                    >
-                      <Markdown style={markdownStyles}>{section.markdown}</Markdown>
-                    </View>
-                  ));
+                  const sectionId = (section: (typeof sections)[number], index: number) =>
+                    `${section.verseNumber}-${index}`;
+                  return (
+                    <>
+                      <ByLineToggleAll
+                        allOpen={byLineExpansion.allOpen}
+                        onPress={() => byLineExpansion.setAll(!byLineExpansion.allOpen)}
+                        testID="byline-toggle-all"
+                      />
+                      {visible.map((section, index) => (
+                        <ByLineSection
+                          key={`byline-section-${section.verseNumber}-${index}`}
+                          markdown={section.markdown}
+                          open={byLineExpansion.isOpen(sectionId(section, index))}
+                          onToggle={() => byLineExpansion.toggle(sectionId(section, index))}
+                          markdownStyles={markdownStyles}
+                          sectionRef={(node) => onByLineSectionRegister(section.verseNumber, node)}
+                          testID={`byline-verse-section-${section.verseNumber}`}
+                        />
+                      ))}
+                    </>
+                  );
                 })()
               ) : (
                 <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>
@@ -1285,11 +1319,8 @@ export function ChapterReader({
         onClose={() => setErrorModalVisible(false)}
       />
 
-      {/* Lexicon Popover — opens on tap of a dotted-underlined word.
-          Long-press is now reserved for native text selection; the legacy
-          Easton/Strong/Webster WordDefinitionTooltip is no longer wired
-          into the Bible reader (it still serves BibleExplanationsPanel
-          and topic surfaces, which keep the long-press → dictionary flow). */}
+      {/* Lexicon Popover — opens on tap of a word with a Greek/Hebrew entry.
+          Long-press is reserved for native text selection. */}
       {lexiconActive && (
         <LexiconPopover
           visible={true}
@@ -1299,6 +1330,18 @@ export function ChapterReader({
           token={lexiconActive.token}
           isTheme={lexiconActive.isTheme}
           apiLang={lemmaApiLang}
+        />
+      )}
+
+      {/* Every other word: the English dictionary (see `wordToDefine`). */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={true}
+          word={wordToDefine.word}
+          bookName={chapter.bookName}
+          chapterNumber={chapter.chapterNumber}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={() => setWordToDefine(null)}
         />
       )}
     </View>
