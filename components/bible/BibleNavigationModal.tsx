@@ -19,6 +19,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { type BibleReference, ReferenceParser } from '@versemate/bible-search';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -70,7 +71,6 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { analytics } from '@/lib/analytics';
 import { AnalyticsEvent } from '@/lib/analytics/types';
-import { type BibleReference, ReferenceParser } from '@/lib/bible-search/reference-parser';
 import type { VerseSearchResult } from '@/lib/bible-search/types';
 import { useBibleTestaments } from '@/src/api';
 import {
