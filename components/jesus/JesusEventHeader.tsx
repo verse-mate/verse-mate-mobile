@@ -56,7 +56,8 @@ export function JesusEventHeader({
   view?: JesusEventView;
   onTitlePress: () => void;
   onViewChange?: (view: JesusEventView) => void;
-  onMenuPress: () => void;
+  /** Omit when the menu lives elsewhere (the insight pane, in split view). */
+  onMenuPress?: () => void;
   onBack?: () => void;
   backTestID?: string;
   titleTestID?: string;
@@ -169,14 +170,17 @@ export function JesusEventHeader({
             ))}
           </View>
         ) : null}
-        <Pressable
-          onPress={onMenuPress}
-          style={styles.iconButton}
-          testID="hamburger-menu-button"
-          accessibilityRole="button"
-        >
-          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
-        </Pressable>
+        {onMenuPress ? (
+          <Pressable
+            onPress={onMenuPress}
+            style={styles.iconButton}
+            testID="hamburger-menu-button"
+            accessibilityLabel="Open menu"
+            accessibilityRole="button"
+          >
+            <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

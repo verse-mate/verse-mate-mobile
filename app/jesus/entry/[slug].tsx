@@ -128,11 +128,12 @@ function createStyles(colors: Colors) {
       textTransform: 'uppercase',
       color: colors.gold,
     },
+    // The event title's size — an entry heads its page the same way.
     title: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xs,
-      fontSize: fontSizes.heading2,
-      fontWeight: fontWeights.medium,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
       color: colors.textPrimary,
     },
     quoteCard: {
@@ -148,9 +149,9 @@ function createStyles(colors: Colors) {
     reference: { fontSize: fontSizes.caption, color: colors.textTertiary, marginTop: spacing.xs },
     summary: {
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      fontSize: fontSizes.body,
-      lineHeight: 24,
+      paddingTop: spacing.sm,
+      fontSize: fontSizes.bodySmall,
+      lineHeight: 21,
       color: colors.textSecondary,
     },
     pillRow: {

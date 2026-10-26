@@ -84,6 +84,7 @@ export function JesusChrome({
   titleTestID,
   view,
   onViewChange,
+  showMenu = true,
 }: {
   title: string;
   /** The header's second line — the Bible version, where there is scripture. */
@@ -94,6 +95,8 @@ export function JesusChrome({
   titleTestID?: string;
   view?: JesusEventView;
   onViewChange?: (view: JesusEventView) => void;
+  /** False in split view, where the menu sits in the insight pane as in the reader. */
+  showMenu?: boolean;
 }) {
   const treeBack = useJesusBack();
   const [navOpen, setNavOpen] = useState(false);
@@ -107,7 +110,7 @@ export function JesusChrome({
         view={view}
         onViewChange={onViewChange}
         onTitlePress={() => setNavOpen(true)}
-        onMenuPress={() => setMenuOpen(true)}
+        onMenuPress={showMenu ? () => setMenuOpen(true) : undefined}
         onBack={onBack ?? treeBack}
         backTestID={backTestID}
         titleTestID={titleTestID}
