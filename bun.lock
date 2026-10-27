@@ -20,7 +20,7 @@
         "@types/semver": "^7.7.1",
         "@versemate/bible-search": "github:verse-mate/verse-mate-bible-search#077f4e61bb92324c693b5de03ed30e90d35ed77a",
         "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
-        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#1cff387",
+        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#02cf4c6",
         "@versemate/red-letter": "github:verse-mate/verse-mate-red-letter#650d08c",
         "@versemate/studies": "github:verse-mate/verse-mate-studies#b91fa3ca9bbdaf0ccf27d290ebba2b7ff68f593f",
         "@versemate/visuals": "github:verse-mate/verse-mate-visuals#6e8a427",
@@ -852,7 +852,7 @@
 
     "@versemate/dotted-underline-text": ["@versemate/dotted-underline-text@file:modules/dotted-underline-text", {}],
 
-    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#1cff387", {}, "verse-mate-verse-mate-lexicon-1cff387"],
+    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#02cf4c6", {}, "verse-mate-verse-mate-lexicon-02cf4c6"],
 
     "@versemate/red-letter": ["@versemate/red-letter@github:verse-mate/verse-mate-red-letter#650d08c", {}, "verse-mate-verse-mate-red-letter-650d08c"],
 
