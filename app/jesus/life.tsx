@@ -150,11 +150,12 @@ function createStyles(colors: Colors) {
       paddingTop: spacing.xl,
       paddingBottom: spacing.sm,
     },
+    // The app's list label: small grey caps (see SectionHeading).
     periodTitle: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: fontSizes.caption,
       fontWeight: fontWeights.semibold,
-      color: colors.gold,
-      letterSpacing: 1,
+      color: colors.textSecondary,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
     },
     periodSubtitle: {

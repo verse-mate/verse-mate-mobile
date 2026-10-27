@@ -47,7 +47,8 @@ export default function JesusThemeScreen() {
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
-        title={theme?.name ?? ''}
+        // "Jesus" until the theme's name arrives, rather than an empty title bar.
+        title={theme?.name ?? t('jesus.hub.title', 'Jesus')}
         backTestID="jesus-list-back-button"
         titleTestID="jesus-list-title"
       />

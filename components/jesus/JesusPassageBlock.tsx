@@ -169,6 +169,7 @@ export function JesusPassageBlock({
         testID={`jesus-passage-reference-${passage.display}`}
         accessibilityRole="button"
         accessibilityLabel={passage.display}
+        hitSlop={8}
       >
         <Ionicons name="book-outline" size={13} color={colors.textSecondary} />
         <Text style={styles.pillText}>{passage.display}</Text>
@@ -273,6 +274,8 @@ function createStyles(colors: Colors, fontSize: number) {
       alignItems: 'center',
       gap: spacing.xs,
       alignSelf: 'flex-start',
+      // WCAG 2.2's 24px target floor (the caption line alone made it 23).
+      minHeight: 24,
       paddingVertical: spacing.xs,
       paddingHorizontal: spacing.sm,
       borderRadius: radii.full,
