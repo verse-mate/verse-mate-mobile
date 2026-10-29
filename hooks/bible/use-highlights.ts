@@ -321,7 +321,16 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       if (!fn) throw new Error('Mutation function missing');
 
       // biome-ignore lint/suspicious/noExplicitAny: context required by type
-      return fn(variables, undefined as any);
+      const result = await fn(variables, undefined as any);
+      // The backend refuses a highlight with HTTP 200 and `success: false` (an overlap, an invalid
+      // range). Returning that as success left the optimistic highlight on screen until the next
+      // refetch silently removed it — "not saved properly sometimes". It is a failure: throw, so
+      // onError rolls back and says so.
+      const refused = result as { success?: boolean; error?: string } | undefined;
+      if (refused && refused.success === false) {
+        throw new Error(refused.error || 'Highlight was not saved');
+      }
+      return result;
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
@@ -337,6 +346,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         );
 
       // Optimistically update to the new value
+      let optimisticId: number | null = null;
       if (variables.body) {
         const {
           book_id,
@@ -350,8 +360,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         } = variables.body;
 
         // Create optimistic highlight (highlight_id will be set by server)
+        optimisticId = Date.now();
         const optimisticHighlight: Highlight = {
-          highlight_id: Date.now(), // Temporary ID
+          highlight_id: optimisticId, // Temporary ID
           user_id: variables.body.user_id,
           chapter_id: book_id * 1000 + chapter_number, // Approximate chapter_id
           book_id,
@@ -390,7 +401,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       }
 
       // Return context for rollback
-      return { previousAllHighlights, previousChapterHighlights };
+      return { previousAllHighlights, previousChapterHighlights, optimisticId };
     },
     onError: (error, _variables, context) => {
       // Rollback to previous state on error (especially overlap errors)
@@ -406,7 +417,19 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Re-throw error for component to handle (especially overlap errors)
       throw error;
     },
-    onSuccess: async (data, variables) => {
+    onSuccess: async (data, variables, context) => {
+      // Highlights the server folded into this one (an overlapping word-level highlight is merged
+      // into the new one). Gone on the server, so gone here too.
+      const mergedIds = new Set<number>(
+        ((data as { merged_highlight_ids?: number[] })?.merged_highlight_ids ?? []).filter(
+          (id): id is number => typeof id === 'number'
+        )
+      );
+      // Replace the optimistic entry BY ITS ID. Matching on start/end verse (what this did) also
+      // replaced every other highlight in that verse range with the new one, so two word-level
+      // highlights in one verse showed as one until a refetch.
+      const isReplaced = (h: Highlight) =>
+        h.highlight_id === context?.optimisticId || mergedIds.has(h.highlight_id);
       try {
         // Track analytics: HIGHLIGHT_CREATED event
         if (variables.body) {
@@ -425,7 +448,12 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
             queryClient.getQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey);
           if (allCache) {
             queryClient.setQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey, {
-              highlights: [...allCache.highlights, serverHighlight],
+              highlights: [
+                ...allCache.highlights.filter(
+                  (h) => !isReplaced(h) && h.highlight_id !== serverHighlight.highlight_id
+                ),
+                serverHighlight,
+              ],
             });
           }
 
@@ -439,15 +467,12 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
               queryClient.setQueryData<GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse>(
                 chapterHighlightsQueryKey,
                 {
-                  highlights: chapterCache.highlights.map((h) =>
-                    h.highlight_id === serverHighlight.highlight_id ||
-                    (h.start_verse === serverHighlight.start_verse &&
-                      h.end_verse === serverHighlight.end_verse &&
-                      h.book_id === serverHighlight.book_id &&
-                      h.chapter_number === serverHighlight.chapter_number)
-                      ? serverHighlight
-                      : h
-                  ),
+                  highlights: [
+                    ...chapterCache.highlights.filter(
+                      (h) => !isReplaced(h) && h.highlight_id !== serverHighlight.highlight_id
+                    ),
+                    serverHighlight,
+                  ],
                 }
               );
             }
@@ -478,6 +503,13 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
             });
           } catch (e) {
             console.warn('[highlights] local mirror after add failed:', e);
+          }
+          for (const id of mergedIds) {
+            try {
+              await deleteLocalHighlight(id);
+            } catch (e) {
+              console.warn('[highlights] local delete of merged highlight failed:', e);
+            }
           }
         }
         queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
