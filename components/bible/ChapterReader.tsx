@@ -24,6 +24,7 @@
 import { type AlignedToken, type LexEntry, lookupLemma } from '@versemate/lexicon';
 import { getRedLetterVerses } from '@versemate/red-letter';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
@@ -60,7 +61,7 @@ import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
-import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
+import { type VerseSelection, verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import { calculateBreakPoints } from '@/lib/text/paragraph-breaks';
@@ -369,7 +370,16 @@ export function ChapterReader({
     openVerseTooltip,
     openAutoHighlightTooltip,
     openHighlightEditMenu,
+    openHighlightSelection,
   } = useBibleInteraction();
+  const { t } = useTranslation();
+  const selectionLabels = useMemo(
+    () => ({
+      highlight: t('chapter_reader.selection_highlight', 'Highlight'),
+      define: t('chapter_reader.selection_define', 'Define'),
+    }),
+    [t]
+  );
 
   // Use filtered highlights if provided, otherwise use context highlights
   const chapterHighlights = filteredHighlights ?? contextHighlights;
@@ -839,13 +849,32 @@ export function ChapterReader({
   };
 
   /**
-   * Handle a tap on a verse number, which is the only way into a verse insight.
+   * A tap on a verse opens its insight: on the number, or anywhere in its text (Andy: "press the
+   * verse once for the insight" — clicking the numbers alone was not intuitive).
    */
-  const handleVerseTap = (verseNumber: number) => {
+  const handleVerseTap = (verseNumber: number, via: 'number' | 'text' = 'number') => {
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === verseNumber);
-    openVerseTooltip(verseNumber, null, verse?.text, 'verse_number');
+    openVerseTooltip(
+      verseNumber,
+      null,
+      verse?.text,
+      via === 'text' ? 'verse_text' : 'verse_number'
+    );
+  };
+
+  /** Highlight from the selection menu: the colour sheet, for exactly the selected words. */
+  const handleHighlightSelection = (selection: VerseSelection) => {
+    openHighlightSelection(
+      {
+        start: selection.startVerse,
+        end: selection.endVerse,
+        startChar: selection.startChar,
+        endChar: selection.endChar,
+      },
+      selection.text
+    );
   };
 
   /**
@@ -1041,10 +1070,12 @@ export function ChapterReader({
                         isVisible={groupLayout?.visible ?? true}
                         onAutoHighlightPress={handleAutoHighlightPress}
                         onHighlightTap={handleHighlightTap}
+                        onHighlightSelection={handleHighlightSelection}
                         onLexiconWordPress={handleLexiconWordPress}
                         onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
                         onVerseTap={handleVerseTap}
                         onWordPress={setWordToDefine}
+                        selectionLabels={selectionLabels}
                         redLetterVerses={redLetterVerses}
                         showLexUnderlines={showLexUnderlines}
                         style={styles.verseTextParagraph}

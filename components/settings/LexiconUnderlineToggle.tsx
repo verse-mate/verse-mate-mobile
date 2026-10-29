@@ -2,7 +2,7 @@
  * Lexicon Underline Toggle
  *
  * Lets the reader turn the gold underline under definable (lexicon) words on
- * or off (MOBILE-1001 #7). Words stay tappable for definitions either way —
+ * or off (MOBILE-1001 #7). Every word can be defined either way (hold it, then Define) —
  * this only controls the visual hint.
  *
  * Follows the same section pattern as FontSizeSelector / ThemeSelector.
@@ -35,8 +35,8 @@ export function LexiconUnderlineToggle() {
           <View style={styles.textColumn}>
             <Text style={styles.label}>Underline definable words</Text>
             <Text style={styles.helpText}>
-              Show a gold underline under words with a Greek or Hebrew entry. Every word opens its
-              definition when tapped either way.
+              Show a gold underline under words with a Greek or Hebrew entry. Either way, hold any
+              word and tap Define to see its definition.
             </Text>
           </View>
           <Switch

@@ -98,7 +98,9 @@
     "no_translation_available": "Showing English (no translation available)",
     "offline_indicator": "Offline — showing cached content",
     "expand_all": "Expand All",
-    "collapse_all": "Collapse All"
+    "collapse_all": "Collapse All",
+    "selection_highlight": "Highlight",
+    "selection_define": "Define"
   },
   "bookmarks": {
     "title": "Bookmarks",
@@ -111,12 +113,13 @@
   },
   "highlights": {
     "title": "Highlights",
-    "empty": "No highlights yet. Long-press a verse and pick a color.",
+    "empty": "No highlights yet. Hold a word, drag over the text and tap Highlight.",
     "empty_title": "No highlights yet",
     "empty_subtitle": "Start highlighting verses to see them here.",
     "auto_highlights": "Auto-Highlights",
     "my_highlights": "My Highlights",
-    "remove_confirm": "Remove this highlight?"
+    "remove_confirm": "Remove this highlight?",
+    "sign_in_to_save": "Sign in to save highlights"
   },
   "notes": {
     "title": "Notes",

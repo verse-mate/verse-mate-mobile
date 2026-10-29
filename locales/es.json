@@ -98,7 +98,9 @@
     "no_translation_available": "Mostrando en inglés (traducción no disponible)",
     "offline_indicator": "Sin conexión — mostrando contenido en caché",
     "expand_all": "Expandir todo",
-    "collapse_all": "Contraer todo"
+    "collapse_all": "Contraer todo",
+    "selection_highlight": "Resaltar",
+    "selection_define": "Definir"
   },
   "bookmarks": {
     "title": "Marcadores",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Comienza a resaltar versículos para verlos aquí.",
     "auto_highlights": "Resaltados automáticos",
     "my_highlights": "Mis resaltados",
-    "remove_confirm": "¿Eliminar este resaltado?"
+    "remove_confirm": "¿Eliminar este resaltado?",
+    "sign_in_to_save": "Inicia sesión para guardar resaltados"
   },
   "notes": {
     "title": "Notas",

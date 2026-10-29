@@ -152,6 +152,10 @@ export function JesusPassageBlock({
     }),
     [mode, colors.gold, fontSize]
   );
+  const defineLabel = useMemo(
+    () => ({ define: t('chapter_reader.selection_define', 'Define') }),
+    [t]
+  );
   const openVerse = (verseNumber: number) => {
     if (interaction) {
       const verse = verses.find((v) => v.verse_number === verseNumber);
@@ -189,6 +193,9 @@ export function JesusPassageBlock({
                       onLexiconWordPress={openLexicon}
                       onVerseTap={openVerse}
                       onWordPress={setWordToDefine}
+                      // Define only: these passages span other chapters, and highlights are kept
+                      // per chapter in the reader.
+                      selectionLabels={defineLabel}
                       showLexUnderlines={showUnderlines}
                       style={styles.paragraph}
                       theme={textTheme}

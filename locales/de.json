@@ -98,7 +98,9 @@
     "no_translation_available": "Englisch wird angezeigt (keine Übersetzung verfügbar)",
     "offline_indicator": "Offline — zwischengespeicherte Inhalte werden angezeigt",
     "expand_all": "Alle ausklappen",
-    "collapse_all": "Alle einklappen"
+    "collapse_all": "Alle einklappen",
+    "selection_highlight": "Markieren",
+    "selection_define": "Definieren"
   },
   "bookmarks": {
     "title": "Lesezeichen",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Beginne damit, Verse zu markieren, um sie hier anzuzeigen.",
     "auto_highlights": "Automatische Markierungen",
     "my_highlights": "Meine Markierungen",
-    "remove_confirm": "Diese Markierung entfernen?"
+    "remove_confirm": "Diese Markierung entfernen?",
+    "sign_in_to_save": "Melde dich an, um Markierungen zu speichern"
   },
   "notes": {
     "title": "Notizen",

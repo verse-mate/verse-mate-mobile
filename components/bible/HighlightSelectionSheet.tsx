@@ -63,6 +63,10 @@ export interface VerseRange {
   start: number;
   /** Ending verse number (same as start for single verse) */
   end: number;
+  /** Offset into the start verse's text where a word-level highlight begins. */
+  startChar?: number;
+  /** Offset into the end verse's text where it ends (exclusive). */
+  endChar?: number;
 }
 
 /**

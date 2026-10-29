@@ -93,6 +93,38 @@ final class VMTextView: ExpoView {
   private let onRangeTap = EventDispatcher()
   private let onTextLayout = EventDispatcher()
   private let onSelectionChange = EventDispatcher()
+  private let onSelectionAction = EventDispatcher()
+
+  /// The app's items in the selection menu, ahead of the system's (Copy, Look Up, …).
+  ///
+  /// Andy asked for Olive Tree's gesture: hold a word, drag to extend over a few words or a whole
+  /// verse, and act on it from the menu (Highlight, Define). UITextView already does the hold, the
+  /// drag, the handles and the loupe; this only adds entries to the menu it shows.
+  private var selectionActions: [(id: String, label: String)] = []
+
+  /// Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx).
+  func setSelectionActions(_ encoded: String?) {
+    selectionActions = (encoded ?? "")
+      .split(separator: "|", omittingEmptySubsequences: true)
+      .compactMap { chunk in
+        let parts = chunk.split(separator: "~", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        return (String(parts[0]), String(parts[1]))
+      }
+  }
+
+  /// iOS 15's menu validates the app's items up the responder chain to here (see the extension below).
+  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+    canPerformLegacyAction(action) ?? super.canPerformAction(action, withSender: sender)
+  }
+
+  /// Report a chosen menu item with the selection it applies to, then drop the selection: the app
+  /// opens its own sheet next, and handles left on the text underneath it read as still active.
+  fileprivate func dispatchSelectionAction(id: String, range: NSRange) {
+    guard range.length > 0 else { return }
+    onSelectionAction(["id": id, "start": range.location, "end": range.location + range.length])
+    textView.selectedTextRange = nil
+  }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -536,5 +568,61 @@ extension VMTextView: UITextViewDelegate {
   /// The only route by which UITextView reports a selection change — see the note in `init`.
   func textViewDidChangeSelection(_ textView: UITextView) {
     handleSelectionChanged()
+    if #unavailable(iOS 16.0) {
+      installLegacyMenuItems()
+    }
+  }
+
+  /// iOS 16+: the app's items first, then everything the system suggests (Copy, Look Up, Share…).
+  ///
+  /// `range` is the selection the menu is for, captured when the menu opens, so the action reports
+  /// exactly what the reader saw selected even if the selection moves afterwards.
+  @available(iOS 16.0, *)
+  func textView(
+    _ textView: UITextView,
+    editMenuForTextIn range: NSRange,
+    suggestedActions: [UIMenuElement]
+  ) -> UIMenu? {
+    guard !selectionActions.isEmpty, range.length > 0 else { return nil }
+    let custom = selectionActions.map { action in
+      UIAction(title: action.label) { [weak self] _ in
+        self?.dispatchSelectionAction(id: action.id, range: range)
+      }
+    }
+    return UIMenu(children: custom + suggestedActions)
+  }
+}
+
+// MARK: - Selection menu before iOS 16
+
+/// iOS 15 has no `editMenuForTextIn`; its menu is `UIMenuController`, which takes items with fixed
+/// selectors. Three slots cover the app's actions (it uses two). The text view is first responder,
+/// so UIKit validates and sends these up the responder chain to this view, its superview.
+extension VMTextView {
+  private static let legacySelectors: [Selector] = [
+    #selector(VMTextView.vmSelectionAction0),
+    #selector(VMTextView.vmSelectionAction1),
+    #selector(VMTextView.vmSelectionAction2),
+  ]
+
+  fileprivate func canPerformLegacyAction(_ action: Selector) -> Bool? {
+    guard let slot = Self.legacySelectors.firstIndex(of: action) else { return nil }
+    return slot < selectionActions.count && textView.selectedRange.length > 0
+  }
+
+  fileprivate func installLegacyMenuItems() {
+    guard textView.selectedRange.length > 0 else { return }
+    UIMenuController.shared.menuItems = zip(selectionActions, Self.legacySelectors).map {
+      UIMenuItem(title: $0.0.label, action: $0.1)
+    }
+  }
+
+  @objc fileprivate func vmSelectionAction0() { performLegacySelectionAction(0) }
+  @objc fileprivate func vmSelectionAction1() { performLegacySelectionAction(1) }
+  @objc fileprivate func vmSelectionAction2() { performLegacySelectionAction(2) }
+
+  private func performLegacySelectionAction(_ slot: Int) {
+    guard slot < selectionActions.count else { return }
+    dispatchSelectionAction(id: selectionActions[slot].id, range: textView.selectedRange)
   }
 }

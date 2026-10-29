@@ -22,10 +22,12 @@ export type {
   TextLineLayout,
   TextPressEvent,
   TextRange,
+  TextSelectionAction,
+  TextSelectionActionEvent,
   TextSelectionRange,
   UnderlineStyle,
 } from './src/types';
-export { VMText, type VMTextProps } from './src/VMText';
+export { encodeSelectionActions, VMText, type VMTextProps } from './src/VMText';
 export {
   getNativeVMTextModule,
   getNativeVMTextView,

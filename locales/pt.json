@@ -98,7 +98,9 @@
     "no_translation_available": "Exibindo em inglês (tradução não disponível)",
     "offline_indicator": "Offline — exibindo conteúdo em cache",
     "expand_all": "Expandir tudo",
-    "collapse_all": "Recolher tudo"
+    "collapse_all": "Recolher tudo",
+    "selection_highlight": "Destacar",
+    "selection_define": "Definir"
   },
   "bookmarks": {
     "title": "Favoritos",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Comece a destacar versículos para vê-los aqui.",
     "auto_highlights": "Destaques automáticos",
     "my_highlights": "Meus destaques",
-    "remove_confirm": "Remover este destaque?"
+    "remove_confirm": "Remover este destaque?",
+    "sign_in_to_save": "Entre para salvar destaques"
   },
   "notes": {
     "title": "Notas",

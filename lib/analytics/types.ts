@@ -194,6 +194,8 @@ export interface TopicSharedProperties {
 export type VersemateTooltipSource =
   /** Tapped the verse number in the Bible reader. */
   | 'verse_number'
+  /** Tapped the verse's text in the Bible reader (anywhere but the number). */
+  | 'verse_text'
   /** Tapped a highlight, opening the tooltip for its group. */
   | 'highlight'
   /** Followed a deep link or a jump, which scrolls to the verse and opens it. */

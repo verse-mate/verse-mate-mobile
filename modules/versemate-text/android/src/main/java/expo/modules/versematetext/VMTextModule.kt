@@ -149,7 +149,13 @@ class VMTextModule : Module() {
     }
 
     View(VMTextView::class) {
-      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange")
+      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange", "onSelectionAction")
+
+      // The app's selection-menu items, `id~label|id~label`. Kept out of the spec: they change
+      // nothing about layout, so they must not touch the measurement cache key.
+      Prop("selectionActions") { view: VMTextView, value: String? ->
+        view.setSelectionActions(value)
+      }
 
       // Props arrive individually from the bridge, so each setter folds its value
       // into the pending spec and the view rebuilds its layout once, lazily, on

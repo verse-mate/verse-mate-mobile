@@ -21,6 +21,7 @@ import type { VersemateTooltipSource } from '@/lib/analytics/types';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
+import { useTranslation } from 'react-i18next';
 import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 
 interface BibleInteractionContextType {
@@ -59,6 +60,7 @@ export function BibleInteractionProvider({
   const { useSplitView } = useDeviceInfo();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { t } = useTranslation();
   
   // Hooks for data
   const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
@@ -123,6 +125,11 @@ export function BibleInteractionProvider({
   };
 
   const openHighlightSelection = (range: VerseRange, text: string) => {
+    // Saving needs an account; without one the sheet would accept a colour and silently drop it.
+    if (!user) {
+      showToast(t('highlights.sign_in_to_save', 'Sign in to save highlights'));
+      return;
+    }
     setSelectionSheetState({ visible: true, range, text });
   };
 
@@ -345,6 +352,8 @@ export function BibleInteractionProvider({
                     chapterNumber,
                     startVerse: selectionSheetState.range.start,
                     endVerse: selectionSheetState.range.end,
+                    startChar: selectionSheetState.range.startChar,
+                    endChar: selectionSheetState.range.endChar,
                     color,
                     selectedText: selectionSheetState.text
                 });
