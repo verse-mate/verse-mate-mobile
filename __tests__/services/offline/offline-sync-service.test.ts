@@ -33,6 +33,7 @@ jest.mock('@/services/offline/sqlite-manager', () => ({
   deleteBibleVersion: jest.fn(),
   getAllMetadata: jest.fn(),
   getMetadata: jest.fn(),
+  settleSyncedLocalHighlight: jest.fn(),
 }));
 
 // Mock global fetch
@@ -120,6 +121,73 @@ describe('OfflineSyncService', () => {
         })
       );
       expect(sqliteManager.deleteSyncAction).toHaveBeenCalledWith(1);
+    });
+
+    describe('a highlight created offline', () => {
+      const queued = (id: number) => ({
+        id,
+        type: 'HIGHLIGHT',
+        action: 'CREATE',
+        payload: JSON.stringify({
+          user_id: 'u',
+          book_id: 10,
+          chapter_number: 9,
+          start_verse: 11,
+          end_verse: 12,
+          start_char: 90,
+          end_char: 12,
+          color: 'yellow',
+        }),
+        retry_count: 0,
+      });
+      const serverRow = {
+        highlight_id: 501,
+        book_id: 10,
+        chapter_number: 9,
+        start_verse: 11,
+        end_verse: 12,
+        start_char: 90,
+        end_char: 12,
+        color: 'yellow',
+        updated_at: '2026-10-29T00:00:00Z',
+      };
+
+      it('replaces its temporary local row and any merged ones with the server row', async () => {
+        (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue([queued(7)]);
+        (authenticatedFetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              highlight: serverRow,
+              merged_highlight_ids: [40, 41],
+            }),
+        });
+
+        const result = await syncService.processSyncQueue();
+
+        expect(sqliteManager.settleSyncedLocalHighlight).toHaveBeenCalledWith(serverRow, [40, 41]);
+        expect(sqliteManager.deleteSyncAction).toHaveBeenCalledWith(7);
+        expect(result).toEqual({ total: 1, succeeded: 1, failed: 0 });
+      });
+
+      it('counts a refusal (HTTP 200, success: false) as a failure, not a sync', async () => {
+        // Treating every 200 as synced deleted the queued highlight while the server had refused it.
+        (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue([queued(8)]);
+        (authenticatedFetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: false, error: 'Highlight overlaps' }),
+        });
+
+        const result = await syncService.processSyncQueue();
+
+        expect(sqliteManager.updateSyncActionStatus).toHaveBeenCalledWith(8, 'FAILED', 1);
+        expect(sqliteManager.deleteSyncAction).not.toHaveBeenCalled();
+        expect(sqliteManager.settleSyncedLocalHighlight).not.toHaveBeenCalled();
+        expect(result).toEqual({ total: 1, succeeded: 0, failed: 1 });
+      });
     });
 
     it('processes a pending highlight deletion', async () => {

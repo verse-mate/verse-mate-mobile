@@ -1316,6 +1316,60 @@ export async function deleteLocalHighlight(highlightId: number): Promise<void> {
   database.runSync('DELETE FROM offline_highlights WHERE highlight_id = ?', [highlightId]);
 }
 
+/**
+ * Ids at or above this were minted on the device (`Date.now()`) for a highlight made offline;
+ * server ids are a database sequence, many orders of magnitude smaller.
+ */
+export const LOCAL_TEMP_HIGHLIGHT_ID_MIN = 1_000_000_000_000;
+
+/**
+ * Settle a highlight the sync queue just created on the server.
+ *
+ * The offline add stored it under a temporary id, and the full sync only ever adds rows, so without
+ * this the device kept the temporary row next to the server's (drawn twice) and, when the server
+ * merged it with overlapping highlights, kept those too. In one transaction: drop the temporary row
+ * for this exact range, drop the merged ids, store the server's row.
+ */
+export async function settleSyncedLocalHighlight(
+  server: OfflineHighlight,
+  mergedIds: number[]
+): Promise<void> {
+  const database = await initDatabase();
+  database.withTransactionSync(() => {
+    database.runSync(
+      `DELETE FROM offline_highlights
+         WHERE highlight_id >= ? AND book_id = ? AND chapter_number = ?
+           AND start_verse = ? AND end_verse = ? AND start_char IS ? AND end_char IS ?`,
+      [
+        LOCAL_TEMP_HIGHLIGHT_ID_MIN,
+        server.book_id,
+        server.chapter_number,
+        server.start_verse,
+        server.end_verse,
+        server.start_char ?? null,
+        server.end_char ?? null,
+      ]
+    );
+    for (const id of mergedIds) {
+      database.runSync('DELETE FROM offline_highlights WHERE highlight_id = ?', [id]);
+    }
+    database.runSync(
+      'INSERT OR REPLACE INTO offline_highlights (highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        server.highlight_id,
+        server.book_id,
+        server.chapter_number,
+        server.start_verse,
+        server.end_verse,
+        server.color,
+        server.start_char ?? null,
+        server.end_char ?? null,
+        server.updated_at,
+      ]
+    );
+  });
+}
+
 export async function addLocalBookmark(bookmark: OfflineBookmark): Promise<void> {
   const database = await initDatabase();
   database.runSync(
