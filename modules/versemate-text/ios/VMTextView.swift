@@ -112,10 +112,15 @@ final class VMTextView: ExpoView {
     // assume full coverage. Either alone leaves the artifact in some compositing paths.
     backgroundColor = .clear
     isOpaque = false
+    // Any size change repaints the whole view. The default (.scaleToFill) stretches the previous
+    // backing store into the new bounds until something else asks for a redraw.
+    contentMode = .redraw
 
     textView.isEditable = false
     textView.isSelectable = true
     textView.isScrollEnabled = false
+    // After `isScrollEnabled`, which is what turns height tracking on — see `unboundContainerHeight()`.
+    unboundContainerHeight()
     textView.backgroundColor = .clear
     // Zeroed so the text's origin matches what `measure` computed. Left at their defaults, the text
     // is inset by 8pt vertically and 5pt horizontally and every measured height is short by 16pt.
@@ -164,6 +169,7 @@ final class VMTextView: ExpoView {
     let attributed = next.buildAttributedString()
     builtText = attributed
     textView.attributedText = attributed
+    unboundContainerHeight()
     // Belt and braces with `allowsNonContiguousLayout = false`: ask for the whole block up front so the
     // first paint has everything, rather than relying on the view to request it.
     textView.layoutManager.ensureLayout(for: textView.textContainer)
@@ -180,10 +186,40 @@ final class VMTextView: ExpoView {
 
   // MARK: - Layout
 
+  /**
+   Keep the text container's HEIGHT unbounded, whatever UITextView does with it.
+
+   A UITextView with scrolling off sizes its container to its own bounds (`heightTracksTextView`), and
+   TextKit lays out only the line fragments that fit in the container. This view's height comes from
+   `measureHeight` (ceil of the used rect), but Yoga then snaps the frame to the pixel grid by its
+   ABSOLUTE position, so a paragraph can end up a fraction of a point shorter than measured. The last
+   line no longer fits, is never laid out, and neither UITextView nor `draw(_:)` paints it — its words
+   and their underlines simply absent, with the space for them still there.
+
+   The most likely cause of Andy's report on App Store build 121 (2 Samuel 9:12, iPhone, dark mode):
+   "several folks seeing text 'missing' … fixes itself if you switch from dark to light and back … not
+   sure why it only happens on some lines". What the screenshots establish: the paragraph keeps the
+   space for its last line, and that line is pure page background — no glyphs in any colour and none
+   of its dotted underlines, which `draw(_:)` strokes from the same layout. So the line was never laid
+   out, not drawn in the wrong colour. Only some paragraphs, because it depends on where each lands on
+   the pixel grid; cleared by the toggle, because any re-layout moves them. The 2026-07 probe for the
+   cut-right-side bug logged `textContainer.size` equal to `bounds` on every pass. Not reproduced on a
+   simulator (that class of bug never has been), so this is a fix by mechanism, to be confirmed on
+   device.
+   */
+  private func unboundContainerHeight() {
+    let container = textView.textContainer
+    container.heightTracksTextView = false
+    if container.size.height < .greatestFiniteMagnitude {
+      container.size = CGSize(width: container.size.width, height: .greatestFiniteMagnitude)
+    }
+  }
+
   override func layoutSubviews() {
     super.layoutSubviews()
     let previousWidth = textView.frame.width
     textView.frame = bounds
+    unboundContainerHeight()
 
     // Re-lay-out on a width change. Kept because it is correct — Android reconciles the same way
     // (VMTextView.kt:117-121, "Yoga owns the width … Re-apply at the real width rather than trust it") —
