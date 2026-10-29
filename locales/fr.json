@@ -98,7 +98,9 @@
     "no_translation_available": "Affichage en anglais (aucune traduction disponible)",
     "offline_indicator": "Hors ligne — affichage du contenu mis en cache",
     "expand_all": "Tout développer",
-    "collapse_all": "Tout réduire"
+    "collapse_all": "Tout réduire",
+    "selection_highlight": "Surligner",
+    "selection_define": "Définir"
   },
   "bookmarks": {
     "title": "Signets",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Commencez à surligner des versets pour les voir ici.",
     "auto_highlights": "Surlignages automatiques",
     "my_highlights": "Mes surlignages",
-    "remove_confirm": "Supprimer ce surlignage ?"
+    "remove_confirm": "Supprimer ce surlignage ?",
+    "sign_in_to_save": "Connectez-vous pour enregistrer vos surlignages"
   },
   "notes": {
     "title": "Notes",
@@ -308,6 +311,27 @@
     "topics": "Thèmes",
     "searchJesus": "Rechercher Ses paroles et Ses actes...",
     "filterTopics": "Filtrer les thèmes...",
-    "filterBooks": "Filtrer les livres..."
+    "filterBooks": "Filtrer les livres...",
+    "searchBible": "Rechercher des versets ou aller à Jean 3:16"
+  },
+  "search": {
+    "searching": "Recherche…",
+    "unavailable": "La recherche est indisponible pour le moment. Réessayez dans un instant.",
+    "offlineNoDownload": "Vous êtes hors ligne. Téléchargez cette traduction pour y chercher sans connexion.",
+    "noVerses": "Aucun verset ne correspond à « {{query}} ». Essayez moins de mots ou vérifiez l’orthographe.",
+    "exactPhrase": "Expression exacte",
+    "allWords": "Tous les mots",
+    "otherForms": "Autres formes du mot",
+    "books": "LIVRES",
+    "verses": "VERSETS",
+    "back": "Retour à la navigation",
+    "goTo": "Aller à",
+    "loading": "Chargement…",
+    "loadMore": "Charger plus",
+    "verseCount": "{{count}} versets",
+    "all": "Tous",
+    "oldTestament": "Ancien Testament",
+    "newTestament": "Nouveau Testament",
+    "offlineNote": "Hors ligne : mots exacts dans les versets de cet appareil, dans l’ordre biblique."
   }
 }

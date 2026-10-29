@@ -27,13 +27,20 @@ import {
   measureTextHeight,
   type TextLineLayout,
   type TextPressEvent,
+  type TextSelectionActionEvent,
   type TextSelectionRange,
   VMText,
 } from '@/modules/versemate-text';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
-import { compileParagraph, verseAtOffset, verseNumberNearOffset } from './compile-paragraph';
+import {
+  compileParagraph,
+  type VerseSelection,
+  verseAtOffset,
+  verseNumberNearOffset,
+  verseSelectionFromOffsets,
+} from './compile-paragraph';
 import type { CompiledParagraph, ParagraphInput } from './types';
 import { wordAtOffset } from './word-at-offset';
 
@@ -44,7 +51,8 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   width: number;
   /** Base text style. Font attributes are forwarded to the native view. */
   style?: TextStyle | TextStyle[];
-  onVerseTap?: (verseNumber: number) => void;
+  /** `via` says whether the verse number or the verse's text was tapped, for analytics. */
+  onVerseTap?: (verseNumber: number, via: 'number' | 'text') => void;
   onHighlightTap?: (highlightId: number) => void;
   onAutoHighlightPress?: (autoHighlight: AutoHighlight) => void;
   onLexiconWordPress?: (args: {
@@ -54,14 +62,24 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
     isTheme: boolean;
   }) => void;
   /**
-   * A tap on a word that has no lexicon entry, with the word and its verse.
+   * Define a word that has no lexicon entry: its English dictionary card.
    *
-   * Andy (App Store build): "now that we moved the verse insight — let's expand the definitions to
-   * all words". The verse insight lives on the number, so a tap on plain text is free to mean
-   * "define this"; lexicon words still open their Greek/Hebrew card through `onLexiconWordPress`,
-   * and every other word comes here for the English dictionary.
+   * Reached from the selection menu's Define, like `onLexiconWordPress` for a word that has a
+   * Greek/Hebrew entry. A tap no longer defines: Andy moved Verse Insight back onto the whole verse
+   * ("press the verse once for the insight", web #313), so a tap anywhere in a verse opens it.
    */
   onWordPress?: (args: { word: string; verseNumber: number }) => void;
+  /**
+   * Highlight what the reader selected, from the selection menu's Highlight.
+   *
+   * Andy's Olive Tree gesture: hold a word, drag over a few words or the whole verse, Highlight.
+   */
+  onHighlightSelection?: (selection: VerseSelection) => void;
+  /**
+   * Localised menu labels for the selection actions. An action is offered only when its label and
+   * its handler are both given.
+   */
+  selectionLabels?: { highlight?: string; define?: string };
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
   /**
@@ -121,6 +139,8 @@ export function ParagraphText(props: ParagraphTextProps) {
     onAutoHighlightPress,
     onLexiconWordPress,
     onWordPress,
+    onHighlightSelection,
+    selectionLabels,
     onTextLayout,
     onSelectionChange,
     isVisible = true,
@@ -266,21 +286,18 @@ export function ParagraphText(props: ParagraphTextProps) {
       if (onVerseTap && target.kind !== 'verseNumber') {
         const nearNumber = verseNumberNearOffset(compiled, charOffset, lineOf);
         if (nearNumber !== null) {
-          onVerseTap(nearNumber);
+          onVerseTap(nearNumber, 'number');
           return;
         }
       }
       switch (target.kind) {
         case 'verseNumber':
-          onVerseTap?.(target.verseNumber);
+          onVerseTap?.(target.verseNumber, 'number');
           break;
         case 'lexicon':
-          onLexiconWordPress?.({
-            surface: target.surface,
-            token: target.token,
-            entry: target.entry,
-            isTheme: target.isTheme,
-          });
+          // A word is part of its verse: the tap opens the verse. Its definition is a hold away
+          // (selection menu, Define).
+          onVerseTap?.(target.verseNumber, 'text');
           break;
         case 'highlight':
           onHighlightTap?.(target.highlightId);
@@ -290,33 +307,79 @@ export function ParagraphText(props: ParagraphTextProps) {
           break;
       }
     },
-    [compiled, lineOf, onVerseTap, onLexiconWordPress, onHighlightTap, onAutoHighlightPress]
+    [compiled, lineOf, onVerseTap, onHighlightTap, onAutoHighlightPress]
   );
 
   /**
-   * A tap that hit no interactive range.
+   * A tap that hit no interactive range opens the verse it landed in.
    *
-   * A finger that landed just beside a verse number meant the number (`verseNumberNearOffset`) —
-   * checked first, so the larger target Andy asked for wins over the word it overlaps. Otherwise it
-   * is a tap on a word, which opens that word's definition.
+   * A finger just beside a verse number meant that number's verse (`verseNumberNearOffset`), which
+   * is checked first: the joining space before a number otherwise belongs to the verse before it.
    */
   const handlePress = useCallback(
     (event: TextPressEvent) => {
-      const nearNumber = onVerseTap
-        ? verseNumberNearOffset(compiled, event.charOffset, lineOf)
-        : null;
+      if (!onVerseTap) return;
+      const nearNumber = verseNumberNearOffset(compiled, event.charOffset, lineOf);
       if (nearNumber !== null) {
-        onVerseTap?.(nearNumber);
+        onVerseTap(nearNumber, 'number');
         return;
       }
-      if (!onWordPress) return;
-      const { word } = wordAtOffset(compiled.text, event.charOffset);
       const verseNumber = verseAtOffset(compiled, event.charOffset);
-      // Whitespace, or digits only (a tap beside a number that is not a verse): nothing to define.
-      if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
-      onWordPress({ word, verseNumber });
+      if (verseNumber !== null) onVerseTap(verseNumber, 'text');
     },
-    [compiled, lineOf, onVerseTap, onWordPress]
+    [compiled, lineOf, onVerseTap]
+  );
+
+  const canDefine = !!(onWordPress || onLexiconWordPress);
+  const selectionActions = useMemo(() => {
+    const actions: { id: string; label: string }[] = [];
+    if (onHighlightSelection && selectionLabels?.highlight) {
+      actions.push({ id: 'highlight', label: selectionLabels.highlight });
+    }
+    if (canDefine && selectionLabels?.define) {
+      actions.push({ id: 'define', label: selectionLabels.define });
+    }
+    return actions;
+  }, [onHighlightSelection, canDefine, selectionLabels?.highlight, selectionLabels?.define]);
+
+  /**
+   * Highlight / Define from the selection menu.
+   *
+   * Define acts on the word the selection starts in: a hold selects one word, so that is the word
+   * the reader pressed. A Greek/Hebrew lexicon match there wins over the English dictionary, as a
+   * tap on it used to.
+   */
+  const handleSelectionAction = useCallback(
+    ({ id, start, end }: TextSelectionActionEvent) => {
+      if (id === 'highlight') {
+        const selection = verseSelectionFromOffsets(compiled, start, end);
+        if (selection) onHighlightSelection?.(selection);
+        return;
+      }
+      if (id !== 'define') return;
+      // First letter at or after the start, so a selection that began on a space still finds it.
+      let offset = start;
+      while (offset < end && /\s/.test(compiled.text[offset] ?? '')) offset++;
+      for (let i = compiled.ranges.length - 1; i >= 0; i--) {
+        const target = compiled.targets[i];
+        const range = compiled.ranges[i];
+        if (target?.kind === 'lexicon' && offset >= range.start && offset < range.end) {
+          onLexiconWordPress?.({
+            surface: target.surface,
+            token: target.token,
+            entry: target.entry,
+            isTheme: target.isTheme,
+          });
+          return;
+        }
+      }
+      const { word } = wordAtOffset(compiled.text, offset);
+      const verseNumber = verseAtOffset(compiled, offset);
+      // Whitespace, or digits only (a verse number): nothing to define.
+      if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
+      onWordPress?.({ word, verseNumber });
+    },
+    [compiled, onHighlightSelection, onLexiconWordPress, onWordPress]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph
@@ -338,9 +401,11 @@ export function ParagraphText(props: ParagraphTextProps) {
   return (
     <VMText
       height={height ?? undefined}
-      onPress={onVerseTap || onWordPress ? handlePress : undefined}
+      onPress={onVerseTap ? handlePress : undefined}
       onRangeTap={handleRangeTap}
+      onSelectionAction={selectionActions.length > 0 ? handleSelectionAction : undefined}
       onSelectionChange={onSelectionChange}
+      selectionActions={selectionActions}
       onTextLayout={handleTextLayout}
       ranges={compiled.ranges}
       style={style}

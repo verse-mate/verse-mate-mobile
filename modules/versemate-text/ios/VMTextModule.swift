@@ -177,7 +177,13 @@ public class VMTextModule: Module {
     }
 
     View(VMTextView.self) {
-      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange")
+      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange", "onSelectionAction")
+
+      /// The app's selection-menu items, `id~label|id~label`. Not part of the spec: they change
+      /// nothing about layout, so they must not touch the measurement cache key.
+      Prop("selectionActions") { (view: VMTextView, value: String?) in
+        view.setSelectionActions(value)
+      }
 
       Prop("text") { (view: VMTextView, value: String?) in
         view.updateSpec { $0.text = value ?? "" }

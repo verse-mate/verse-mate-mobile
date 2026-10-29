@@ -74,6 +74,12 @@ export enum AnalyticsEvent {
   NOTIFICATION_ENABLED = 'NOTIFICATION_ENABLED',
   NOTIFICATION_DISABLED = 'NOTIFICATION_DISABLED',
   NOTIFICATION_PERMISSION_DENIED = 'NOTIFICATION_PERMISSION_DENIED',
+
+  // Bible search (same event names as verse-mate-web, so one dashboard reads both)
+  BIBLE_SEARCH = 'bible_search',
+  BIBLE_SEARCH_NO_RESULTS = 'bible_search_no_results',
+  BIBLE_SEARCH_RESULT_CLICK = 'bible_search_result_click',
+  BIBLE_SEARCH_GO_TO = 'bible_search_go_to',
 }
 
 // ============================================================================
@@ -188,6 +194,8 @@ export interface TopicSharedProperties {
 export type VersemateTooltipSource =
   /** Tapped the verse number in the Bible reader. */
   | 'verse_number'
+  /** Tapped the verse's text in the Bible reader (anywhere but the number). */
+  | 'verse_text'
   /** Tapped a highlight, opening the tooltip for its group. */
   | 'highlight'
   /** Followed a deep link or a jump, which scrolls to the verse and opens it. */
@@ -407,6 +415,26 @@ export type NotificationDisabledProperties = Record<string, never>;
 export type NotificationPermissionDeniedProperties = Record<string, never>;
 
 /**
+ * Bible search events carry counts only, never the search text: whether raw
+ * queries may be recorded is still an open question for the team.
+ */
+export interface BibleSearchProperties {
+  version: string;
+  word_count: number;
+  exact_count: number;
+  words_count: number;
+  /** 'offline' when the on-device index answered. */
+  source: 'online' | 'offline';
+}
+export interface BibleSearchResultClickProperties {
+  match: 'exact' | 'words';
+  position: number;
+}
+export interface BibleSearchGoToProperties {
+  kind: 'verse' | 'chapter';
+}
+
+/**
  * Maps each AnalyticsEvent to its corresponding properties type
  * Enables type-safe tracking calls
  */
@@ -458,6 +486,11 @@ export interface EventProperties {
   [AnalyticsEvent.NOTIFICATION_ENABLED]: NotificationEnabledProperties;
   [AnalyticsEvent.NOTIFICATION_DISABLED]: NotificationDisabledProperties;
   [AnalyticsEvent.NOTIFICATION_PERMISSION_DENIED]: NotificationPermissionDeniedProperties;
+  // Bible search
+  [AnalyticsEvent.BIBLE_SEARCH]: BibleSearchProperties;
+  [AnalyticsEvent.BIBLE_SEARCH_NO_RESULTS]: BibleSearchProperties;
+  [AnalyticsEvent.BIBLE_SEARCH_RESULT_CLICK]: BibleSearchResultClickProperties;
+  [AnalyticsEvent.BIBLE_SEARCH_GO_TO]: BibleSearchGoToProperties;
 }
 
 // ============================================================================

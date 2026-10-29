@@ -98,7 +98,9 @@
     "no_translation_available": "Showing English (no translation available)",
     "offline_indicator": "Offline — showing cached content",
     "expand_all": "Expand All",
-    "collapse_all": "Collapse All"
+    "collapse_all": "Collapse All",
+    "selection_highlight": "Highlight",
+    "selection_define": "Define"
   },
   "bookmarks": {
     "title": "Bookmarks",
@@ -111,12 +113,13 @@
   },
   "highlights": {
     "title": "Highlights",
-    "empty": "No highlights yet. Long-press a verse and pick a color.",
+    "empty": "No highlights yet. Hold a word, drag over the text and tap Highlight.",
     "empty_title": "No highlights yet",
     "empty_subtitle": "Start highlighting verses to see them here.",
     "auto_highlights": "Auto-Highlights",
     "my_highlights": "My Highlights",
-    "remove_confirm": "Remove this highlight?"
+    "remove_confirm": "Remove this highlight?",
+    "sign_in_to_save": "Sign in to save highlights"
   },
   "notes": {
     "title": "Notes",
@@ -308,6 +311,27 @@
     "topics": "Topics",
     "searchJesus": "Search His words and actions...",
     "filterTopics": "Filter topics...",
-    "filterBooks": "Filter books..."
+    "filterBooks": "Filter books...",
+    "searchBible": "Search verses, or go to John 3:16"
+  },
+  "search": {
+    "searching": "Searching…",
+    "unavailable": "Search is unavailable right now. Try again in a moment.",
+    "offlineNoDownload": "You're offline. Download this translation to search it without a connection.",
+    "noVerses": "No verses match \"{{query}}\". Try fewer words or check the spelling.",
+    "exactPhrase": "Exact phrase",
+    "allWords": "All words",
+    "otherForms": "Other forms of the word",
+    "books": "BOOKS",
+    "verses": "VERSES",
+    "back": "Back to browsing",
+    "goTo": "Go to",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "verseCount": "{{count}} verses",
+    "all": "All",
+    "oldTestament": "Old Testament",
+    "newTestament": "New Testament",
+    "offlineNote": "Offline: exact words in the verses on this device, in Bible order."
   }
 }

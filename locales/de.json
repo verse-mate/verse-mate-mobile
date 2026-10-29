@@ -98,7 +98,9 @@
     "no_translation_available": "Englisch wird angezeigt (keine Übersetzung verfügbar)",
     "offline_indicator": "Offline — zwischengespeicherte Inhalte werden angezeigt",
     "expand_all": "Alle ausklappen",
-    "collapse_all": "Alle einklappen"
+    "collapse_all": "Alle einklappen",
+    "selection_highlight": "Markieren",
+    "selection_define": "Definieren"
   },
   "bookmarks": {
     "title": "Lesezeichen",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Beginne damit, Verse zu markieren, um sie hier anzuzeigen.",
     "auto_highlights": "Automatische Markierungen",
     "my_highlights": "Meine Markierungen",
-    "remove_confirm": "Diese Markierung entfernen?"
+    "remove_confirm": "Diese Markierung entfernen?",
+    "sign_in_to_save": "Melde dich an, um Markierungen zu speichern"
   },
   "notes": {
     "title": "Notizen",
@@ -308,6 +311,27 @@
     "topics": "Themen",
     "searchJesus": "Seine Worte und Taten durchsuchen...",
     "filterTopics": "Themen filtern...",
-    "filterBooks": "Bücher filtern..."
+    "filterBooks": "Bücher filtern...",
+    "searchBible": "Verse suchen oder zu Johannes 3,16 springen"
+  },
+  "search": {
+    "searching": "Suche…",
+    "unavailable": "Die Suche ist gerade nicht verfügbar. Bitte versuche es gleich noch einmal.",
+    "offlineNoDownload": "Du bist offline. Lade diese Übersetzung herunter, um sie ohne Verbindung zu durchsuchen.",
+    "noVerses": "Keine Verse gefunden für „{{query}}“. Versuche weniger Wörter oder prüfe die Schreibweise.",
+    "exactPhrase": "Genauer Wortlaut",
+    "allWords": "Alle Wörter",
+    "otherForms": "Andere Formen des Wortes",
+    "books": "BÜCHER",
+    "verses": "VERSE",
+    "back": "Zurück zur Übersicht",
+    "goTo": "Gehe zu",
+    "loading": "Wird geladen…",
+    "loadMore": "Mehr laden",
+    "verseCount": "{{count}} Verse",
+    "all": "Alle",
+    "oldTestament": "Altes Testament",
+    "newTestament": "Neues Testament",
+    "offlineNote": "Offline: genaue Wörter in den Versen auf diesem Gerät, in biblischer Reihenfolge."
   }
 }

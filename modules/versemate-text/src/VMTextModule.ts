@@ -58,6 +58,9 @@ export interface NativeVMTextProps {
   onTextPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
   onRangeTap?: (event: { nativeEvent: { index: number; charOffset: number } }) => void;
   onSelectionChange?: (event: { nativeEvent: { start: number; end: number } }) => void;
+  /** Custom selection-menu items as `id~label|id~label` — see `encodeSelectionActions`. */
+  selectionActions?: string;
+  onSelectionAction?: (event: { nativeEvent: { id: string; start: number; end: number } }) => void;
   onTextLayout?: (event: {
     nativeEvent: {
       lines: {

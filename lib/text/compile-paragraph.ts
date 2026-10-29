@@ -542,3 +542,84 @@ function asFiniteNumber(value: unknown): number | null {
   }
   return null;
 }
+
+/**
+ * A text selection expressed the way a highlight is stored.
+ *
+ * `startChar` indexes into `startVerse`'s text and `endChar` (exclusive) into `endVerse`'s, which is
+ * what `emitHighlights` reads back — so across verses `startChar > endChar` is normal.
+ */
+export interface VerseSelection {
+  startVerse: number;
+  startChar: number;
+  endVerse: number;
+  endChar: number;
+  /** The selected scripture, verse numbers left out, verses joined by a space. */
+  text: string;
+}
+
+/**
+ * Map a native selection (compiled offsets, end exclusive) to verses and verse-text offsets.
+ *
+ * Verse numbers are not scripture: a selection that starts on one begins at that verse's first
+ * letter, and one that ends on one stops at the previous verse's last letter. Leading and trailing
+ * whitespace is trimmed so the stored range is exactly the words. Null when nothing but numbers and
+ * whitespace was selected.
+ */
+export function verseSelectionFromOffsets(
+  compiled: CompiledParagraph,
+  start: number,
+  end: number
+): VerseSelection | null {
+  const spans = compiled.verses;
+  if (spans.length === 0 || end <= start) return null;
+
+  // First verse whose text ends after the selection starts.
+  let first = spans.findIndex((span) => span.end > start);
+  if (first === -1) return null;
+  // Last verse whose text begins before the selection ends.
+  let last = -1;
+  for (let i = spans.length - 1; i >= 0; i--) {
+    if (spans[i].textStart < end) {
+      last = i;
+      break;
+    }
+  }
+  if (last === -1 || last < first) return null;
+
+  const verseText = (i: number) => compiled.text.slice(spans[i].textStart, spans[i].end);
+  let startChar = Math.max(0, start - spans[first].textStart);
+  let endChar = Math.min(end, spans[last].end) - spans[last].textStart;
+
+  // Trim whitespace at both ends, stepping across a verse boundary when a verse contributes only
+  // whitespace (a selection that began on the joining space before a number).
+  while (first <= last) {
+    const text = verseText(first);
+    while (startChar < text.length && /\s/.test(text[startChar])) startChar++;
+    if (startChar < (first === last ? endChar : text.length)) break;
+    first++;
+    startChar = 0;
+  }
+  while (last >= first) {
+    const text = verseText(last);
+    while (endChar > 0 && /\s/.test(text[endChar - 1])) endChar--;
+    if (endChar > (first === last ? startChar : 0)) break;
+    last--;
+    if (last >= first) endChar = verseText(last).length;
+  }
+  if (first > last) return null;
+
+  const pieces: string[] = [];
+  for (let i = first; i <= last; i++) {
+    const text = verseText(i);
+    pieces.push(text.slice(i === first ? startChar : 0, i === last ? endChar : text.length));
+  }
+
+  return {
+    startVerse: spans[first].verseNumber,
+    startChar,
+    endVerse: spans[last].verseNumber,
+    endChar,
+    text: pieces.join(' '),
+  };
+}

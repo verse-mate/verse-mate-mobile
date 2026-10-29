@@ -22,6 +22,23 @@ import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 // Mock dependencies
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
+// The sheet's verse search (react-query) is covered by its own tests; here it stays idle.
+jest.mock('@/hooks/bible/use-verse-search', () => ({
+  useVerseSearch: () => ({
+    active: false,
+    isPending: false,
+    isError: false,
+    results: [],
+    totals: null,
+    books: null,
+    source: 'online',
+    hasMore: false,
+    isLoadingMore: false,
+    loadMore: jest.fn(),
+    filters: {},
+    setFilters: jest.fn(),
+  }),
+}));
 jest.mock('@/hooks/topics/use-cached-topics');
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

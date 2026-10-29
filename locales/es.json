@@ -98,7 +98,9 @@
     "no_translation_available": "Mostrando en inglés (traducción no disponible)",
     "offline_indicator": "Sin conexión — mostrando contenido en caché",
     "expand_all": "Expandir todo",
-    "collapse_all": "Contraer todo"
+    "collapse_all": "Contraer todo",
+    "selection_highlight": "Resaltar",
+    "selection_define": "Definir"
   },
   "bookmarks": {
     "title": "Marcadores",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Comienza a resaltar versículos para verlos aquí.",
     "auto_highlights": "Resaltados automáticos",
     "my_highlights": "Mis resaltados",
-    "remove_confirm": "¿Eliminar este resaltado?"
+    "remove_confirm": "¿Eliminar este resaltado?",
+    "sign_in_to_save": "Inicia sesión para guardar resaltados"
   },
   "notes": {
     "title": "Notas",
@@ -308,6 +311,27 @@
     "topics": "Temas",
     "searchJesus": "Busca Sus palabras y acciones...",
     "filterTopics": "Filtrar temas...",
-    "filterBooks": "Filtrar libros..."
+    "filterBooks": "Filtrar libros...",
+    "searchBible": "Buscar versículos o ir a Juan 3:16"
+  },
+  "search": {
+    "searching": "Buscando…",
+    "unavailable": "La búsqueda no está disponible ahora. Inténtalo de nuevo en un momento.",
+    "offlineNoDownload": "Estás sin conexión. Descarga esta traducción para buscar en ella sin conexión.",
+    "noVerses": "Ningún versículo coincide con «{{query}}». Prueba con menos palabras o revisa la ortografía.",
+    "exactPhrase": "Frase exacta",
+    "allWords": "Todas las palabras",
+    "otherForms": "Otras formas de la palabra",
+    "books": "LIBROS",
+    "verses": "VERSÍCULOS",
+    "back": "Volver a explorar",
+    "goTo": "Ir a",
+    "loading": "Cargando…",
+    "loadMore": "Cargar más",
+    "verseCount": "{{count}} versículos",
+    "all": "Todos",
+    "oldTestament": "Antiguo Testamento",
+    "newTestament": "Nuevo Testamento",
+    "offlineNote": "Sin conexión: palabras exactas en los versículos de este dispositivo, en orden bíblico."
   }
 }

@@ -13,6 +13,7 @@ import { authSsoHandlers } from './auth-sso';
 import { autoHighlightsHandlers } from './auto-highlights';
 import { bibleHandlers } from './bible.handlers';
 import { bibleBrainHandlers } from './bible-brain.handlers';
+import { bibleSearchHandlers } from './bible-search.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
 import { highlightHandlers } from './highlights.handlers';
@@ -42,12 +43,14 @@ export const handlers = [
   ...topicsHandlers, // Topics API handlers
   ...versionPolicyHandlers, // Version policy handlers
   ...bibleBrainHandlers,
+  ...bibleSearchHandlers,
   ...bibleHandlers,
 ];
 
 // Export individual handler groups for selective usage
 export {
   authHandlers,
+  bibleSearchHandlers,
   authSsoHandlers,
   autoHighlightsHandlers,
   verseHandlers,
