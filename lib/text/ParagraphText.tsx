@@ -44,6 +44,81 @@ import {
 import type { CompiledParagraph, ParagraphInput } from './types';
 import { wordAtOffset } from './word-at-offset';
 
+/** What a lexicon word's card needs: the surface tapped or selected, its token and entry. */
+export interface LexiconWordArgs {
+  surface: string;
+  token: AlignedToken;
+  entry: LexEntry;
+  isTheme: boolean;
+}
+
+/** One word of a multi-word selection that Define can show. */
+export interface DefineChoice {
+  /** As it reads in the text (the lexicon surface, which may be several words). */
+  label: string;
+  word: string;
+  verseNumber: number;
+  /** Set when the word has a Greek/Hebrew entry; otherwise it opens the English dictionary. */
+  lexicon?: LexiconWordArgs;
+}
+
+/**
+ * Words with no definition worth opening, unless the lexicon has them (then they carry a Greek or
+ * Hebrew word and stay). English only: other languages' words never match and are all offered.
+ */
+const FILLER_WORDS = new Set(
+  (
+    'a an the and or but nor so yet of to in on at by for from with as into onto upon unto than ' +
+    'that this these those it its is was be been are were am he she they we you i me him her them ' +
+    'us his hers their our your my mine who whom whose which what not no do did does have has had ' +
+    'will shall would should can could may might must then there here also'
+  ).split(' ')
+);
+
+/**
+ * The distinct words of a selection, in reading order, for Define's chips.
+ *
+ * A lexicon match counts once per lemma (it may span several words, or recur); other words once per
+ * spelling. Filler words without a lexicon entry are left out, unless nothing else was selected.
+ */
+export function defineChoicesFor(
+  compiled: CompiledParagraph,
+  start: number,
+  end: number
+): DefineChoice[] {
+  const all: DefineChoice[] = [];
+  const seen = new Set<string>();
+  const wordPattern = /[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu;
+  const slice = compiled.text.slice(start, end);
+  for (const match of slice.matchAll(wordPattern)) {
+    const offset = start + (match.index ?? 0);
+    const verseNumber = verseAtOffset(compiled, offset);
+    if (verseNumber === null) continue;
+    let lexicon: LexiconWordArgs | undefined;
+    for (let i = compiled.ranges.length - 1; i >= 0; i--) {
+      const target = compiled.targets[i];
+      const range = compiled.ranges[i];
+      if (target?.kind === 'lexicon' && offset >= range.start && offset < range.end) {
+        lexicon = {
+          surface: target.surface,
+          token: target.token,
+          entry: target.entry,
+          isTheme: target.isTheme,
+        };
+        break;
+      }
+    }
+    const { word } = wordAtOffset(compiled.text, offset);
+    if (!word || !/\p{L}/u.test(word)) continue;
+    const key = lexicon ? `lex:${lexicon.token.lemma}` : `word:${word.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    all.push({ label: lexicon ? lexicon.surface : word, word, verseNumber, lexicon });
+  }
+  const meaningful = all.filter((c) => c.lexicon || !FILLER_WORDS.has(c.word.toLowerCase()));
+  return meaningful.length > 0 ? meaningful : all;
+}
+
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Verses to render, in reading order. */
   verses: ParagraphInput['verses'];
@@ -55,12 +130,7 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   onVerseTap?: (verseNumber: number, via: 'number' | 'text') => void;
   onHighlightTap?: (highlightId: number) => void;
   onAutoHighlightPress?: (autoHighlight: AutoHighlight) => void;
-  onLexiconWordPress?: (args: {
-    surface: string;
-    token: AlignedToken;
-    entry: LexEntry;
-    isTheme: boolean;
-  }) => void;
+  onLexiconWordPress?: (args: LexiconWordArgs) => void;
   /**
    * Define a word that has no lexicon entry: its English dictionary card.
    *
@@ -75,6 +145,11 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
    * Andy's Olive Tree gesture: hold a word, drag over a few words or the whole verse, Highlight.
    */
   onHighlightSelection?: (selection: VerseSelection) => void;
+  /**
+   * Define on a selection of more than one word: its words, so the sheet can offer each one. Without
+   * it, Define shows the word the selection starts in, as for a single word.
+   */
+  onDefineSelection?: (choices: DefineChoice[]) => void;
   /**
    * Localised menu labels for the selection actions. An action is offered only when its label and
    * its handler are both given.
@@ -140,6 +215,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     onLexiconWordPress,
     onWordPress,
     onHighlightSelection,
+    onDefineSelection,
     selectionLabels,
     onTextLayout,
     onSelectionChange,
@@ -357,6 +433,13 @@ export function ParagraphText(props: ParagraphTextProps) {
         return;
       }
       if (id !== 'define') return;
+      if (onDefineSelection) {
+        const choices = defineChoicesFor(compiled, start, end);
+        if (choices.length > 1) {
+          onDefineSelection(choices);
+          return;
+        }
+      }
       // First letter at or after the start, so a selection that began on a space still finds it.
       let offset = start;
       while (offset < end && /\s/.test(compiled.text[offset] ?? '')) offset++;
@@ -379,7 +462,7 @@ export function ParagraphText(props: ParagraphTextProps) {
       if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
       onWordPress?.({ word, verseNumber });
     },
-    [compiled, onHighlightSelection, onLexiconWordPress, onWordPress]
+    [compiled, onHighlightSelection, onDefineSelection, onLexiconWordPress, onWordPress]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph

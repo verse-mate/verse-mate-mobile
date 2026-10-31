@@ -33,6 +33,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
+import { useWordChoices } from '@/hooks/bible/use-word-choices';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
@@ -152,6 +153,12 @@ export function JesusPassageBlock({
     }),
     [mode, colors.gold, fontSize]
   );
+  const wordChoices = useWordChoices({
+    openLexicon,
+    openWord: setWordToDefine,
+    closeLexicon: () => setLexiconActive(null),
+    closeWord: () => setWordToDefine(null),
+  });
   const defineLabel = useMemo(
     () => ({ define: t('chapter_reader.selection_define', 'Define') }),
     [t]
@@ -193,6 +200,7 @@ export function JesusPassageBlock({
                       onLexiconWordPress={openLexicon}
                       onVerseTap={openVerse}
                       onWordPress={setWordToDefine}
+                      onDefineSelection={wordChoices.start}
                       // Define only: these passages span other chapters, and highlights are kept
                       // per chapter in the reader.
                       selectionLabels={defineLabel}
@@ -250,12 +258,16 @@ export function JesusPassageBlock({
       {lexiconActive && (
         <LexiconPopover
           visible={true}
-          onClose={() => setLexiconActive(null)}
+          onClose={() => {
+            setLexiconActive(null);
+            wordChoices.closedSheet('lexicon');
+          }}
           surface={lexiconActive.surface}
           entry={lexiconActive.entry}
           token={lexiconActive.token}
           isTheme={lexiconActive.isTheme}
           apiLang={lemmaApiLang}
+          {...wordChoices.sheetProps}
         />
       )}
       {wordToDefine && (
@@ -265,7 +277,11 @@ export function JesusPassageBlock({
           bookName={passage.book_name}
           chapterNumber={passage.chapter}
           verseNumber={wordToDefine.verseNumber}
-          onClose={() => setWordToDefine(null)}
+          onClose={() => {
+            setWordToDefine(null);
+            wordChoices.closedSheet('word');
+          }}
+          {...wordChoices.sheetProps}
         />
       )}
     </View>

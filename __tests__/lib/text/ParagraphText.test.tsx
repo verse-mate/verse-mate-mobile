@@ -11,7 +11,7 @@
 import { render } from '@testing-library/react-native';
 import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import { compileParagraph } from '@/lib/text/compile-paragraph';
-import { ParagraphText } from '@/lib/text/ParagraphText';
+import { defineChoicesFor, ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileHighlight, CompileTheme } from '@/lib/text/types';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
@@ -285,6 +285,43 @@ describe('ParagraphText selection menu', () => {
       isTheme: false,
     });
     expect(onWordPress).not.toHaveBeenCalled();
+  });
+
+  it('hands a multi-word Define its words, so the sheet can offer each one', () => {
+    const alignment = alignmentFor({ G1: 'beginning' });
+    const compiled = compileParagraph({ verses: VERSES, alignment, theme: THEME });
+    const onDefineSelection = jest.fn();
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({
+      alignment,
+      onWordPress,
+      onDefineSelection,
+      selectionLabels: LABELS,
+    });
+    const start = compiled.text.indexOf('the beginning');
+    const end = compiled.text.indexOf('created') + 'created'.length;
+
+    getSelectionAction()({ id: 'define', start, end });
+    expect(onDefineSelection).toHaveBeenCalledTimes(1);
+    const choices = onDefineSelection.mock.calls[0][0];
+    expect(choices.map((c: { label: string }) => c.label)).toEqual(['beginning', 'God', 'created']);
+    expect(choices[0].lexicon).toMatchObject({ surface: 'beginning' });
+    expect(choices[1].lexicon).toBeUndefined();
+    expect(onWordPress).not.toHaveBeenCalled();
+    expect(tree.handlers.onLexiconWordPress).not.toHaveBeenCalled();
+  });
+
+  it('keeps the one-word Define when the selection has only one word to offer', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onDefineSelection = jest.fn();
+    const onWordPress = jest.fn();
+    renderParagraph({ onWordPress, onDefineSelection, selectionLabels: LABELS });
+    // "the earth": "the" is filler, so only "earth" is left to offer.
+    const start = compiled.text.indexOf('the earth');
+
+    getSelectionAction()({ id: 'define', start, end: start + 'the earth'.length });
+    expect(onDefineSelection).not.toHaveBeenCalled();
+    expect(onWordPress).toHaveBeenCalledWith({ word: 'the', verseNumber: 2 });
   });
 
   it('defines any other word with the dictionary, and nothing for a verse number', () => {

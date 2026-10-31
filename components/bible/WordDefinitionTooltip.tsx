@@ -42,6 +42,7 @@ import { useNativeDictionary } from '@/hooks/use-native-dictionary';
 import { lookupWord } from '@/services/dictionary-service';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { DictionaryResult, EastonEntry, StrongsEntry, WebsterEntry } from '@/types/dictionary';
+import { WordChoiceChips } from './WordChoiceChips';
 
 interface WordDefinitionTooltipProps {
   /** Whether modal is visible */
@@ -60,6 +61,10 @@ interface WordDefinitionTooltipProps {
   onCopy?: () => void;
   /** Whether to use a system Modal (true) or a View overlay (false) */
   useModal?: boolean;
+  /** Several words were selected for Define: show them as chips to switch between. */
+  wordChoices?: string[];
+  activeWordChoice?: number;
+  onChooseWord?: (index: number) => void;
 }
 
 interface DefinitionState {
@@ -87,6 +92,9 @@ export function WordDefinitionTooltip({
   onClose,
   onCopy,
   useModal = true,
+  wordChoices,
+  activeWordChoice = 0,
+  onChooseWord,
 }: WordDefinitionTooltipProps) {
   const { colors } = useTheme();
   const { bibleVersion } = useBibleVersion();
@@ -401,6 +409,16 @@ export function WordDefinitionTooltip({
           <View style={styles.handle} />
           <Text style={styles.headerTitle}>Word Definition</Text>
         </View>
+        {wordChoices && onChooseWord ? (
+          <View style={styles.wordChoices}>
+            <WordChoiceChips
+              words={wordChoices}
+              active={activeWordChoice}
+              onChoose={onChooseWord}
+              testID="word-definition-word-choices"
+            />
+          </View>
+        ) : null}
 
         {/* Content */}
         <View style={styles.contentContainer}>
@@ -674,6 +692,9 @@ const createStyles = (
       height: 4,
       backgroundColor: colors.border,
       borderRadius: 2,
+    },
+    wordChoices: {
+      paddingHorizontal: spacing.lg,
     },
     headerTitle: {
       fontSize: fontSizes.heading3,

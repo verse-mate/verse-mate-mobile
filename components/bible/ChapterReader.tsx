@@ -58,6 +58,7 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
+import { useWordChoices } from '@/hooks/bible/use-word-choices';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
@@ -942,6 +943,14 @@ export function ChapterReader({
       });
   };
 
+  // Define on several selected words: chips in either sheet switch between them.
+  const wordChoices = useWordChoices({
+    openLexicon: handleLexiconWordPress,
+    openWord: setWordToDefine,
+    closeLexicon: () => setLexiconActive(null),
+    closeWord: () => setWordToDefine(null),
+  });
+
   /**
    * Handle text layout event to capture line positions
    */
@@ -1085,6 +1094,7 @@ export function ChapterReader({
                         onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
                         onVerseTap={handleVerseTap}
                         onWordPress={setWordToDefine}
+                        onDefineSelection={wordChoices.start}
                         selectionLabels={selectionLabels}
                         redLetterVerses={redLetterVerses}
                         showLexUnderlines={showLexUnderlines}
@@ -1365,12 +1375,16 @@ export function ChapterReader({
       {lexiconActive && (
         <LexiconPopover
           visible={true}
-          onClose={() => setLexiconActive(null)}
+          onClose={() => {
+            setLexiconActive(null);
+            wordChoices.closedSheet('lexicon');
+          }}
           surface={lexiconActive.surface}
           entry={lexiconActive.entry}
           token={lexiconActive.token}
           isTheme={lexiconActive.isTheme}
           apiLang={lemmaApiLang}
+          {...wordChoices.sheetProps}
         />
       )}
 
@@ -1382,7 +1396,11 @@ export function ChapterReader({
           bookName={chapter.bookName}
           chapterNumber={chapter.chapterNumber}
           verseNumber={wordToDefine.verseNumber}
-          onClose={() => setWordToDefine(null)}
+          onClose={() => {
+            setWordToDefine(null);
+            wordChoices.closedSheet('word');
+          }}
+          {...wordChoices.sheetProps}
         />
       )}
     </View>
