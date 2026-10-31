@@ -19,7 +19,9 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { type BibleReference, ReferenceParser } from '@versemate/bible-search';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -60,7 +62,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusNavTab } from '@/components/bible/JesusNavTab';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useVerseSearch, type VerseSearchResult } from '@/hooks/bible/use-verse-search';
 import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useBibleTestaments } from '@/src/api';
 import {
@@ -76,6 +80,7 @@ import {
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId, MAX_RECENT_BOOKS } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
+import { splitBookScope } from '@/utils/bible/bookScope';
 
 interface BibleNavigationModalProps {
   /** Whether modal is visible */
@@ -90,6 +95,11 @@ interface BibleNavigationModalProps {
   onSelectChapter: (bookId: number, chapter: number) => void;
   /** Callback when user selects a topic */
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
+  /**
+   * Open a verse from search: a typed reference ("John 3:16", `mark`) or a
+   * verse-text result. Defaults to pushing the reader at that verse.
+   */
+  onSelectVerse?: (target: VerseTarget) => void;
   /** Initial tab to open (defaults to testament of currentBookId) */
   initialTab?: 'OT' | 'NT' | 'JESUS' | 'TOPICS';
   /** Initial topic category to open when initialTab is TOPICS (defaults to EVENT) */
@@ -101,6 +111,32 @@ interface BibleNavigationModalProps {
 }
 
 type BookListItem = BookMetadata & { _listKey: string };
+
+export interface VerseTarget {
+  bookId: number;
+  chapter: number;
+  verse: number;
+  endVerse?: number;
+  /**
+   * A typed reference: mark the verse in the text until the reader leaves the
+   * chapter, instead of opening Verse Insight (a verse-text result does that).
+   */
+  mark: boolean;
+}
+
+/** Opens the reader at a verse — the default for `onSelectVerse`. */
+export function openVerseInReader(target: VerseTarget) {
+  router.push({
+    pathname: '/bible/[bookId]/[chapterNumber]',
+    params: {
+      bookId: target.bookId,
+      chapterNumber: target.chapter,
+      verse: target.verse,
+      ...(target.endVerse && target.endVerse > target.verse ? { endVerse: target.endVerse } : {}),
+      ...(target.mark ? { mark: '1' } : {}),
+    },
+  });
+}
 
 interface BookListSection {
   key: string;
@@ -119,6 +155,7 @@ function BibleNavigationModalComponent({
   onClose,
   onSelectChapter,
   onSelectTopic,
+  onSelectVerse = openVerseInReader,
   initialTab,
   initialTopicCategory,
   useModalComponent = true,
@@ -343,6 +380,48 @@ function BibleNavigationModalComponent({
     return allBooks.filter((book) => book.testament === selectedTestament);
   }, [allBooks, selectedTestament, filterText]);
 
+  // ─── Bible search (Old / New tabs) ───────────────────────────────────
+  // Typing searches three things at once, like web: references ("John 3:16"
+  // → a "Go to" row), book names (above), and verse text. A book name
+  // followed by words ("Amos day of the Lord") searches the words in that
+  // book.
+  const { bibleVersion } = useBibleVersion();
+  const isBibleTab = selectedTab === 'OT' || selectedTab === 'NT';
+  const searching = isBibleTab && filterText.trim() !== '';
+  const parser = useMemo(
+    () =>
+      new ReferenceParser(
+        allBooks.map((b) => ({ bookId: b.id, name: b.name, chapters: b.chapterCount }))
+      ),
+    [allBooks]
+  );
+  const references = useMemo<BibleReference[]>(
+    () => (searching && allBooks.length > 0 ? parser.parse(filterText) : []),
+    [searching, allBooks.length, parser, filterText]
+  );
+  // "John 3:16" is a place, not words to look for; "Job" may be either.
+  const isPureReference = references.some((r) => r.chapter !== undefined);
+  // A book-only reference already listed under the books would repeat it.
+  const goToRefs = references.filter(
+    (r) => r.chapter !== undefined || !filteredBooks.some((b) => b.id === r.bookId)
+  );
+  const bookScope = useMemo(
+    () =>
+      searching && !isPureReference && allBooks.length > 0
+        ? splitBookScope(filterText, parser)
+        : null,
+    [searching, isPureReference, allBooks.length, filterText, parser]
+  );
+  // "Search all books" turns the book scope off for the text as typed.
+  const [unscopedQuery, setUnscopedQuery] = useState<string | null>(null);
+  const scope = bookScope && unscopedQuery !== filterText.trim() ? bookScope : null;
+  const verseSearch = useVerseSearch(
+    scope ? scope.text : filterText,
+    bibleVersion,
+    searching && !isPureReference,
+    scope?.bookId
+  );
+
   // Filter topics by search text with smart sorting
   const filteredTopics = useMemo(() => {
     const searchLower = topicFilterText.trim().toLowerCase();
@@ -530,6 +609,37 @@ function BibleNavigationModalComponent({
     },
     [selectedBookId, onSelectChapter, handleClose]
   );
+
+  const handleGoToReference = (ref: BibleReference) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (ref.chapter === undefined) {
+      // Book only: list just that book and open its chapter grid.
+      const book = allBooks.find((b) => b.id === ref.bookId);
+      if (!book) return;
+      setFilterText(book.name);
+      handleBookSelect(book, 'ALL_BOOKS');
+      return;
+    }
+    if (ref.verseStart === undefined) {
+      onSelectChapter(ref.bookId, ref.chapter);
+    } else {
+      onSelectVerse({
+        bookId: ref.bookId,
+        chapter: ref.chapter,
+        verse: ref.verseStart,
+        // A range into the next chapter only marks its first verse.
+        endVerse: ref.chapterEnd === undefined ? ref.verseEnd : undefined,
+        mark: true,
+      });
+    }
+    handleClose();
+  };
+
+  const handleVerseResult = (r: VerseSearchResult) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: false });
+    handleClose();
+  };
 
   // Handle topic selection
   const handleTopicSelect = useCallback(
@@ -812,7 +922,7 @@ function BibleNavigationModalComponent({
         ? t('navigation.searchJesus', 'Search His words and actions...')
         : isTopicsMode
           ? t('navigation.filterTopics', 'Filter topics...')
-          : t('navigation.filterBooks', 'Filter books...');
+          : t('navigation.searchBible', 'Search verses, or go to John 3:16');
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
 
     return (
@@ -912,11 +1022,136 @@ function BibleNavigationModalComponent({
               </Animated.View>
             );
           }}
+          ListHeaderComponent={searching ? renderGoToRows() : null}
+          ListFooterComponent={searching ? renderVerseResults() : null}
           stickySectionHeadersEnabled={false}
           onScrollToIndexFailed={() => {}}
         />
       </GestureDetector>
     );
+  };
+
+  // "Go to John 3:16" rows above the books while searching
+  const renderGoToRows = () => {
+    if (goToRefs.length === 0) return null;
+    return (
+      <View testID="search-go-to">
+        {goToRefs.map((ref, i) => (
+          <Pressable
+            key={`${ref.bookId}-${ref.display}`}
+            onPress={() => handleGoToReference(ref)}
+            style={styles.goToItem}
+            accessibilityRole="button"
+            accessibilityLabel={`Go to ${ref.display}`}
+            testID={`search-go-to-${i}`}
+          >
+            <Ionicons name="return-down-forward" size={18} color={colors.gold} />
+            <Text style={styles.bookItemText}>
+              Go to <Text style={styles.goToReference}>{ref.display}</Text>
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+  };
+
+  // Verse-text matches below the books while searching
+  const renderVerseResults = () => {
+    if (!verseSearch.active) {
+      if (goToRefs.length === 0 && filteredBooks.length === 0 && !isPureReference) {
+        return (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>No books found</Text>
+          </View>
+        );
+      }
+      return null;
+    }
+    const shownQuery = (scope ? scope.text : filterText).trim();
+    const { status, results, total, nextCursor, loadingMore } = verseSearch;
+    return (
+      <View testID="verse-search-section">
+        <View style={styles.verseSectionHeader}>
+          <Text style={styles.verseSectionTitle}>
+            {scope ? `VERSES IN ${scope.bookName.toUpperCase()}` : 'VERSES'}
+          </Text>
+          {total !== null && total > 0 && (
+            <Text style={styles.verseSectionCount} testID="verse-search-total">
+              {total} {total === 1 ? 'verse' : 'verses'}
+            </Text>
+          )}
+        </View>
+        {scope && (
+          <Text style={styles.verseScopeText} testID="verse-search-scope">
+            Searching “{shownQuery}” in {scope.bookName} ·{' '}
+            <Text
+              style={styles.verseScopeLink}
+              onPress={() => setUnscopedQuery(filterText.trim())}
+              accessibilityRole="button"
+              testID="verse-search-scope-all"
+            >
+              Search all books
+            </Text>
+          </Text>
+        )}
+        {results.length === 0 ? (
+          <Text style={styles.verseEmptyText} testID="verse-search-empty">
+            {status === 'loading' || status === 'idle'
+              ? 'Searching…'
+              : status === 'error'
+                ? 'Search is unavailable right now. Try again in a moment.'
+                : scope
+                  ? `No verses in ${scope.bookName} match "${shownQuery}".`
+                  : `No verses match "${shownQuery}". Try fewer words or check the spelling.`}
+          </Text>
+        ) : (
+          results.map((r) => (
+            <Pressable
+              key={`${r.bookId}-${r.chapter}-${r.verse}`}
+              onPress={() => handleVerseResult(r)}
+              style={styles.verseResultItem}
+              accessibilityRole="button"
+              accessibilityLabel={`${r.bookName} ${r.chapter}:${r.verse}`}
+              testID={`verse-result-${r.bookId}-${r.chapter}-${r.verse}`}
+            >
+              <Text style={styles.verseResultReference}>
+                {`${r.bookName} ${r.chapter}:${r.verse}`}
+              </Text>
+              <Text style={styles.verseResultText}>{renderMatchedText(r)}</Text>
+            </Pressable>
+          ))
+        )}
+        {nextCursor && (
+          <Pressable
+            onPress={verseSearch.loadMore}
+            disabled={loadingMore}
+            style={styles.verseLoadMore}
+            accessibilityRole="button"
+            testID="verse-search-load-more"
+          >
+            <Text style={styles.verseScopeLink}>{loadingMore ? 'Loading…' : 'Load more'}</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
+  // The verse text with the matched words in bold
+  const renderMatchedText = (r: VerseSearchResult) => {
+    const parts: React.ReactNode[] = [];
+    let at = 0;
+    r.highlights.forEach(([start, end]) => {
+      if (start < at || end > r.text.length) return;
+      if (start > at) parts.push(r.text.slice(at, start));
+      parts.push(
+        <Text key={`m${start}-${end}`} style={styles.verseResultMatch}>
+          {r.text.slice(start, end)}
+        </Text>
+      );
+      at = end;
+    });
+    if (at < r.text.length) parts.push(r.text.slice(at));
+    return parts;
   };
 
   // Render topics list
@@ -1326,6 +1561,81 @@ const createStyles = (
     loadingText: {
       fontSize: fontSizes.body,
       color: colors.textSecondary,
+    },
+    goToItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    goToReference: {
+      fontWeight: fontWeights.medium,
+    },
+    verseSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xs,
+    },
+    verseSectionTitle: {
+      fontSize: 11,
+      letterSpacing: 0.8,
+      color: colors.textTertiary,
+    },
+    verseSectionCount: {
+      fontSize: 12,
+      color: colors.textTertiary,
+    },
+    verseScopeText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    verseScopeLink: {
+      fontSize: 14,
+      color: colors.gold,
+    },
+    verseEmptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      paddingVertical: spacing.xl,
+      paddingHorizontal: spacing.lg,
+    },
+    verseResultItem: {
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    verseResultReference: {
+      fontSize: 13,
+      fontWeight: fontWeights.medium,
+      color: colors.gold,
+      marginBottom: 2,
+    },
+    verseResultText: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.textSecondary,
+    },
+    verseResultMatch: {
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    verseLoadMore: {
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
     },
     chapterGridContainer: {
       flex: 1,

@@ -159,9 +159,12 @@ export default function ChapterScreen() {
     endVerse?: string;
     tab?: string;
     src?: string;
+    /** "1" when the verse came from a typed search reference: mark, no tooltip. */
+    mark?: string;
   }>();
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
+  const markTargetVerse = params.mark === '1';
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -719,6 +722,7 @@ export default function ChapterScreen() {
           isPreloading={!isCurrent}
           targetVerse={isUrgentCurrent ? targetVerse : undefined}
           targetEndVerse={isUrgentCurrent ? targetEndVerse : undefined}
+          markTargetVerse={markTargetVerse}
           fabVisible={fabVisible}
           onFABInteraction={showButtons}
         />
@@ -737,6 +741,7 @@ export default function ChapterScreen() {
       deferredChapterNumber,
       targetVerse,
       targetEndVerse,
+      markTargetVerse,
       fabVisible,
       showButtons,
     ]
@@ -860,6 +865,7 @@ export default function ChapterScreen() {
                   onTap={handleTap}
                   targetVerse={targetVerse}
                   targetEndVerse={targetEndVerse}
+                  markTargetVerse={markTargetVerse}
                   visible={fabVisible}
                 />
               }
