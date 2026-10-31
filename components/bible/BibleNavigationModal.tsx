@@ -118,8 +118,8 @@ export interface VerseTarget {
   verse: number;
   endVerse?: number;
   /**
-   * A typed reference: mark the verse in the text until the reader leaves the
-   * chapter, instead of opening Verse Insight (a verse-text result does that).
+   * Mark the verse in the text until the reader leaves the chapter, instead of
+   * opening Verse Insight. Search sets it for references and verse results.
    */
   mark: boolean;
 }
@@ -637,10 +637,10 @@ function BibleNavigationModalComponent({
 
   const handleVerseResult = (r: VerseSearchResult) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // A result from a book-scoped search ("Amos XYZ") is a place inside a
-    // book the reader named: land on it and mark the verse, like a typed
-    // reference. A plain text search still opens Verse Insight.
-    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: !!scope });
+    // Every verse result lands on its verse and marks it yellow until the
+    // reader leaves the chapter — the same as a typed reference — rather than
+    // opening the Verse Insight tooltip.
+    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: true });
     handleClose();
   };
 
