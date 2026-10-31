@@ -380,9 +380,9 @@ describe('BibleNavigationModal', () => {
       await waitFor(() => expect(screen.queryByTestId('verse-search-scope')).toBeNull());
       expect(await screen.findByText(/A verse about Psalms shepherd/)).toBeTruthy();
 
-      // An all-books text result still opens Verse Insight (no mark).
+      // An all-books text result is marked the same way (no Verse Insight).
       fireEvent.press(screen.getByTestId('verse-result-19-1-1'));
-      expect(onSelectVerse).toHaveBeenLastCalledWith(expect.objectContaining({ mark: false }));
+      expect(onSelectVerse).toHaveBeenLastCalledWith(expect.objectContaining({ mark: true }));
     });
   });
 
