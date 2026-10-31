@@ -363,21 +363,26 @@ describe('BibleNavigationModal', () => {
       expect(result).toHaveTextContent(/A verse about shepherd/);
 
       fireEvent.press(result);
+      // Book-scoped: lands on the verse and marks it, no Verse Insight.
       expect(onSelectVerse).toHaveBeenCalledWith({
         bookId: 19,
         chapter: 1,
         verse: 1,
-        mark: false,
+        mark: true,
       });
     });
 
     it('can widen a book-scoped search to all books', async () => {
-      const { input } = renderModal();
+      const { input, onSelectVerse } = renderModal();
       fireEvent.changeText(input, 'Psalms shepherd');
       fireEvent.press(await screen.findByTestId('verse-search-scope-all'));
 
       await waitFor(() => expect(screen.queryByTestId('verse-search-scope')).toBeNull());
       expect(await screen.findByText(/A verse about Psalms shepherd/)).toBeTruthy();
+
+      // An all-books text result still opens Verse Insight (no mark).
+      fireEvent.press(screen.getByTestId('verse-result-19-1-1'));
+      expect(onSelectVerse).toHaveBeenLastCalledWith(expect.objectContaining({ mark: false }));
     });
   });
 

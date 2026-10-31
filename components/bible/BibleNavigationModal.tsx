@@ -637,7 +637,10 @@ function BibleNavigationModalComponent({
 
   const handleVerseResult = (r: VerseSearchResult) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: false });
+    // A result from a book-scoped search ("Amos XYZ") is a place inside a
+    // book the reader named: land on it and mark the verse, like a typed
+    // reference. A plain text search still opens Verse Insight.
+    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: !!scope });
     handleClose();
   };
 
