@@ -40,7 +40,7 @@ url: http://localhost:8081
 - waitForAnimationToEnd
 
 - tapOn:
-    text: "Filter books..."
+    text: "Search verses, or go to John 3:16"
 - inputText: "Malachi"
 - waitForAnimationToEnd
 
@@ -127,7 +127,7 @@ url: http://localhost:8081
 
 # Use filter to find Malachi
 - tapOn:
-    text: "Filter books..."
+    text: "Search verses, or go to John 3:16"
 - inputText: "Malachi"
 - waitForAnimationToEnd
 

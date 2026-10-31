@@ -21,6 +21,7 @@ import { notesHandlers } from './notes.handlers';
 import { recentlyViewedBooksHandlers } from './recently-viewed-books.handlers';
 import { topicsHandlers } from './topics.handlers';
 import { userPreferencesHandlers } from './user-preferences';
+import { verseSearchHandlers } from './verse-search.handlers';
 import { verseHandlers } from './verses';
 import { versionPolicyHandlers } from './version-policy.handlers';
 
@@ -31,6 +32,7 @@ export const handlers = [
   ...authHandlers,
   ...authSsoHandlers,
   ...verseHandlers,
+  ...verseSearchHandlers,
   ...explanationHandlers,
   ...bookmarkHandlers, // Must come before bibleHandlers
   ...highlightHandlers, // Must come before bibleHandlers

@@ -18,7 +18,7 @@ url: http://localhost:8081
 
 # Use filter to find Psalms directly (avoids scrolling the book list)
 - tapOn:
-    text: "Filter books..."
+    text: "Search verses, or go to John 3:16"
 - inputText: "Psalms"
 - waitForAnimationToEnd
 

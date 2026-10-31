@@ -47,6 +47,7 @@
     "@react-navigation/native": "^7.1.8",
     "@tanstack/react-query": "^5.90.2",
     "@types/semver": "^7.7.1",
+    "@versemate/bible-search": "github:verse-mate/verse-mate-bible-search#077f4e61bb92324c693b5de03ed30e90d35ed77a",
     "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
     "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#5142423",
     "@versemate/red-letter": "github:verse-mate/verse-mate-red-letter#650d08c",
