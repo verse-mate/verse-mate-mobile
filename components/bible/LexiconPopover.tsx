@@ -215,6 +215,7 @@ export function LexiconPopover({
         <View style={styles.header} testID={`${testID}-header`}>
           {wordChoices && onChooseWord ? (
             <WordChoiceChips
+              colors={colors}
               words={wordChoices}
               active={activeWordChoice}
               onChoose={onChooseWord}

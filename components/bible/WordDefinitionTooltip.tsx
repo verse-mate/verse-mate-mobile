@@ -412,6 +412,7 @@ export function WordDefinitionTooltip({
         {wordChoices && onChooseWord ? (
           <View style={styles.wordChoices}>
             <WordChoiceChips
+              colors={colors}
               words={wordChoices}
               active={activeWordChoice}
               onChoose={onChooseWord}

@@ -5,14 +5,20 @@
  * other word they selected without selecting again. Shown by both definition sheets (the Greek/Hebrew
  * card and the English dictionary), so switching between a lexicon word and a plain word feels like
  * one control even though it swaps the sheet underneath.
+ *
+ * Colours come from the sheet, not from `useTheme()`: the lexicon card is a gorhom BottomSheetModal,
+ * which renders through a portal above the ThemeProvider, so a theme hook in here threw "useTheme must
+ * be used within a ThemeProvider" and crashed the app the first time Define opened chips (simulator,
+ * 2026-10-31). The sheets read the theme where it exists and pass it down.
  */
 
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { useTheme } from '@/contexts/ThemeContext';
 import { type getColors, spacing } from '@/theme/tokens';
 
 export interface WordChoiceChipsProps {
+  /** The sheet's theme colours (see the note above on why not `useTheme()`). */
+  colors: ReturnType<typeof getColors>;
   words: string[];
   active: number;
   onChoose: (index: number) => void;
@@ -20,12 +26,12 @@ export interface WordChoiceChipsProps {
 }
 
 export function WordChoiceChips({
+  colors,
   words,
   active,
   onChoose,
   testID = 'word-choice-chips',
 }: WordChoiceChipsProps) {
-  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   if (words.length < 2) return null;
   return (
