@@ -75,6 +75,8 @@ export interface BibleContentPanelProps {
   targetEndVerse?: number;
   /** See ChapterPage's targetKey. */
   targetKey?: number;
+  /** Mark the target verse (typed search reference) instead of opening its tooltip */
+  markTargetVerse?: boolean;
 
   /** Whether navigation buttons should be visible (fades in/out based on user interaction) */
   visible?: boolean;
@@ -105,6 +107,7 @@ export function BibleContentPanel({
   targetVerse,
   targetEndVerse,
   targetKey,
+  markTargetVerse = false,
   visible = true,
   testID = 'bible-content-panel',
 }: BibleContentPanelProps) {
@@ -156,11 +159,21 @@ export function BibleContentPanel({
           targetVerse={isCurrent ? targetVerse : undefined}
           targetEndVerse={isCurrent ? targetEndVerse : undefined}
           targetKey={isCurrent ? targetKey : undefined}
+          markTargetVerse={markTargetVerse}
           hideChapterTitle
         />
       );
     },
-    [onScroll, onTap, bookId, chapterNumber, targetVerse, targetEndVerse, targetKey]
+    [
+      onScroll,
+      onTap,
+      bookId,
+      chapterNumber,
+      targetVerse,
+      targetEndVerse,
+      targetKey,
+      markTargetVerse,
+    ]
   );
 
   return (

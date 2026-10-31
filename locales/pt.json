@@ -332,6 +332,9 @@
     "all": "Todos",
     "oldTestament": "Antigo Testamento",
     "newTestament": "Novo Testamento",
-    "offlineNote": "Offline: palavras exatas nos versículos deste dispositivo, em ordem bíblica."
+    "offlineNote": "Offline: palavras exatas nos versículos deste dispositivo, em ordem bíblica.",
+    "inBook": "Buscando “{{query}}” em {{book}}",
+    "allBooks": "Buscar em todos os livros",
+    "noVersesInBook": "Nenhum versículo de {{book}} corresponde a “{{query}}”."
   }
 }

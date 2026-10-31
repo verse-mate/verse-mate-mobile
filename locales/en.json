@@ -332,6 +332,9 @@
     "all": "All",
     "oldTestament": "Old Testament",
     "newTestament": "New Testament",
-    "offlineNote": "Offline: exact words in the verses on this device, in Bible order."
+    "offlineNote": "Offline: exact words in the verses on this device, in Bible order.",
+    "inBook": "Searching “{{query}}” in {{book}}",
+    "allBooks": "Search all books",
+    "noVersesInBook": "No verses in {{book}} match \"{{query}}\"."
   }
 }

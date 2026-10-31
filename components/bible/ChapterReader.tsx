@@ -83,6 +83,7 @@ import {
   groupConsecutiveHighlights,
 } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
+import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
 
 /**
  * Lexicon underline appearance, shared with the legacy renderer's constants in
@@ -407,8 +408,11 @@ export function ChapterReader({
   const [errorMessage, _setErrorMessage] = useState('An error occurred. Please try again.');
 
   // Group consecutive manual highlights
+  // The search mark (a display-only highlight) never joins a saved group.
   const highlightGroups = useMemo(() => {
-    return groupConsecutiveHighlights(chapterHighlights);
+    return groupConsecutiveHighlights(
+      chapterHighlights.filter((h) => h.highlight_id !== SEARCH_MARK_HIGHLIGHT_ID)
+    );
   }, [chapterHighlights]);
 
   // Chapter alignment: English (NASB1995/KJV) uses the bundled
@@ -818,6 +822,12 @@ export function ChapterReader({
    * Shows grouped tooltip via context
    */
   const handleHighlightTap = (highlightId: number) => {
+    // The search mark is not a saved highlight: tapping it is a verse tap.
+    if (highlightId === SEARCH_MARK_HIGHLIGHT_ID) {
+      const mark = chapterHighlights.find((h) => h.highlight_id === SEARCH_MARK_HIGHLIGHT_ID);
+      if (mark) handleVerseTap(mark.start_verse);
+      return;
+    }
     let group = findGroupByHighlightId(highlightGroups, highlightId);
 
     if (!group) {

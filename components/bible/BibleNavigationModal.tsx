@@ -86,6 +86,7 @@ import {
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId, MAX_RECENT_BOOKS } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
+import { splitBookScope } from '@/utils/bible/bookScope';
 
 interface BibleNavigationModalProps {
   /** Whether modal is visible */
@@ -102,11 +103,18 @@ interface BibleNavigationModalProps {
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
   /**
    * Callback when the user picks a verse (a search result or a typed
-   * reference like "John 3:16"). The reader opens the chapter there, scrolls
-   * to the verse and opens its Verse Insight. Without it the sheet pushes the
-   * reader route with `?verse=`.
+   * reference like "John 3:16"). The reader opens the chapter there and
+   * scrolls to the verse. A search result opens its Verse Insight; a typed
+   * reference (`mark`) marks the verse in yellow instead, as on web (#324).
+   * Without it the sheet pushes the reader route with `?verse=` (`&mark=1`).
    */
-  onSelectVerse?: (bookId: number, chapter: number, verse: number, endVerse?: number) => void;
+  onSelectVerse?: (
+    bookId: number,
+    chapter: number,
+    verse: number,
+    endVerse?: number,
+    options?: { mark?: boolean }
+  ) => void;
   /** Initial tab to open (defaults to testament of currentBookId) */
   initialTab?: 'OT' | 'NT' | 'JESUS' | 'TOPICS';
   /** Initial topic category to open when initialTab is TOPICS (defaults to EVENT) */
@@ -320,7 +328,25 @@ function BibleNavigationModalComponent({
     () => references.filter((r) => r.chapter === undefined).map((r) => r.bookId),
     [references]
   );
-  const verseSearch = useVerseSearch(filterText, bibleVersion, searching && goToRefs.length === 0);
+  // A book name in front of words ("Amos day of the Lord") searches the words in that book, with a
+  // "Search all books" way out (web #324, same logic: utils/bible/bookScope).
+  const bookScope = useMemo(
+    () =>
+      searching && goToRefs.length === 0 && allBooks.length > 0
+        ? splitBookScope(filterText, parser, localizedNames)
+        : null,
+    [searching, goToRefs.length, allBooks.length, filterText, parser, localizedNames]
+  );
+  const [unscopedQuery, setUnscopedQuery] = useState<string | null>(null);
+  const scope = bookScope && unscopedQuery !== filterText.trim() ? bookScope : null;
+  /** The words the verse search looks for: the typed text, less a scoping book name. */
+  const searchedText = scope ? scope.text : filterText;
+  const verseSearch = useVerseSearch(
+    searchedText,
+    bibleVersion,
+    searching && goToRefs.length === 0,
+    scope?.bookId
+  );
 
   // Fetch topics data - always enabled for instant cache access
   const hasSearchText = topicFilterText.trim().length > 0;
@@ -519,18 +545,23 @@ function BibleNavigationModalComponent({
                 'search.offlineNoDownload',
                 "You're offline. Download this translation to search it without a connection."
               )
-          : t(
-              'search.noVerses',
-              'No verses match "{{query}}". Try fewer words or check the spelling.',
-              {
-                query: filterText.trim(),
-              }
-            );
+          : scope
+            ? t('search.noVersesInBook', 'No verses in {{book}} match "{{query}}".', {
+                book: scope.bookName,
+                query: searchedText.trim(),
+              })
+            : t(
+                'search.noVerses',
+                'No verses match "{{query}}". Try fewer words or check the spelling.',
+                {
+                  query: searchedText.trim(),
+                }
+              );
       return [{ kind: 'status', _listKey: 'verse-status', text }];
     }
     // One word has no "phrase": its exact matches need no label, and the
     // stemmer's matches ("loving" → love, loved) read as other forms of it.
-    const singleWord = (filterText.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []).length === 1;
+    const singleWord = (searchedText.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []).length === 1;
     const firstWords = results.findIndex((r) => r.match === 'words');
     const rows: SearchRow[] = results.map((result, index) => ({
       kind: 'verse',
@@ -550,7 +581,7 @@ function BibleNavigationModalComponent({
     }));
     if (verseSearch.hasMore) rows.push({ kind: 'more', _listKey: 'verse-more' });
     return rows;
-  }, [verseSearch, filterText, isOnline, t]);
+  }, [verseSearch, searchedText, scope, isOnline, t]);
 
   // Build SectionList sections for book list
   const bookSections = useMemo((): BookListSection[] => {
@@ -732,13 +763,13 @@ function BibleNavigationModalComponent({
 
   // ─── Search: picking a verse or a reference ───────────────────────────────
   const openVerse = useCallback(
-    (bookId: number, chapter: number, verse: number, endVerse?: number) => {
+    (bookId: number, chapter: number, verse: number, endVerse?: number, mark = false) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (onSelectVerse) {
-        onSelectVerse(bookId, chapter, verse, endVerse);
+        onSelectVerse(bookId, chapter, verse, endVerse, { mark });
       } else {
         router.push(
-          `/bible/${bookId}/${chapter}?verse=${verse}${endVerse ? `&endVerse=${endVerse}` : ''}`
+          `/bible/${bookId}/${chapter}?verse=${verse}${endVerse ? `&endVerse=${endVerse}` : ''}${mark ? '&mark=1' : ''}`
         );
       }
       handleClose();
@@ -764,12 +795,14 @@ function BibleNavigationModalComponent({
         kind: ref.verseStart !== undefined ? 'verse' : 'chapter',
       });
       if (ref.verseStart !== undefined) {
+        // A typed reference is a place to go: the verse is marked, no Verse Insight (web #324).
         // A range into the next chapter only marks its first verse.
         openVerse(
           ref.bookId,
           ref.chapter,
           ref.verseStart,
-          ref.chapterEnd === undefined ? ref.verseEnd : undefined
+          ref.chapterEnd === undefined ? ref.verseEnd : undefined,
+          true
         );
         return;
       }
@@ -1339,7 +1372,24 @@ function BibleNavigationModalComponent({
             </Text>
           )}
         </View>
-        {total > 0 && (
+        {scope ? (
+          <Text style={styles.scopeText} testID="verse-search-scope">
+            {t('search.inBook', 'Searching “{{query}}” in {{book}}', {
+              query: searchedText.trim(),
+              book: scope.bookName,
+            })}
+            {' · '}
+            <Text
+              style={styles.scopeLink}
+              onPress={() => setUnscopedQuery(filterText.trim())}
+              accessibilityRole="button"
+              testID="verse-search-scope-all"
+            >
+              {t('search.allBooks', 'Search all books')}
+            </Text>
+          </Text>
+        ) : null}
+        {total > 0 && !scope && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1880,6 +1930,15 @@ const createStyles = (
       fontSize: 12,
       color: colors.textTertiary,
       paddingHorizontal: spacing.lg,
+    },
+    scopeText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      paddingHorizontal: spacing.lg,
+    },
+    scopeLink: {
+      color: colors.gold,
+      fontWeight: '600',
     },
     verseGroupLabel: {
       fontSize: 12,

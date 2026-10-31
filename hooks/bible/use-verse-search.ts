@@ -27,7 +27,16 @@ function useDebounced(value: string, ms = DEBOUNCE_MS): string {
   return debounced;
 }
 
-export function useVerseSearch(query: string, versionKey: string, enabled: boolean) {
+/**
+ * `scopeBookId` limits the search to one book: the sheet sets it for "Amos day of the Lord" (the
+ * words, in Amos; see utils/bible/bookScope). While it is set the chips' own filters are not used.
+ */
+export function useVerseSearch(
+  query: string,
+  versionKey: string,
+  enabled: boolean,
+  scopeBookId?: number
+) {
   const { isOnline } = useOfflineContext();
   // The raw text, not trimmed: a trailing space tells the search the last
   // word is finished (no prefix match).
@@ -41,13 +50,18 @@ export function useVerseSearch(query: string, versionKey: string, enabled: boole
     setFilters({});
   }, [trimmed]);
 
+  const effectiveFilters = useMemo<VerseSearchFilters>(
+    () => (scopeBookId ? { book: scopeBookId } : filters),
+    [scopeBookId, filters]
+  );
+
   const search = useInfiniteQuery({
-    queryKey: ['bible-search', versionKey, debounced, filters, isOnline],
+    queryKey: ['bible-search', versionKey, debounced, effectiveFilters, isOnline],
     queryFn: ({ pageParam, signal }) =>
       searchVerses({
         q: debounced,
         versionKey,
-        filters,
+        filters: effectiveFilters,
         cursor: pageParam,
         isOnline,
         signal,
@@ -84,7 +98,7 @@ export function useVerseSearch(query: string, versionKey: string, enabled: boole
     loadMore: () => {
       if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage();
     },
-    filters,
+    filters: effectiveFilters,
     setFilters,
   };
 }

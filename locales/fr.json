@@ -332,6 +332,9 @@
     "all": "Tous",
     "oldTestament": "Ancien Testament",
     "newTestament": "Nouveau Testament",
-    "offlineNote": "Hors ligne : mots exacts dans les versets de cet appareil, dans l’ordre biblique."
+    "offlineNote": "Hors ligne : mots exacts dans les versets de cet appareil, dans l’ordre biblique.",
+    "inBook": "Recherche de « {{query}} » dans {{book}}",
+    "allBooks": "Chercher dans tous les livres",
+    "noVersesInBook": "Aucun verset de {{book}} ne correspond à « {{query}} »."
   }
 }

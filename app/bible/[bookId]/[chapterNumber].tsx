@@ -159,6 +159,8 @@ export default function ChapterScreen() {
     endVerse?: string;
     tab?: string;
     src?: string;
+    /** "1" when the verse came from a typed search reference: mark, no tooltip. */
+    mark?: string;
   }>();
   // A verse picked in Search. Kept here, not in the URL: the URL sync clears
   // ?verse= after a chapter jump, and the pager only follows
@@ -169,6 +171,8 @@ export default function ChapterScreen() {
     chapterNumber: number;
     verse: number;
     endVerse?: number;
+    /** A typed reference: mark the verse, no Verse Insight (web #324). */
+    mark?: boolean;
     key: number;
   } | null>(null);
   const searchTargetHere =
@@ -178,6 +182,8 @@ export default function ChapterScreen() {
   const targetVerse = params.verse ? Number(params.verse) : searchTargetHere?.verse;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : searchTargetHere?.endVerse;
   const targetKey = params.verse ? undefined : searchTargetHere?.key;
+  /** The target came from a typed reference ("John 3:16"): mark it instead of opening Insight. */
+  const markTargetVerse = params.verse ? params.mark === '1' : !!searchTargetHere?.mark;
   // Leaving that chapter drops the target, so coming back doesn't jump again.
   useEffect(() => {
     if (searchTarget && !searchTargetHere) setSearchTarget(null);
@@ -275,7 +281,13 @@ export default function ChapterScreen() {
   const { activeView, setActiveView } = useActiveView();
 
   const handleSelectVerse = useCallback(
-    (selectedBookId: number, chapterNum: number, verse: number, endVerse?: number) => {
+    (
+      selectedBookId: number,
+      chapterNum: number,
+      verse: number,
+      endVerse?: number,
+      options?: { mark?: boolean }
+    ) => {
       setIsNavigationModalOpen(false);
       setActiveView('bible');
       setSearchTarget({
@@ -283,6 +295,7 @@ export default function ChapterScreen() {
         chapterNumber: chapterNum,
         verse,
         endVerse,
+        mark: options?.mark,
         key: Date.now(),
       });
       if (selectedBookId !== bookId || chapterNum !== chapterNumber) {
@@ -758,6 +771,7 @@ export default function ChapterScreen() {
           targetVerse={isUrgentCurrent ? targetVerse : undefined}
           targetEndVerse={isUrgentCurrent ? targetEndVerse : undefined}
           targetKey={isUrgentCurrent ? targetKey : undefined}
+          markTargetVerse={markTargetVerse}
           fabVisible={fabVisible}
           onFABInteraction={showButtons}
         />
@@ -777,6 +791,7 @@ export default function ChapterScreen() {
       targetVerse,
       targetEndVerse,
       targetKey,
+      markTargetVerse,
       fabVisible,
       showButtons,
     ]
@@ -903,6 +918,7 @@ export default function ChapterScreen() {
                   targetVerse={targetVerse}
                   targetEndVerse={targetEndVerse}
                   targetKey={targetKey}
+                  markTargetVerse={markTargetVerse}
                   visible={fabVisible}
                 />
               }

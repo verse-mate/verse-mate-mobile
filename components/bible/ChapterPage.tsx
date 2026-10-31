@@ -78,6 +78,7 @@ import type { Note } from '@/types/notes';
 import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
+import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -535,6 +536,12 @@ export interface ChapterPageProps {
    * Search twice), so the page scrolls to it and opens its Insight again.
    */
   targetKey?: number;
+  /**
+   * The target came from a typed search reference ("John 3:16"): mark the
+   * verse(s) in yellow until the reader leaves the chapter, instead of opening
+   * the Verse Insight tooltip. Display-only — never saved as a highlight.
+   */
+  markTargetVerse?: boolean;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -589,6 +596,7 @@ export function ChapterPage({
   targetVerse,
   targetEndVerse,
   targetKey,
+  markTargetVerse = false,
   onScroll,
   onTap,
   hideChapterTitle = false,
@@ -685,6 +693,72 @@ export function ChapterPage({
     (h) =>
       `${h.highlight_id}:${h.color}:${h.start_verse}:${h.end_verse}:${h.start_char}:${h.end_char}`
   );
+  // Search mark: a verse opened from a typed reference stays marked yellow
+  // while the reader is on this chapter. It is a display-only highlight with
+  // a negative id (ChapterReader treats a tap on it as a verse tap, so it
+  // can never be edited or deleted as a saved highlight). The page instance
+  // is reused across chapters, so the mark carries its own chapter and drops
+  // as soon as this page shows another one or stops being the current page.
+  const [searchMark, setSearchMark] = useState<{
+    bookId: number;
+    chapterNumber: number;
+    start: number;
+    end: number;
+  } | null>(null);
+  // Marked once per request: a URL target once per page, a Search pick once per `targetKey`, so
+  // jumping to "John 3:16" again (from another chapter, or the same one) marks it again.
+  const searchMarkShownRef = useRef<number | 'url' | null>(null);
+  useEffect(() => {
+    if (!markTargetVerse || !targetVerse) return;
+    const request = targetKey ?? 'url';
+    if (searchMarkShownRef.current === request) return;
+    searchMarkShownRef.current = request;
+    setSearchMark({
+      bookId,
+      chapterNumber,
+      start: targetVerse,
+      end: Math.max(targetEndVerse ?? targetVerse, targetVerse),
+    });
+  }, [markTargetVerse, targetVerse, targetEndVerse, targetKey, bookId, chapterNumber]);
+  const searchMarkActive =
+    !!searchMark &&
+    !isPreloading &&
+    searchMark.bookId === bookId &&
+    searchMark.chapterNumber === chapterNumber;
+  useEffect(() => {
+    if (
+      searchMark &&
+      !searchMarkActive &&
+      (isPreloading || searchMark.bookId !== bookId || searchMark.chapterNumber !== chapterNumber)
+    ) {
+      setSearchMark(null);
+    }
+  }, [searchMark, searchMarkActive, isPreloading, bookId, chapterNumber]);
+  const readerHighlights = useMemo<Highlight[]>(() => {
+    if (!searchMark || !searchMarkActive) return chapterHighlights;
+    const { start, end } = searchMark;
+    // A verse the reader already highlighted keeps its own color.
+    if (chapterHighlights.some((h) => h.start_verse <= end && h.end_verse >= start)) {
+      return chapterHighlights;
+    }
+    const mark: Highlight = {
+      highlight_id: SEARCH_MARK_HIGHLIGHT_ID,
+      user_id: '',
+      chapter_id: 0,
+      book_id: bookId,
+      chapter_number: chapterNumber,
+      start_verse: start,
+      end_verse: end,
+      color: 'yellow',
+      start_char: null,
+      end_char: null,
+      selected_text: null,
+      created_at: '',
+      updated_at: '',
+    };
+    return [...chapterHighlights, mark];
+  }, [chapterHighlights, searchMark, searchMarkActive, bookId, chapterNumber]);
+
   const autoHighlights = useStableList(
     useMemo(
       () =>
@@ -1232,9 +1306,13 @@ export function ChapterPage({
         // Show tooltip much sooner - don't wait the full scroll duration
         // Actual animation typically completes in ~1s, so show tooltip after ~600ms
         // This feels immediate while letting the scroll settle
-        verseTooltipTimerRef.current = setTimeout(() => {
-          setVerseTooltipVisible(true);
-        }, 600);
+        // A typed reference marks the verse in the text instead (see
+        // searchMark below) — no tooltip.
+        if (!markTargetVerse) {
+          verseTooltipTimerRef.current = setTimeout(() => {
+            setVerseTooltipVisible(true);
+          }, 600);
+        }
 
         hasScrolledRef.current = true;
       }
@@ -1932,7 +2010,7 @@ export function ChapterPage({
                   hideChapterTitle={hideChapterTitle}
                   onContentLayout={handleContentLayout}
                   onOpenNotes={handleOpenNotes}
-                  filteredHighlights={chapterHighlights}
+                  filteredHighlights={readerHighlights}
                   filteredAutoHighlights={autoHighlights}
                   maxBibleSections={bibleSectionsMax}
                   bibleVersion={bibleVersion}
