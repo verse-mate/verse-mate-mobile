@@ -71,7 +71,8 @@ const FILLER_WORDS = new Set(
     'a an the and or but nor so yet of to in on at by for from with as into onto upon unto than ' +
     'that this these those it its is was be been are were am he she they we you i me him her them ' +
     'us his hers their our your my mine who whom whose which what not no do did does have has had ' +
-    'will shall would should can could may might must then there here also'
+    'will shall would should can could may might must then there here also when where while ' +
+    'if because'
   ).split(' ')
 );
 
