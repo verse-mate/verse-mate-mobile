@@ -146,6 +146,12 @@ export interface TextSelectionAction {
   id: string;
   /** Shown in the menu, already localised. */
   label: string;
+  /**
+   * Behind the menu's "more" arrow rather than in its first row. Andy (2026-11-02): the arrow
+   * should open only what the row does not already show (Note, Share), not the whole list again.
+   * iOS nests these in a submenu; Android puts them in the toolbar's overflow.
+   */
+  more?: boolean;
 }
 
 /** Payload for `onSelectionAction`: which menu item, and the selection it acted on. */

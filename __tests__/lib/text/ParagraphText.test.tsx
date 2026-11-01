@@ -296,6 +296,11 @@ describe('ParagraphText selection menu', () => {
       'note',
       'share',
     ]);
+    // Andy: the arrow opens only what the row does not already show.
+    expect(capturedSelectionActions?.filter((a) => a.more).map((a) => a.id)).toEqual([
+      'note',
+      'share',
+    ]);
 
     const compiled = compileParagraph({ verses: VERSES, theme: THEME });
     const start = compiled.text.indexOf('God');
@@ -409,7 +414,7 @@ describe('ParagraphText selection menu', () => {
 
 let capturedRangeTap: ((index: number, charOffset: number) => void) | undefined;
 let capturedPress: ((event: { charOffset: number; x: number; y: number }) => void) | undefined;
-let capturedSelectionActions: { id: string; label: string }[] | undefined;
+let capturedSelectionActions: { id: string; label: string; more?: boolean }[] | undefined;
 let capturedSelectionAction:
   | ((event: { id: string; start: number; end: number }) => void)
   | undefined;

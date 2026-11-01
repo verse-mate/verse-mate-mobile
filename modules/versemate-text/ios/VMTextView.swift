@@ -101,16 +101,21 @@ final class VMTextView: ExpoView {
   /// verse, and act on it from the menu (Highlight, Define). UITextView already does the hold, the
   /// drag, the handles and the loupe; this only adds entries to the menu it shows.
   private var selectionActions: [(id: String, label: String)] = []
+  /// Ids of the actions that sit behind the menu's "more" arrow (a submenu) instead of in its row.
+  private var moreActionIds: Set<String> = []
 
-  /// Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx).
+  /// Decode `id~label|id~label~more` (see `encodeSelectionActions` in VMText.tsx).
   func setSelectionActions(_ encoded: String?) {
+    var more = Set<String>()
     selectionActions = (encoded ?? "")
       .split(separator: "|", omittingEmptySubsequences: true)
       .compactMap { chunk in
-        let parts = chunk.split(separator: "~", maxSplits: 1, omittingEmptySubsequences: false)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        let parts = chunk.split(separator: "~", omittingEmptySubsequences: false)
+        guard parts.count >= 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        if parts.count > 2, parts[2] == "more" { more.insert(String(parts[0])) }
         return (String(parts[0]), String(parts[1]))
       }
+    moreActionIds = more
     textView.trimsSystemMenu = !selectionActions.isEmpty
     textView.keepsSystemCopy = !selectionActions.contains { $0.id == "copy" }
   }
@@ -659,13 +664,20 @@ extension VMTextView: UITextViewDelegate {
     suggestedActions: [UIMenuElement]
   ) -> UIMenu? {
     guard !selectionActions.isEmpty, range.length > 0 else { return nil }
-    let custom = selectionActions.map { action in
-      UIAction(title: action.label) { [weak self] _ in
-        self?.dispatchSelectionAction(id: action.id, range: range)
+    let action: ((id: String, label: String)) -> UIAction = { item in
+      UIAction(title: item.label) { [weak self] _ in
+        self?.dispatchSelectionAction(id: item.id, range: range)
       }
     }
+    let row = selectionActions.filter { !moreActionIds.contains($0.id) }.map(action)
+    let behindArrow = selectionActions.filter { moreActionIds.contains($0.id) }.map(action)
+    // The arrow is a submenu of only the rest, so opening it shows Note and Share — not iOS's own
+    // overflow, which re-lists every item (Andy, 2026-11-02).
+    let more: [UIMenuElement] = behindArrow.isEmpty
+      ? []
+      : [UIMenu(title: "", image: UIImage(systemName: "chevron.forward"), children: behindArrow)]
     let appCopies = selectionActions.contains { $0.id == Self.appCopyActionId }
-    return UIMenu(children: custom + (appCopies ? [] : Self.copyOnly(suggestedActions)))
+    return UIMenu(children: row + (appCopies ? [] : Self.copyOnly(suggestedActions)) + more)
   }
 
   /// An app action with this id replaces the system's Copy.

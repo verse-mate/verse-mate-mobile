@@ -61,14 +61,17 @@ export interface VMTextProps {
 }
 
 /**
- * Encode selection-menu items for the native prop: `id~label|id~label`.
+ * Encode selection-menu items for the native prop: `id~label|id~label~more` (`~more` = behind
+ * the "more" arrow).
  *
  * A string for the same reason as `encodeRanges`. A label containing `~` or `|` would split, so
  * both are dropped from it; no translation uses either.
  */
 export function encodeSelectionActions(actions: TextSelectionAction[] | undefined): string {
   if (!actions || actions.length === 0) return '';
-  return actions.map((a) => `${a.id}~${a.label.replace(/[~|]/g, '')}`).join('|');
+  return actions
+    .map((a) => `${a.id}~${a.label.replace(/[~|]/g, '')}${a.more ? '~more' : ''}`)
+    .join('|');
 }
 
 /**

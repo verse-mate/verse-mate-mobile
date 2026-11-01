@@ -40,7 +40,11 @@ import { useTheme } from '@/contexts/ThemeContext';
  */
 export interface HighlightColorPickerProps {
   /** Currently selected color */
-  selectedColor: HighlightColor;
+  /**
+   * The colour shown as chosen, if any. Leave it out when nothing is applied yet: a creating sheet
+   * that showed yellow ticked read as "already highlighted yellow" (Andy, 2026-11-02).
+   */
+  selectedColor?: HighlightColor;
   /** Callback when color is selected */
   onColorSelect: (color: HighlightColor) => void;
   /** Visual variant - light for creation sheet, dark for edit menu */

@@ -78,20 +78,25 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
    * the handles and the floating menu; this only adds entries to that menu.
    */
   private var selectionActions: List<Pair<String, String>> = emptyList()
+  /** Ids that go in the toolbar's overflow menu rather than its row (Note, Share: Andy, 2026-11-02). */
+  private var moreActionIds: Set<String> = emptySet()
 
   /** Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx). */
   fun setSelectionActions(encoded: String?) {
+    val more = mutableSetOf<String>()
     selectionActions = (encoded ?: "")
       .split('|')
       .filter { it.isNotEmpty() }
       .mapNotNull { chunk ->
-        val parts = chunk.split('~', limit = 2)
-        if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+        val parts = chunk.split('~')
+        if (parts.size >= 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+          if (parts.size > 2 && parts[2] == "more") more.add(parts[0])
           parts[0] to parts[1]
         } else {
           null
         }
       }
+    moreActionIds = more
   }
 
   /**
@@ -298,10 +303,16 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     /** Add any missing app items, in order, before the platform's. True when the menu changed. */
     private fun addSelectionActions(menu: Menu): Boolean {
       var changed = false
-      selectionActions.forEachIndexed { index, (_, label) ->
+      selectionActions.forEachIndexed { index, (actionId, label) ->
         val id = SELECTION_MENU_ID_BASE + index
         if (menu.findItem(id) == null) {
-          menu.add(Menu.NONE, id, index, label).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+          // Overflow items only ever open from the toolbar's "more", which then lists just them.
+          val show = if (actionId in moreActionIds) {
+            MenuItem.SHOW_AS_ACTION_NEVER
+          } else {
+            MenuItem.SHOW_AS_ACTION_IF_ROOM
+          }
+          menu.add(Menu.NONE, id, index, label).setShowAsAction(show)
           changed = true
         }
       }

@@ -36,6 +36,7 @@ import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
 import {
   compileParagraph,
+  snapToWords,
   type VerseSelection,
   verseAtOffset,
   verseNumberNearOffset,
@@ -468,10 +469,12 @@ export function ParagraphText(props: ParagraphTextProps) {
       ['note', !!onNoteSelection],
       ['share', !!onShareSelection],
     ];
-    const actions: { id: string; label: string }[] = [];
+    // Note and Share sit behind the arrow: it opens only what the row does not show (Andy).
+    const behindArrow = new Set<SelectionActionId>(['note', 'share']);
+    const actions: { id: string; label: string; more?: boolean }[] = [];
     for (const [id, handled] of offered) {
       const label = selectionLabels?.[id];
-      if (handled && label) actions.push({ id, label });
+      if (handled && label) actions.push({ id, label, ...(behindArrow.has(id) ? { more: true } : {}) });
     }
     return actions;
   }, [
@@ -500,7 +503,8 @@ export function ParagraphText(props: ParagraphTextProps) {
       };
       const verseHandler = verseHandlers[id];
       if (verseHandler) {
-        const selection = verseSelectionFromOffsets(compiled, start, end);
+        const [from, to] = snapToWords(compiled.text, start, end);
+        const selection = verseSelectionFromOffsets(compiled, from, to);
         if (selection) verseHandler(selection);
         return;
       }

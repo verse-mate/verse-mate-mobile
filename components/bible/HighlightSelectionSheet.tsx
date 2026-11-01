@@ -118,6 +118,8 @@ export interface HighlightSheetActions {
   copy?: () => void;
   share?: () => void;
   note?: () => void;
+  /** Present when the selection touches existing highlights: removes them (web has a delete). */
+  remove?: () => void;
 }
 
 /**
@@ -205,10 +207,16 @@ export function HighlightSelectionSheet({
     action();
   };
 
-  const actionRows: { key: keyof HighlightSheetActions; label: string; icon: IoniconName }[] = [
+  const actionRows: {
+    key: keyof HighlightSheetActions;
+    label: string;
+    icon: IoniconName;
+    destructive?: boolean;
+  }[] = [
     { key: 'copy', label: 'Copy', icon: 'copy-outline' },
     { key: 'share', label: 'Share', icon: 'share-outline' },
     { key: 'note', label: 'Take a Note', icon: 'document-text-outline' },
+    { key: 'remove', label: 'Remove Highlight', icon: 'trash-outline', destructive: true },
   ];
 
   const scopeLabel = (value: HighlightScope) => {
@@ -295,8 +303,8 @@ export function HighlightSelectionSheet({
               {activeScope === 'verse' && scopes.length === 0 ? 'HIGHLIGHT VERSE' : 'HIGHLIGHT'}
             </Text>
 
+            {/* No colour ticked: nothing is highlighted until one is tapped. */}
             <HighlightColorPicker
-              selectedColor="yellow"
               onColorSelect={handleColorSelect}
               variant={mode === 'dark' ? 'dark' : 'light'}
             />
@@ -306,9 +314,10 @@ export function HighlightSelectionSheet({
         {/* At the bottom of the sheet, outside the scrolling colour area (Sebastian). */}
         {actions ? (
           <View style={styles.quickActions} testID="highlight-actions">
-            {actionRows.map(({ key, label, icon }) => {
+            {actionRows.map(({ key, label, icon, destructive }) => {
               const action = actions[key];
               if (!action) return null;
+              const tint = destructive ? colors.error : colors.textSecondary;
               return (
                 <Pressable
                   key={key}
@@ -316,8 +325,10 @@ export function HighlightSelectionSheet({
                   onPress={() => handleAction(action)}
                   testID={`highlight-action-${key}`}
                 >
-                  <Ionicons name={icon} size={20} color={colors.textSecondary} />
-                  <Text style={styles.quickActionText}>{label}</Text>
+                  <Ionicons name={icon} size={20} color={tint} />
+                  <Text style={[styles.quickActionText, destructive && { color: colors.error }]}>
+                    {label}
+                  </Text>
                 </Pressable>
               );
             })}

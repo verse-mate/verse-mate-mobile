@@ -90,7 +90,7 @@ import {
 } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
-import { wholeVerseHighlight } from '@/utils/bible/verseHighlight';
+import { highlightsTouching, wholeVerseHighlight } from '@/utils/bible/verseHighlight';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { selectionReference, selectionShareText } from '@/utils/sharing/selection-share';
 
@@ -381,6 +381,7 @@ export function ChapterReader({
     openAutoHighlightTooltip,
     openHighlightEditMenu,
     openHighlightSelection,
+    deleteHighlight,
   } = useBibleInteraction();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -912,8 +913,27 @@ export function ChapterReader({
         copy: () => void handleCopySelection(selection),
         share: () => void handleShareSelection(selection),
         note: onOpenNotes ? () => handleNoteSelection(selection) : undefined,
+        remove: removableFor(selection),
       }
     );
+  };
+
+  /** Remove for the highlight sheet: the user highlights the selection touches, if any. */
+  const removableFor = (selection: VerseSelection) => {
+    const touching = highlightsTouching(chapterHighlights, selection);
+    if (touching.length === 0) return undefined;
+    return async () => {
+      try {
+        await Promise.all(touching.map((h) => deleteHighlight(h.highlight_id)));
+        showToast(
+          touching.length === 1
+            ? t('highlights.removed', 'Highlight removed')
+            : t('highlights.removed_many', 'Highlights removed')
+        );
+      } catch {
+        showToast(t('highlights.remove_failed', 'Failed to remove highlight'));
+      }
+    };
   };
 
   /** Copy from the selection menu: the words in quotes with their reference, as Verse Insight copies. */

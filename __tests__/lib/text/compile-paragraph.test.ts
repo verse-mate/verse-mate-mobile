@@ -8,7 +8,12 @@
  */
 
 import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
-import { compileParagraph, RANGE_LAYER, verseAtOffset } from '@/lib/text/compile-paragraph';
+import {
+  compileParagraph,
+  RANGE_LAYER,
+  snapToWords,
+  verseAtOffset,
+} from '@/lib/text/compile-paragraph';
 import type {
   CompiledParagraph,
   CompileHighlight,
@@ -613,3 +618,32 @@ describe('verseAtOffset', () => {
 function alphaOf(color: string): number {
   return Number.parseInt(color.slice(-2), 16);
 }
+
+describe('snapToWords', () => {
+  const text = 'He was in the world, and the Lord\u2019s house.';
+
+  it('widens an end that stops mid-word to the whole word', () => {
+    // "He was in the wor" -> "He was in the world" (Andy's screenshot).
+    const end = text.indexOf('world') + 3;
+    expect(snapToWords(text, 0, end)).toEqual([0, text.indexOf('world') + 'world'.length]);
+  });
+
+  it('widens a start that falls inside a word', () => {
+    const start = text.indexOf('world') + 2;
+    expect(snapToWords(text, start, text.indexOf(','))).toEqual([
+      text.indexOf('world'),
+      text.indexOf(','),
+    ]);
+  });
+
+  it('keeps whole words and their punctuation as they are', () => {
+    const start = text.indexOf('the world');
+    const end = text.indexOf(',') + 1;
+    expect(snapToWords(text, start, end)).toEqual([start, end]);
+  });
+
+  it('treats an in-word apostrophe as part of the word', () => {
+    const start = text.indexOf('Lord');
+    expect(snapToWords(text, start, start + 3)).toEqual([start, start + 'Lord\u2019s'.length]);
+  });
+});
