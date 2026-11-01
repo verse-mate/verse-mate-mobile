@@ -30,6 +30,10 @@ jobs:
   preview-build:
     name: EAS Preview Build
     runs-on: ubuntu-latest
+    # Same heap as ci.yml's Quality Checks: tsc on this project needs more than Node's ~2GB
+    # default and died with "JavaScript heap out of memory" (run 41353815582, 2026-11-01).
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     permissions:
       contents: write
 
