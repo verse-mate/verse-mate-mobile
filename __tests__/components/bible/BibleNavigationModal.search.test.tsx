@@ -168,8 +168,8 @@ describe('BibleNavigationModal search', () => {
     const { input, onSelectVerse } = renderSheet();
     fireEvent.changeText(input, 'east and west');
     fireEvent.press(screen.getByTestId('verse-result-19-103-12'));
-    // A verse-text result opens Verse Insight as before: no mark.
-    expect(onSelectVerse).toHaveBeenCalledWith(19, 103, 12, undefined, { mark: false });
+    // A verse-text result is marked too, no Verse Insight (Andy, #399).
+    expect(onSelectVerse).toHaveBeenCalledWith(19, 103, 12, undefined, { mark: true });
   });
 
   it('pushes the reader route when the screen gives no verse handler', () => {
@@ -183,7 +183,7 @@ describe('BibleNavigationModal search', () => {
     const { input } = renderSheet({ onSelectVerse: undefined });
     fireEvent.changeText(input, 'east and west');
     fireEvent.press(screen.getByTestId('verse-result-40-8-11'));
-    expect(router.push).toHaveBeenCalledWith('/bible/40/8?verse=11');
+    expect(router.push).toHaveBeenCalledWith('/bible/40/8?verse=11&mark=1');
   });
 
   it('marks a typed reference when the screen gives no verse handler', () => {

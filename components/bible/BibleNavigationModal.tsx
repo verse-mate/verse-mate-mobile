@@ -103,9 +103,9 @@ interface BibleNavigationModalProps {
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
   /**
    * Callback when the user picks a verse (a search result or a typed
-   * reference like "John 3:16"). The reader opens the chapter there and
-   * scrolls to the verse. A search result opens its Verse Insight; a typed
-   * reference (`mark`) marks the verse in yellow instead, as on web (#324).
+   * reference like "John 3:16"). The reader opens the chapter there, scrolls
+   * to the verse and marks it in yellow (`mark`) instead of opening Verse
+   * Insight, for references and verse results alike (web #324, mobile #399).
    * Without it the sheet pushes the reader route with `?verse=` (`&mark=1`).
    */
   onSelectVerse?: (
@@ -783,7 +783,9 @@ function BibleNavigationModalComponent({
         match: result.match,
         position: index,
       });
-      openVerse(result.bookId, result.chapter, result.verse);
+      // Every result lands on its verse and marks it yellow until the reader leaves the chapter,
+      // the same as a typed reference, rather than opening Verse Insight (Andy, #399).
+      openVerse(result.bookId, result.chapter, result.verse, undefined, true);
     },
     [openVerse]
   );
