@@ -29,7 +29,14 @@ import {
 } from '@gorhom/bottom-sheet';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBundledLexEntry } from '@/hooks/use-bundled-lex-entry';
 import { useLemma } from '@/hooks/use-lemma';
@@ -72,7 +79,7 @@ export interface LexiconPopoverProps {
 export function LexiconPopover({
   visible,
   onClose,
-  surface: _surface,
+  surface,
   entry: stubEntry,
   token,
   isTheme: _isTheme,
@@ -222,14 +229,14 @@ export function LexiconPopover({
               testID={`${testID}-word-choices`}
             />
           ) : null}
+          {/* Same order as the web card (Andy, 2026-11-01): the word as it reads in the verse is the
+              headword, then the readable transliteration, then the original script, smaller. */}
+          <Text style={styles.surface} accessibilityRole="header" testID={`${testID}-surface`}>
+            {surface}
+          </Text>
           <View style={styles.headerRow}>
-            <Text
-              style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}
-              accessibilityRole="header"
-            >
-              {entry.lemma}
-            </Text>
             <Text style={styles.translit}>{entry.translit}</Text>
+            <Text style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}>{entry.lemma}</Text>
           </View>
           <Text style={styles.metaLine}>
             {entry.pos} • {entry.strongs}
@@ -393,9 +400,16 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'baseline',
       gap: spacing.sm,
     },
-    lemma: {
+    surface: {
       fontSize: fontSizes.heading2,
       fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    lemma: {
+      fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }),
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
       color: colors.textPrimary,
     },
     lemmaRtl: {
@@ -403,7 +417,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     translit: {
       fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
+      fontWeight: fontWeights.medium,
       color: colors.gold,
     },
     metaLine: {
