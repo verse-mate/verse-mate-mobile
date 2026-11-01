@@ -6,7 +6,6 @@ import android.text.SpannableString
 import android.text.Spanned
 import android.graphics.Paint
 import android.text.TextPaint
-import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
@@ -192,7 +191,9 @@ fun VMTextSpec.buildSpannable(): Spannable {
     if (end <= start) continue
     val flag = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
 
-    range.backgroundColor?.let { spannable.setSpan(BackgroundColorSpan(it), start, end, flag) }
+    // No BackgroundColorSpan: it fills the whole line box, so with our line height the colour sat
+    // high above the letters as a flat block. VMTextView.drawHighlight paints backgrounds itself,
+    // as rounded boxes that hug the glyphs.
     range.textColor?.let { spannable.setSpan(ForegroundColorSpan(it), start, end, flag) }
     // ONE StyleSpan for both axes. Two overlapping StyleSpans do not combine into BOLD_ITALIC —
     // the later one replaces the typeface style of the earlier, so `**bold *and italic* **` would

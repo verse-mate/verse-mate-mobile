@@ -405,6 +405,8 @@ final class VMTextView: ExpoView {
     layoutManager.ensureLayout(for: container)
     let nsText = spec.text as NSString
 
+    drawHighlights(in: context, layoutManager: layoutManager, container: container, text: nsText)
+
     for range in spec.ranges {
       guard let style = range.underlineStyle, !style.isEmpty else { continue }
       let start = min(max(range.start, 0), nsText.length)
@@ -469,6 +471,63 @@ final class VMTextView: ExpoView {
     guard allGlyphs.length > 0 else { return }
     layoutManager.drawBackground(forGlyphRange: allGlyphs, at: .zero)
     layoutManager.drawGlyphs(forGlyphRange: allGlyphs, at: .zero)
+  }
+
+  /**
+   Paint every range's background as a rounded rectangle per line, hugging the glyphs.
+
+   Vertically it runs from the font's ascender to its descender around the line's baseline, plus a
+   hair of padding, instead of over the whole line fragment: with an exact line height TextKit puts the
+   extra leading above the text, so a fragment-sized box sat high and cut the descenders off. Each line
+   a range wraps onto gets its own rounded piece, like a highlighter pass per line.
+   */
+  private func drawHighlights(
+    in context: CGContext,
+    layoutManager: NSLayoutManager,
+    container: NSTextContainer,
+    text nsText: NSString
+  ) {
+    let storage = textView.textStorage
+    for range in spec.ranges {
+      guard let color = range.backgroundColor else { continue }
+      let start = min(max(range.start, 0), nsText.length)
+      let end = min(max(range.end, start), nsText.length)
+      if end <= start { continue }
+      let glyphRange = layoutManager.glyphRange(
+        forCharacterRange: NSRange(location: start, length: end - start), actualCharacterRange: nil
+      )
+      context.saveGState()
+      context.setFillColor(color.cgColor)
+      layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphs, _ in
+        var piece = NSIntersectionRange(glyphRange, lineGlyphs)
+        guard piece.length > 0 else { return }
+        // A trailing space at a wrap is part of the range but not something to paint.
+        while piece.length > 0 {
+          let last = layoutManager.characterIndexForGlyph(at: NSMaxRange(piece) - 1)
+          guard last < nsText.length,
+                let scalar = UnicodeScalar(nsText.character(at: last)),
+                CharacterSet.whitespaces.contains(scalar) else { break }
+          piece.length -= 1
+        }
+        guard piece.length > 0 else { return }
+        let charIndex = layoutManager.characterIndexForGlyph(at: piece.location)
+        let font = (storage.attribute(.font, at: charIndex, effectiveRange: nil) as? UIFont)
+          ?? vmFont(family: spec.fontFamily, size: spec.fontSizePt, bold: false, italic: false)
+        let baseline = lineRect.minY + layoutManager.location(forGlyphAt: piece.location).y
+        let bounds = layoutManager.boundingRect(forGlyphRange: piece, in: container)
+        // Kept inside the view: a highlight starting a line would otherwise lose its left corner to
+        // the view's edge, since the padding reaches past x = 0.
+        let rect = vmHighlightRect(
+          minX: bounds.minX, maxX: bounds.maxX, baseline: baseline,
+          ascender: font.ascender, descender: font.descender, fontSize: font.pointSize
+        ).intersection(CGRect(x: 0, y: -.greatestFiniteMagnitude / 2, width: self.bounds.width,
+                              height: .greatestFiniteMagnitude))
+        let radius = vmHighlightCornerRadius(for: rect, fontSize: font.pointSize)
+        context.addPath(UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath)
+        context.fillPath()
+      }
+      context.restoreGState()
+    }
   }
 
   // MARK: - Interaction
