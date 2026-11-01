@@ -301,27 +301,28 @@ export function HighlightSelectionSheet({
               variant={mode === 'dark' ? 'dark' : 'light'}
             />
           </View>
-
-          {actions ? (
-            <View style={styles.quickActions}>
-              {actionRows.map(({ key, label, icon }) => {
-                const action = actions[key];
-                if (!action) return null;
-                return (
-                  <Pressable
-                    key={key}
-                    style={styles.quickActionItem}
-                    onPress={() => handleAction(action)}
-                    testID={`highlight-action-${key}`}
-                  >
-                    <Ionicons name={icon} size={20} color={colors.textSecondary} />
-                    <Text style={styles.quickActionText}>{label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
         </ScrollView>
+
+        {/* Pinned to the bottom of the sheet, under the scrolling colour area (Sebastian). */}
+        {actions ? (
+          <View style={styles.quickActions} testID="highlight-actions">
+            {actionRows.map(({ key, label, icon }) => {
+              const action = actions[key];
+              if (!action) return null;
+              return (
+                <Pressable
+                  key={key}
+                  style={styles.quickActionItem}
+                  onPress={() => handleAction(action)}
+                  testID={`highlight-action-${key}`}
+                >
+                  <Ionicons name={icon} size={20} color={colors.textSecondary} />
+                  <Text style={styles.quickActionText}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -429,6 +430,11 @@ const createStyles = (
     },
     quickActions: {
       gap: spacing.xs,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
     },
     quickActionItem: {
       flexDirection: 'row',
