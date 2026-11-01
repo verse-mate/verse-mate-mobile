@@ -22,6 +22,17 @@
  *
  * Everything the user can see or is about to scroll into is exact. Only far
  * off-screen placement is approximate, and only to within about a line.
+ *
+ * ## What is on screen must not move
+ * A measured height is kept once known (per paragraph, until the width or font changes). It used
+ * to last only while its paragraph was in the window: one that scrolled out went back to its
+ * estimate, so everything below it — the text on screen included — shifted by the estimate's
+ * error, and back again when it returned. That was the reader's "text glitches while scrolling,
+ * even slowly" on both platforms (Sebastian, 2026-11-01; test: use-paragraph-layout.stability).
+ *
+ * The window also reaches twice as far in the direction of scrolling, and a paragraph that is
+ * rendering keeps rendering until it is that far behind, so a fast fling does not run into
+ * placeholders and a paragraph near the edge is not unmounted and rebuilt on every push.
  */
 
 import { useMemo, useRef } from 'react';
@@ -88,6 +99,28 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
    */
   const calibrationRef = useRef<HeightCalibration | null>(null);
 
+  /**
+   * Measured heights by paragraph, kept across renders. Reset when anything that changes line
+   * breaking changes (width, font), since every height is then stale.
+   */
+  const heightCacheRef = useRef<{
+    key: string;
+    heights: Map<string, number>;
+    /**
+     * The estimate a paragraph was first placed with, kept until it is measured. Calibration keeps
+     * learning, and re-estimating with it moved every unmeasured paragraph above the screen — and
+     * so the screen — on each push.
+     */
+    estimates: Map<string, number>;
+  }>({ key: '', heights: new Map(), estimates: new Map() });
+  /** Last scroll position and direction, and which paragraphs rendered, for the window below. */
+  const windowStateRef = useRef<{
+    scrollY: number;
+    /** 0 until the first scroll: a chapter opening gets the plain buffer, no extra mount work. */
+    direction: 1 | -1 | 0;
+    rendered: Set<string>;
+  }>({ scrollY: 0, direction: 0, rendered: new Set() });
+
   // Character counts drive the estimate. Cheap, and independent of everything except
   // the verses themselves, so this survives scrolling.
   const textLengths = useMemo(
@@ -113,20 +146,51 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
     const calibration =
       calibrationRef.current ?? defaultCalibration(fontSize, width, lineHeight);
 
-    // --- 1. Estimated offsets, O(1) per group -------------------------------
-    const estimated: number[] = [];
-    let cursor = 0;
-    for (const length of textLengths) {
-      estimated.push(cursor);
-      cursor += estimateHeight(length, calibration) + gap;
+    // --- 1. Offsets, O(1) per group ------------------------------------------
+    const estimated: number[] = new Array(groups.length);
+
+    // Heights measured earlier stay valid while width and font do.
+    const metricsKey = [width, fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, textAlign].join('|');
+    if (heightCacheRef.current.key !== metricsKey) {
+      heightCacheRef.current = { key: metricsKey, heights: new Map(), estimates: new Map() };
+    }
+    const knownHeights = heightCacheRef.current.heights;
+    const frozenEstimates = heightCacheRef.current.estimates;
+    const keyOf = (i: number) => {
+      const verses = groups[i];
+      // Verse range, length and opening words: unique within a chapter and, in practice, across.
+      return `${verses[0]?.verseNumber}-${verses[verses.length - 1]?.verseNumber}-${textLengths[i]}-${verses[0]?.text.slice(0, 24)}`;
+    };
+    const heightOf = (i: number) => {
+      const key = keyOf(i);
+      const known = knownHeights.get(key) ?? frozenEstimates.get(key);
+      if (known !== undefined) return known;
+      const estimate = estimateHeight(textLengths[i], calibration);
+      frozenEstimates.set(key, estimate);
+      return estimate;
+    };
+
+    // Offsets from known heights where there are any, estimates elsewhere.
+    for (let i = 0, cursor = 0; i < groups.length; i++) {
+      estimated[i] = cursor;
+      cursor += heightOf(i) + gap;
     }
 
-    // --- 2. Window from estimates -------------------------------------------
-    const top = scrollY - bufferPx;
-    const bottom = scrollY + viewportHeight + bufferPx;
+    // --- 2. Window -----------------------------------------------------------
+    // Twice the buffer ahead in the direction of travel; a paragraph already rendering keeps
+    // rendering until it is that far behind (hysteresis), so nothing flickers at the edge.
+    const state = windowStateRef.current;
+    if (scrollY !== state.scrollY) state.direction = scrollY > state.scrollY ? 1 : -1;
+    state.scrollY = scrollY;
+    const ahead = bufferPx * 2;
+    const top = scrollY - (state.direction < 0 ? ahead : bufferPx);
+    const bottom = scrollY + viewportHeight + (state.direction > 0 ? ahead : bufferPx);
+    const keepTop = scrollY - ahead;
+    const keepBottom = scrollY + viewportHeight + ahead;
     const inWindow = estimated.map((offset, i) => {
-      const height = estimateHeight(textLengths[i], calibration);
-      return offset + height >= top && offset <= bottom;
+      const end = offset + heightOf(i);
+      if (end >= top && offset <= bottom) return true;
+      return state.rendered.has(keyOf(i)) && end >= keepTop && offset <= keepBottom;
     });
 
     // Nothing visible means the estimates are probably nonsense (no viewport yet).
@@ -188,9 +252,19 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
     if (measured) {
       windowIndices.forEach((groupIndex, k) => {
         const h = measured[k];
-        if (typeof h === 'number') exactByIndex.set(groupIndex, h);
+        if (typeof h === 'number') {
+          exactByIndex.set(groupIndex, h);
+          knownHeights.set(keyOf(groupIndex), h);
+        }
       });
     }
+    // Measured before and out of the window now: still exact.
+    for (let i = 0; i < groups.length; i++) {
+      if (exactByIndex.has(i)) continue;
+      const known = knownHeights.get(keyOf(i));
+      if (known !== undefined) exactByIndex.set(i, known);
+    }
+    state.rendered = new Set(windowIndices.map(keyOf));
 
     // --- 4. Teach the estimator from a real sample --------------------------
     for (const [groupIndex, height] of exactByIndex) {
@@ -206,7 +280,7 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
     let offsetY = 0;
     for (let i = 0; i < groups.length; i++) {
       const exact = exactByIndex.get(i);
-      const height = exact ?? estimateHeight(textLengths[i], calibration);
+      const height = exact ?? heightOf(i);
       out.push({
         compiled: compiledByIndex.get(i) ?? null,
         height,

@@ -11,6 +11,7 @@ import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import {
   type HighlightScope,
+  type HighlightSheetActions,
   HighlightSelectionSheet,
   type VerseRange,
 } from '@/components/bible/HighlightSelectionSheet';
@@ -51,7 +52,7 @@ interface BibleInteractionContextType {
   // Interaction Triggers
   openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText: string | undefined, source: VersemateTooltipSource) => void;
   openAutoHighlightTooltip: (autoHighlight: AutoHighlight) => void;
-  openHighlightSelection: (range: VerseRange, text: string) => void;
+  openHighlightSelection: (range: VerseRange, text: string, actions?: HighlightSheetActions) => void;
   openHighlightEditMenu: (id: number, color: HighlightColor) => void;
   closeAll: () => void;
 }
@@ -108,6 +109,7 @@ export function BibleInteractionProvider({
     visible: boolean;
     range: VerseRange;
     text: string;
+    actions?: HighlightSheetActions;
   }>({ visible: false, range: { start: 0, end: 0 }, text: '' });
 
   const [editMenuState, setEditMenuState] = useState<{
@@ -142,13 +144,17 @@ export function BibleInteractionProvider({
     setAutoHighlightState({ visible: true, autoHighlight });
   };
 
-  const openHighlightSelection = (range: VerseRange, text: string) => {
+  const openHighlightSelection = (
+    range: VerseRange,
+    text: string,
+    actions?: HighlightSheetActions
+  ) => {
     // Saving needs an account; without one the sheet would accept a colour and silently drop it.
     if (!user) {
       showToast(t('highlights.sign_in_to_save', 'Sign in to save highlights'));
       return;
     }
-    setSelectionSheetState({ visible: true, range, text });
+    setSelectionSheetState({ visible: true, range, text, actions });
   };
 
   const openHighlightEditMenu = (id: number, color: HighlightColor) => {
@@ -388,8 +394,8 @@ export function BibleInteractionProvider({
         latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText, source),
       openAutoHighlightTooltip: (autoHighlight: AutoHighlight) =>
         latestActions.current.openAutoHighlightTooltip(autoHighlight),
-      openHighlightSelection: (range: VerseRange, text: string) =>
-        latestActions.current.openHighlightSelection(range, text),
+      openHighlightSelection: (range: VerseRange, text: string, actions?: HighlightSheetActions) =>
+        latestActions.current.openHighlightSelection(range, text, actions),
       openHighlightEditMenu: (id: number, color: HighlightColor) =>
         latestActions.current.openHighlightEditMenu(id, color),
       closeAll: () => latestActions.current.closeAll(),
@@ -456,6 +462,7 @@ export function BibleInteractionProvider({
         visible={selectionSheetState.visible}
         verseRange={selectionSheetState.range}
         text={selectionSheetState.text}
+        actions={selectionSheetState.actions}
         bookName={bookName}
         canHighlightAll
         onClose={() => setSelectionSheetState(prev => ({ ...prev, visible: false }))}

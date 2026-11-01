@@ -90,6 +90,7 @@ import {
 } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
+import { wholeVerseHighlight } from '@/utils/bible/verseHighlight';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { selectionReference, selectionShareText } from '@/utils/sharing/selection-share';
 
@@ -878,6 +879,17 @@ export function ChapterReader({
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === verseNumber);
+    // A highlighted verse opens as highlighted wherever it was tapped, its number included, so the
+    // sheet offers Remove rather than Save.
+    const covering = wholeVerseHighlight(
+      chapterHighlights,
+      verseNumber,
+      verse?.text.length ?? Number.POSITIVE_INFINITY
+    );
+    if (covering) {
+      handleHighlightTap(covering.highlight_id);
+      return;
+    }
     openVerseTooltip(
       verseNumber,
       null,
@@ -895,7 +907,12 @@ export function ChapterReader({
         startChar: selection.startChar,
         endChar: selection.endChar,
       },
-      selection.text
+      selection.text,
+      {
+        copy: () => void handleCopySelection(selection),
+        share: () => void handleShareSelection(selection),
+        note: onOpenNotes ? () => handleNoteSelection(selection) : undefined,
+      }
     );
   };
 

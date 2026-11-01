@@ -100,6 +100,29 @@ describe('HighlightSelectionSheet', () => {
     });
   });
 
+  it('offers the selection actions it is given, closing before acting', async () => {
+    const copy = jest.fn();
+    const note = jest.fn();
+    renderWithTheme(
+      <HighlightSelectionSheet
+        visible={true}
+        verseRange={{ start: 1, end: 1, startChar: 4, endChar: 9 }}
+        text="light"
+        actions={{ copy, note }}
+        onColorSelect={mockOnColorSelect}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(screen.queryByTestId('highlight-action-share')).toBeNull();
+    fireEvent.press(screen.getByTestId('highlight-action-note'));
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(note).toHaveBeenCalledTimes(1);
+    });
+    expect(copy).not.toHaveBeenCalled();
+  });
+
   it('applies the colour to the chosen scope for selected words', async () => {
     renderWithTheme(
       <HighlightSelectionSheet

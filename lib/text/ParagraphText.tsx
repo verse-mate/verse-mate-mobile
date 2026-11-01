@@ -364,10 +364,43 @@ export function ParagraphText(props: ParagraphTextProps) {
     return index === -1 ? null : index;
   }, []);
 
+  /**
+   * The user highlight under a tap, if any: the topmost one covering the offset.
+   *
+   * A tap anywhere inside a highlight is a tap on that highlight, whatever else sits there. Lexicon
+   * words keep an (invisible) tap target that is layered above highlights, and a word next to a
+   * verse number is claimed by the number; both used to open Verse Insight as an unhighlighted
+   * verse, so parts of a highlighted verse offered "Save as my highlight" while others offered
+   * "Remove" (Sebastian, 2026-11-01).
+   */
+  const highlightIdAt = useCallback(
+    (offset: number): number | null => {
+      if (!onHighlightTap) return null;
+      // Beside the NEXT verse's number, the number wins (the heuristic below): that tap meant the
+      // next verse, even if it touched the end of a highlighted one.
+      const nearNumber = verseNumberNearOffset(compiled, offset, lineOf);
+      if (nearNumber !== null && nearNumber !== verseAtOffset(compiled, offset)) return null;
+      for (let i = compiled.ranges.length - 1; i >= 0; i--) {
+        const target = compiled.targets[i];
+        const range = compiled.ranges[i];
+        if (target?.kind === 'highlight' && offset >= range.start && offset < range.end) {
+          return target.highlightId;
+        }
+      }
+      return null;
+    },
+    [compiled, lineOf, onHighlightTap]
+  );
+
   const handleRangeTap = useCallback(
     (index: number, charOffset: number) => {
       const target = compiled.targets[index];
       if (!target) return;
+      const underHighlight = highlightIdAt(charOffset);
+      if (underHighlight !== null && target.kind !== 'verseNumber') {
+        onHighlightTap?.(underHighlight);
+        return;
+      }
       // A finger that lands just beside a verse number meant the number, even when the word it
       // touched has a target of its own. The first word after a number very often does (a lexicon
       // word, a highlight), and with the underlines gone nothing shows which — so letting the word
@@ -396,7 +429,7 @@ export function ParagraphText(props: ParagraphTextProps) {
           break;
       }
     },
-    [compiled, lineOf, onVerseTap, onHighlightTap, onAutoHighlightPress]
+    [compiled, lineOf, highlightIdAt, onVerseTap, onHighlightTap, onAutoHighlightPress]
   );
 
   /**
@@ -408,6 +441,11 @@ export function ParagraphText(props: ParagraphTextProps) {
   const handlePress = useCallback(
     (event: TextPressEvent) => {
       if (!onVerseTap) return;
+      const underHighlight = highlightIdAt(event.charOffset);
+      if (underHighlight !== null) {
+        onHighlightTap?.(underHighlight);
+        return;
+      }
       const nearNumber = verseNumberNearOffset(compiled, event.charOffset, lineOf);
       if (nearNumber !== null) {
         onVerseTap(nearNumber, 'number');
@@ -416,7 +454,7 @@ export function ParagraphText(props: ParagraphTextProps) {
       const verseNumber = verseAtOffset(compiled, event.charOffset);
       if (verseNumber !== null) onVerseTap(verseNumber, 'text');
     },
-    [compiled, lineOf, onVerseTap]
+    [compiled, lineOf, highlightIdAt, onVerseTap, onHighlightTap]
   );
 
   const canDefine = !!(onWordPress || onLexiconWordPress);

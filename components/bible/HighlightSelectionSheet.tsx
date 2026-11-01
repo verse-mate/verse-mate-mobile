@@ -10,8 +10,8 @@
  * - Scope, for words selected in the text: just those words, the whole verse, or every place the
  *   words occur in the book ("Highlight all", Andy 2026-11-01: a study method for repeated words
  *   and phrases, like "I am" in John)
- * - No Copy / Note / Share here: the selection menu has them at its top level (Andy: they were
- *   repeats, and these four rows were placeholders that did nothing)
+ * - Copy, Share and Note for the selected words, the same actions as the selection menu's (Andy
+ *   lists them here too, repeats and all). They used to be placeholders that did nothing.
  * - Slides up from bottom with backdrop
  * - Haptic feedback on color selection
  * - Closes on backdrop tap or after successful highlight creation
@@ -33,6 +33,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -79,6 +80,8 @@ export interface VerseRange {
  */
 export type HighlightScope = 'selection' | 'verse' | 'book';
 
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
 /** Longest selection "Highlight all" is offered for: a word or a phrase, not a sentence. */
 const HIGHLIGHT_ALL_MAX_WORDS = 6;
 
@@ -110,6 +113,13 @@ export function highlightScopes({
   return scopes;
 }
 
+/** The selection menu's own Copy / Share / Note, offered again in the sheet. */
+export interface HighlightSheetActions {
+  copy?: () => void;
+  share?: () => void;
+  note?: () => void;
+}
+
 /**
  * Props for HighlightSelectionSheet component
  */
@@ -126,6 +136,8 @@ export interface HighlightSelectionSheetProps {
   canHighlightAll?: boolean;
   /** A colour was chosen for this scope. */
   onColorSelect: (color: HighlightColor, scope: HighlightScope) => void;
+  /** Copy / Share / Note for the selection; a row shows for each one given. */
+  actions?: HighlightSheetActions;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Whether to use a system Modal (true) or a View overlay (false) */
@@ -143,6 +155,7 @@ export function HighlightSelectionSheet({
   text,
   bookName,
   canHighlightAll = false,
+  actions,
   onColorSelect,
   onClose,
   useModal = true,
@@ -184,6 +197,19 @@ export function HighlightSelectionSheet({
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onColorSelect(color, activeScope);
   };
+
+  /** Close the sheet, then act: Note opens the notes sheet, which must not stack on this one. */
+  const handleAction = async (action: () => void) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+    action();
+  };
+
+  const actionRows: { key: keyof HighlightSheetActions; label: string; icon: IoniconName }[] = [
+    { key: 'copy', label: 'Copy', icon: 'copy-outline' },
+    { key: 'share', label: 'Share', icon: 'share-outline' },
+    { key: 'note', label: 'Take a Note', icon: 'document-text-outline' },
+  ];
 
   const scopeLabel = (value: HighlightScope) => {
     if (value === 'selection') return 'Selection';
@@ -275,6 +301,26 @@ export function HighlightSelectionSheet({
               variant={mode === 'dark' ? 'dark' : 'light'}
             />
           </View>
+
+          {actions ? (
+            <View style={styles.quickActions}>
+              {actionRows.map(({ key, label, icon }) => {
+                const action = actions[key];
+                if (!action) return null;
+                return (
+                  <Pressable
+                    key={key}
+                    style={styles.quickActionItem}
+                    onPress={() => handleAction(action)}
+                    testID={`highlight-action-${key}`}
+                  >
+                    <Ionicons name={icon} size={20} color={colors.textSecondary} />
+                    <Text style={styles.quickActionText}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -380,6 +426,23 @@ const createStyles = (
     scopeTextSelected: {
       color: colors.textPrimary,
       fontWeight: fontWeights.semibold,
+    },
+    quickActions: {
+      gap: spacing.xs,
+    },
+    quickActionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.md,
+      borderRadius: 8,
+      backgroundColor: colors.gray50,
+    },
+    quickActionText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
     },
     scopeHint: {
       marginTop: spacing.sm,

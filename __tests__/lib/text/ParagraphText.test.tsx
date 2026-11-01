@@ -136,6 +136,30 @@ describe('ParagraphText tap routing', () => {
     expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
   });
 
+  it('gives a tap on a lexicon word inside a highlight to the highlight', () => {
+    // The lexicon word's tap target is layered above the highlight's. Routing it to the verse
+    // opened Verse Insight as unhighlighted ("Save as my highlight") on a highlighted verse.
+    const alignment = alignmentFor({ G1: 'beginning' });
+    const highlights = [highlight({ highlight_id: 42 })];
+    const input = { verses: VERSES, alignment, highlights, theme: THEME };
+    const compiled = compileParagraph(input);
+    const tree = renderParagraph({ alignment, highlights });
+
+    getRangeTap(tree)(indexOfTag('lexicon:', input), compiled.text.indexOf('beginning') + 3);
+    expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('gives a plain press inside a highlight to the highlight', () => {
+    const highlights = [highlight({ highlight_id: 42 })];
+    const compiled = compileParagraph({ verses: VERSES, highlights, theme: THEME });
+    const tree = renderParagraph({ highlights });
+
+    getPress(tree)({ charOffset: compiled.text.indexOf('beginning') + 3, x: 0, y: 0 });
+    expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
   it('routes an auto-highlight range tap with the whole object', () => {
     const autoHighlights = [autoHighlight()];
     const tree = renderParagraph({ autoHighlights });
