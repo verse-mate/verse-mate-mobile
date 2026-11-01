@@ -410,7 +410,12 @@ export function NotesModal({
                   <View style={{ gap: 12 }}>
                     {recentNotes.map((note) => (
                       <View key={note.note_id} style={styles.noteCard}>
-                        <Text style={styles.noteContent}>{note.content}</Text>
+                        <View style={styles.noteBody}>
+                          {typeof note.verse_number === 'number' ? (
+                            <Text style={styles.noteVerse}>{`Verse ${note.verse_number}`}</Text>
+                          ) : null}
+                          <Text style={styles.noteContent}>{note.content}</Text>
+                        </View>
                         <Pressable
                           onPress={() => handleNoteMenuPress(note)}
                           style={styles.noteMenuButton}
@@ -609,8 +614,16 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       alignItems: 'flex-start',
       gap: spacing.sm,
     },
-    noteContent: {
+    noteBody: {
       flex: 1,
+    },
+    noteVerse: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.gold,
+      marginBottom: 2,
+    },
+    noteContent: {
       fontSize: fontSizes.body,
       color: colors.textPrimary,
       lineHeight: fontSizes.body * 1.5,
