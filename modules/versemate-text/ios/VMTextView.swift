@@ -42,7 +42,7 @@ final class VMTextView: ExpoView {
   /// `0 as CGFloat` is not noise — `CGSize(width: 0, …)` selects the `Int` overload, and
   /// `.greatestFiniteMagnitude` does not exist on `Int`, which fails as
   /// "ambiguous use of 'greatestFiniteMagnitude'".
-  private let textKit: (view: UITextView, storage: NSTextStorage) = {
+  private let textKit: (view: VMMenuTextView, storage: NSTextStorage) = {
     let storage = NSTextStorage()
     let layoutManager = NSLayoutManager()
     // Lay the WHOLE block out, always. This is the switch that was cutting the text.
@@ -64,10 +64,10 @@ final class VMTextView: ExpoView {
     let container = NSTextContainer(size: CGSize(width: 0 as CGFloat, height: .greatestFiniteMagnitude))
     container.widthTracksTextView = true
     layoutManager.addTextContainer(container)
-    return (UITextView(frame: .zero, textContainer: container), storage)
+    return (VMMenuTextView(frame: .zero, textContainer: container), storage)
   }()
 
-  private var textView: UITextView { textKit.view }
+  private var textView: VMMenuTextView { textKit.view }
 
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
@@ -111,6 +111,7 @@ final class VMTextView: ExpoView {
         guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
         return (String(parts[0]), String(parts[1]))
       }
+    textView.trimsSystemMenu = !selectionActions.isEmpty
   }
 
   /// iOS 15's menu validates the app's items up the responder chain to here (see the extension below).
@@ -167,6 +168,10 @@ final class VMTextView: ExpoView {
     // over them with its own opaque background.
     textView.isOpaque = false
     textView.delegate = self
+    // Scripture is read, not rewritten: no Writing Tools entry in the menu or floating button.
+    if #available(iOS 18.0, *) {
+      textView.writingToolsBehavior = .none
+    }
     // Taps are ours; selection gestures stay the text view's. A tap recogniser added to the text view
     // would fight its own; adding it to the container and forwarding the point avoids that.
     textView.isUserInteractionEnabled = true
@@ -488,6 +493,8 @@ final class VMTextView: ExpoView {
     text nsText: NSString
   ) {
     let storage = textView.textStorage
+    let fallbackFont = vmFont(family: spec.fontFamily, size: spec.fontSizePt, bold: false, italic: false)
+    let viewWidth = bounds.width
     for range in spec.ranges {
       guard let color = range.backgroundColor else { continue }
       let start = min(max(range.start, 0), nsText.length)
@@ -512,16 +519,19 @@ final class VMTextView: ExpoView {
         guard piece.length > 0 else { return }
         let charIndex = layoutManager.characterIndexForGlyph(at: piece.location)
         let font = (storage.attribute(.font, at: charIndex, effectiveRange: nil) as? UIFont)
-          ?? vmFont(family: spec.fontFamily, size: spec.fontSizePt, bold: false, italic: false)
+          ?? fallbackFont
         let baseline = lineRect.minY + layoutManager.location(forGlyphAt: piece.location).y
         let bounds = layoutManager.boundingRect(forGlyphRange: piece, in: container)
         // Kept inside the view: a highlight starting a line would otherwise lose its left corner to
         // the view's edge, since the padding reaches past x = 0.
-        let rect = vmHighlightRect(
+        var rect = vmHighlightRect(
           minX: bounds.minX, maxX: bounds.maxX, baseline: baseline,
           ascender: font.ascender, descender: font.descender, fontSize: font.pointSize
-        ).intersection(CGRect(x: 0, y: -.greatestFiniteMagnitude / 2, width: self.bounds.width,
-                              height: .greatestFiniteMagnitude))
+        )
+        let left = max(rect.minX, 0)
+        let right = min(rect.maxX, viewWidth)
+        rect.origin.x = left
+        rect.size.width = max(right - left, 0)
         let radius = vmHighlightCornerRadius(for: rect, fontSize: font.pointSize)
         context.addPath(UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath)
         context.fillPath()
@@ -632,7 +642,11 @@ extension VMTextView: UITextViewDelegate {
     }
   }
 
-  /// iOS 16+: the app's items first, then everything the system suggests (Copy, Look Up, Share…).
+  /// iOS 16+: the app's items, then the system's Copy and nothing else.
+  ///
+  /// Andy asked for the rest to go (2026-11-01): Writing Tools, Look Up, Translate, Search Web and
+  /// Share… crowded Highlight and Define, and Share… sent bare text, so the share sheet showed a
+  /// generic text icon instead of VerseMate's. Olive Tree's menu is the same three items.
   ///
   /// `range` is the selection the menu is for, captured when the menu opens, so the action reports
   /// exactly what the reader saw selected even if the selection moves afterwards.
@@ -648,11 +662,44 @@ extension VMTextView: UITextViewDelegate {
         self?.dispatchSelectionAction(id: action.id, range: range)
       }
     }
-    return UIMenu(children: custom + suggestedActions)
+    return UIMenu(children: custom + Self.copyOnly(suggestedActions))
+  }
+
+  /// The system's Copy command (localized, with its icon), wherever it sits in the suggested menu tree.
+  @available(iOS 16.0, *)
+  private static func copyOnly(_ elements: [UIMenuElement]) -> [UIMenuElement] {
+    elements.compactMap { element in
+      if let command = element as? UICommand {
+        return command.action == #selector(UIResponderStandardEditActions.copy(_:)) ? command : nil
+      }
+      if let menu = element as? UIMenu {
+        let kept = copyOnly(menu.children)
+        return kept.isEmpty ? nil : menu.replacingChildren(kept)
+      }
+      return nil
+    }
   }
 }
 
 // MARK: - Selection menu before iOS 16
+
+/// The reader's text view. Only exists for iOS 15's menu, which lists every action the first responder
+/// says it can perform: with the app's items present, the text view's own (Look Up, Share…, Select All)
+/// are refused, leaving the app's items and Copy. iOS 16+ trims the menu in `editMenuForTextIn`.
+final class VMMenuTextView: UITextView {
+  var trimsSystemMenu = false
+
+  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+    if #unavailable(iOS 16.0), trimsSystemMenu,
+      action != #selector(UIResponderStandardEditActions.copy(_:)),
+      // The app's items are implemented on VMTextView, not here: those still go up the chain.
+      responds(to: action)
+    {
+      return false
+    }
+    return super.canPerformAction(action, withSender: sender)
+  }
+}
 
 /// iOS 15 has no `editMenuForTextIn`; its menu is `UIMenuController`, which takes items with fixed
 /// selectors. Three slots cover the app's actions (it uses two). The text view is first responder,

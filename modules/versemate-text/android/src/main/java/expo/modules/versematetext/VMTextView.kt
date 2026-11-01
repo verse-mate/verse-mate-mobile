@@ -246,11 +246,16 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private val selectionMenuCallback = object : ActionMode.Callback {
       override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         addSelectionActions(menu)
+        trimSystemItems(menu)
         return true
       }
 
-      override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean =
-        addSelectionActions(menu)
+      override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+        val added = addSelectionActions(menu)
+        // Prepare runs again when the platform adds its assist items (Call, Map…) late.
+        val trimmed = trimSystemItems(menu)
+        return added || trimmed
+      }
 
       override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
         val action = selectionActions.getOrNull(item.itemId - SELECTION_MENU_ID_BASE) ?: return false
@@ -265,6 +270,26 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       }
 
       override fun onDestroyActionMode(mode: ActionMode) {}
+    }
+
+    /**
+     * Keep the app's items and Copy; drop Share, Select all, Web search, Translate and the other
+     * text-processing apps. Andy asked for that on iOS (2026-11-01) and both platforms match.
+     * Only when the app supplies items: elsewhere the platform menu stays whole. True when changed.
+     */
+    private fun trimSystemItems(menu: Menu): Boolean {
+      if (selectionActions.isEmpty()) return false
+      val appIds = selectionActions.indices.map { SELECTION_MENU_ID_BASE + it }.toSet()
+      var changed = false
+      while (true) {
+        // removeItem(id) drops the FIRST item with that id, and text-processing items all share
+        // id 0, so look the next victim up afresh each time rather than walking indices.
+        val victim = (0 until menu.size()).map { menu.getItem(it) }
+          .firstOrNull { it.itemId != android.R.id.copy && it.itemId !in appIds } ?: break
+        menu.removeItem(victim.itemId)
+        changed = true
+      }
+      return changed
     }
 
     /** Add any missing app items, in order, before the platform's. True when the menu changed. */
