@@ -438,7 +438,7 @@ const createStyles = (
     quickActions: {
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
+      paddingTop: spacing.xxxl,
       paddingBottom: spacing.lg,
     },
     quickActionItem: {
