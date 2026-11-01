@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { type BibleReference, ReferenceParser } from '@versemate/bible-search';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -31,6 +31,7 @@ import {
   Platform,
   Pressable,
   Animated as RNAnimated,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -54,18 +55,23 @@ import Animated, {
   useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
+  useReducedMotion,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusNavTab } from '@/components/bible/JesusNavTab';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useVerseSearch, type VerseSearchResult } from '@/hooks/bible/use-verse-search';
+import { useVerseSearch } from '@/hooks/bible/use-verse-search';
 import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { analytics } from '@/lib/analytics';
+import { AnalyticsEvent } from '@/lib/analytics/types';
+import type { VerseSearchResult } from '@/lib/bible-search/types';
 import { useBibleTestaments } from '@/src/api';
 import {
   fontSizes,
@@ -96,10 +102,19 @@ interface BibleNavigationModalProps {
   /** Callback when user selects a topic */
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
   /**
-   * Open a verse from search: a typed reference ("John 3:16", `mark`) or a
-   * verse-text result. Defaults to pushing the reader at that verse.
+   * Callback when the user picks a verse (a search result or a typed
+   * reference like "John 3:16"). The reader opens the chapter there, scrolls
+   * to the verse and marks it in yellow (`mark`) instead of opening Verse
+   * Insight, for references and verse results alike (web #324, mobile #399).
+   * Without it the sheet pushes the reader route with `?verse=` (`&mark=1`).
    */
-  onSelectVerse?: (target: VerseTarget) => void;
+  onSelectVerse?: (
+    bookId: number,
+    chapter: number,
+    verse: number,
+    endVerse?: number,
+    options?: { mark?: boolean }
+  ) => void;
   /** Initial tab to open (defaults to testament of currentBookId) */
   initialTab?: 'OT' | 'NT' | 'JESUS' | 'TOPICS';
   /** Initial topic category to open when initialTab is TOPICS (defaults to EVENT) */
@@ -112,38 +127,30 @@ interface BibleNavigationModalProps {
 
 type BookListItem = BookMetadata & { _listKey: string };
 
-export interface VerseTarget {
-  bookId: number;
-  chapter: number;
-  verse: number;
-  endVerse?: number;
-  /**
-   * Mark the verse in the text until the reader leaves the chapter, instead of
-   * opening Verse Insight. Search sets it for references and verse results.
-   */
-  mark: boolean;
-}
+/** Rows of the Bible tabs' search results, besides the book rows. */
+type SearchRow =
+  | { kind: 'goto'; _listKey: string; ref: BibleReference }
+  | {
+      kind: 'verse';
+      _listKey: string;
+      result: VerseSearchResult;
+      index: number;
+      /** "Exact phrase" / "All words" above the first row of each group. */
+      groupLabel: string | null;
+    }
+  | { kind: 'status'; _listKey: string; text: string }
+  | { kind: 'more'; _listKey: string };
 
-/** Opens the reader at a verse — the default for `onSelectVerse`. */
-export function openVerseInReader(target: VerseTarget) {
-  router.push({
-    pathname: '/bible/[bookId]/[chapterNumber]',
-    params: {
-      bookId: target.bookId,
-      chapterNumber: target.chapter,
-      verse: target.verse,
-      ...(target.endVerse && target.endVerse > target.verse ? { endVerse: target.endVerse } : {}),
-      ...(target.mark ? { mark: '1' } : {}),
-    },
-  });
-}
+type ListRow = BookListItem | SearchRow;
 
 interface BookListSection {
   key: string;
   title: string;
-  section: 'RECENTS' | 'ALL_BOOKS';
-  data: BookListItem[];
+  section: 'RECENTS' | 'ALL_BOOKS' | 'GOTO' | 'VERSES';
+  data: ListRow[];
 }
+
+const isSearchRow = (row: ListRow): row is SearchRow => 'kind' in row;
 
 /**
  * BibleNavigationModal - Bottom sheet for book/chapter selection
@@ -155,7 +162,7 @@ function BibleNavigationModalComponent({
   onClose,
   onSelectChapter,
   onSelectTopic,
-  onSelectVerse = openVerseInReader,
+  onSelectVerse,
   initialTab,
   initialTopicCategory,
   useModalComponent = true,
@@ -200,6 +207,18 @@ function BibleNavigationModalComponent({
   const [selectedSection, setSelectedSection] = useState<'RECENTS' | 'ALL_BOOKS' | null>(null);
   const [filterText, setFilterText] = useState('');
 
+  // Search mode: tapping the search field folds the title and the tabs away
+  // so the field sits at the top, with an arrow beside it to come back. It
+  // holds while the keyboard comes and goes; only that arrow (or closing the
+  // sheet) leaves it. Same behavior as web on touch screens.
+  const [searchMode, setSearchMode] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const foldProgress = useSharedValue(0);
+  const [chromeHeight, setChromeHeight] = useState(0);
+  useEffect(() => {
+    foldProgress.value = withTiming(searchMode ? 1 : 0, { duration: reduceMotion ? 0 : 220 });
+  }, [searchMode, reduceMotion, foldProgress]);
+
   // Topics navigation state
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<TopicCategory>('EVENT');
   const [topicFilterText, setTopicFilterText] = useState('');
@@ -219,7 +238,7 @@ function BibleNavigationModalComponent({
   const [buttonHeight, setButtonHeight] = useState(0);
 
   // Ref for SectionList to enable programmatic scrolling
-  const sectionListRef = useRef<SectionList<BookListItem, BookListSection>>(null);
+  const sectionListRef = useRef<SectionList<ListRow, BookListSection>>(null);
 
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
@@ -271,6 +290,63 @@ function BibleNavigationModalComponent({
     enabled: !!shouldFetchData,
   });
   const { recentBooks } = useRecentBooks();
+
+  // ─── Bible search (OT / NT tabs) ───────────────────────────────────────────
+  // Typing on a Bible tab searches references ("John 3:16" → a Go to row),
+  // book names and verse text, the same as web.
+  const { bibleVersion } = useBibleVersion();
+  const { isOnline } = useOfflineContext();
+  // The version's own book names ("Geneza", "1. Mose"), so a reference typed
+  // in the reader's language is understood too; the list keeps its names.
+  const { data: versionBooks } = useBibleTestaments(
+    { query: { bible_version: bibleVersion } },
+    { enabled: !!shouldFetchData }
+  );
+  const localizedNames = useMemo(
+    () => Object.fromEntries((versionBooks ?? []).map((b) => [b.id, b.name])),
+    [versionBooks]
+  );
+  const parser = useMemo(
+    () =>
+      new ReferenceParser(
+        allBooks.map((b) => ({ bookId: b.id, name: b.name, chapters: b.chapterCount })),
+        localizedNames
+      ),
+    [allBooks, localizedNames]
+  );
+  const isBibleTab = selectedTab === 'OT' || selectedTab === 'NT';
+  const searching = isBibleTab && filterText.trim() !== '';
+  const references = useMemo(
+    () => (searching ? parser.parse(filterText) : []),
+    [searching, parser, filterText]
+  );
+  // "John 3:16" is a place, not words to look for. A book on its own ("Rom",
+  // "Philipians", "Job") is listed under Books instead, and may be a word too,
+  // so the verse search still runs for it.
+  const goToRefs = useMemo(() => references.filter((r) => r.chapter !== undefined), [references]);
+  const referencedBookIds = useMemo(
+    () => references.filter((r) => r.chapter === undefined).map((r) => r.bookId),
+    [references]
+  );
+  // A book name in front of words ("Amos day of the Lord") searches the words in that book, with a
+  // "Search all books" way out (web #324, same logic: utils/bible/bookScope).
+  const bookScope = useMemo(
+    () =>
+      searching && goToRefs.length === 0 && allBooks.length > 0
+        ? splitBookScope(filterText, parser, localizedNames)
+        : null,
+    [searching, goToRefs.length, allBooks.length, filterText, parser, localizedNames]
+  );
+  const [unscopedQuery, setUnscopedQuery] = useState<string | null>(null);
+  const scope = bookScope && unscopedQuery !== filterText.trim() ? bookScope : null;
+  /** The words the verse search looks for: the typed text, less a scoping book name. */
+  const searchedText = scope ? scope.text : filterText;
+  const verseSearch = useVerseSearch(
+    searchedText,
+    bibleVersion,
+    searching && goToRefs.length === 0,
+    scope?.bookId
+  );
 
   // Fetch topics data - always enabled for instant cache access
   const hasSearchText = topicFilterText.trim().length > 0;
@@ -358,6 +434,8 @@ function BibleNavigationModalComponent({
       setSelectedSection(null);
       setFilterText('');
       setTopicFilterText('');
+      setSearchMode(false);
+      foldProgress.value = 0;
       translateY.value = withTiming(0, { duration: 300 });
     } else if (!customTranslateY) {
       // If visible prop becomes false (e.g. parent closed it), animate out
@@ -367,60 +445,29 @@ function BibleNavigationModalComponent({
         }
       });
     }
-  }, [visible, currentBookId, initialTab, initialTopicCategory, translateY, customTranslateY]);
+  }, [
+    visible,
+    currentBookId,
+    initialTab,
+    initialTopicCategory,
+    translateY,
+    customTranslateY,
+    foldProgress,
+  ]);
 
   // Filter books by testament and filter text
   const filteredBooks = useMemo(() => {
     // If there's a filter text, search across all books
     if (filterText.trim()) {
       const searchLower = filterText.toLowerCase();
-      return allBooks.filter((book) => book.name.toLowerCase().includes(searchLower));
+      return allBooks.filter(
+        (book) =>
+          book.name.toLowerCase().includes(searchLower) || referencedBookIds.includes(book.id)
+      );
     }
     // Otherwise, return books from the selected testament
     return allBooks.filter((book) => book.testament === selectedTestament);
-  }, [allBooks, selectedTestament, filterText]);
-
-  // ─── Bible search (Old / New tabs) ───────────────────────────────────
-  // Typing searches three things at once, like web: references ("John 3:16"
-  // → a "Go to" row), book names (above), and verse text. A book name
-  // followed by words ("Amos day of the Lord") searches the words in that
-  // book.
-  const { bibleVersion } = useBibleVersion();
-  const isBibleTab = selectedTab === 'OT' || selectedTab === 'NT';
-  const searching = isBibleTab && filterText.trim() !== '';
-  const parser = useMemo(
-    () =>
-      new ReferenceParser(
-        allBooks.map((b) => ({ bookId: b.id, name: b.name, chapters: b.chapterCount }))
-      ),
-    [allBooks]
-  );
-  const references = useMemo<BibleReference[]>(
-    () => (searching && allBooks.length > 0 ? parser.parse(filterText) : []),
-    [searching, allBooks.length, parser, filterText]
-  );
-  // "John 3:16" is a place, not words to look for; "Job" may be either.
-  const isPureReference = references.some((r) => r.chapter !== undefined);
-  // A book-only reference already listed under the books would repeat it.
-  const goToRefs = references.filter(
-    (r) => r.chapter !== undefined || !filteredBooks.some((b) => b.id === r.bookId)
-  );
-  const bookScope = useMemo(
-    () =>
-      searching && !isPureReference && allBooks.length > 0
-        ? splitBookScope(filterText, parser)
-        : null,
-    [searching, isPureReference, allBooks.length, filterText, parser]
-  );
-  // "Search all books" turns the book scope off for the text as typed.
-  const [unscopedQuery, setUnscopedQuery] = useState<string | null>(null);
-  const scope = bookScope && unscopedQuery !== filterText.trim() ? bookScope : null;
-  const verseSearch = useVerseSearch(
-    scope ? scope.text : filterText,
-    bibleVersion,
-    searching && !isPureReference,
-    scope?.bookId
-  );
+  }, [allBooks, selectedTestament, filterText, referencedBookIds]);
 
   // Filter topics by search text with smart sorting
   const filteredTopics = useMemo(() => {
@@ -483,10 +530,91 @@ function BibleNavigationModalComponent({
     return currentBook ? [currentBook, ...stored] : stored;
   }, [allBooks, recentBooks, currentBookId]);
 
+  // The verse results as list rows: group labels, a status row while there
+  // is nothing to show, and Load more.
+  const verseRows = useMemo((): SearchRow[] => {
+    if (!verseSearch.active) return [];
+    const { results } = verseSearch;
+    if (results.length === 0) {
+      const text = verseSearch.isPending
+        ? t('search.searching', 'Searching…')
+        : verseSearch.isError
+          ? isOnline
+            ? t('search.unavailable', 'Search is unavailable right now. Try again in a moment.')
+            : t(
+                'search.offlineNoDownload',
+                "You're offline. Download this translation to search it without a connection."
+              )
+          : scope
+            ? t('search.noVersesInBook', 'No verses in {{book}} match "{{query}}".', {
+                book: scope.bookName,
+                query: searchedText.trim(),
+              })
+            : t(
+                'search.noVerses',
+                'No verses match "{{query}}". Try fewer words or check the spelling.',
+                {
+                  query: searchedText.trim(),
+                }
+              );
+      return [{ kind: 'status', _listKey: 'verse-status', text }];
+    }
+    // One word has no "phrase": its exact matches need no label, and the
+    // stemmer's matches ("loving" → love, loved) read as other forms of it.
+    const singleWord = (searchedText.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []).length === 1;
+    const firstWords = results.findIndex((r) => r.match === 'words');
+    const rows: SearchRow[] = results.map((result, index) => ({
+      kind: 'verse',
+      _listKey: `verse-${result.bookId}-${result.chapter}-${result.verse}`,
+      result,
+      index,
+      groupLabel:
+        index === 0 && result.match === 'exact'
+          ? singleWord
+            ? null
+            : t('search.exactPhrase', 'Exact phrase')
+          : index === firstWords
+            ? singleWord
+              ? t('search.otherForms', 'Other forms of the word')
+              : t('search.allWords', 'All words')
+            : null,
+    }));
+    if (verseSearch.hasMore) rows.push({ kind: 'more', _listKey: 'verse-more' });
+    return rows;
+  }, [verseSearch, searchedText, scope, isOnline, t]);
+
   // Build SectionList sections for book list
   const bookSections = useMemo((): BookListSection[] => {
     const sections: BookListSection[] = [];
     const isFiltering = !!filterText.trim();
+
+    if (searching) {
+      if (goToRefs.length > 0) {
+        sections.push({
+          key: 'go-to',
+          title: '',
+          section: 'GOTO',
+          data: goToRefs.map((ref, i) => ({ kind: 'goto', _listKey: `go-to-${i}`, ref })),
+        });
+      }
+      if (filteredBooks.length > 0) {
+        sections.push({
+          key: 'all-books',
+          title: verseSearch.active ? t('search.books', 'BOOKS') : '',
+          section: 'ALL_BOOKS',
+          data: filteredBooks.map((book) => ({ ...book, _listKey: `book-${book.id}` })),
+        });
+      }
+      if (verseSearch.active) {
+        sections.push({
+          key: 'verses',
+          title: t('search.verses', 'VERSES'),
+          section: 'VERSES',
+          data: verseRows,
+        });
+      }
+      return sections;
+    }
 
     if (!isFiltering && recentBooksFiltered.length > 0) {
       sections.push({
@@ -503,7 +631,16 @@ function BibleNavigationModalComponent({
       data: filteredBooks.map((book) => ({ ...book, _listKey: `book-${book.id}` })),
     });
     return sections;
-  }, [recentBooksFiltered, filteredBooks, filterText]);
+  }, [
+    recentBooksFiltered,
+    filteredBooks,
+    filterText,
+    searching,
+    goToRefs,
+    verseSearch.active,
+    verseRows,
+    t,
+  ]);
 
   // Get selected book's chapter count
   const selectedBook = allBooks.find((book) => book.id === selectedBookId);
@@ -582,7 +719,9 @@ function BibleNavigationModalComponent({
     const { bookId, section } = lastExpandedBookRef.current;
     const sectionIndex = bookSections.findIndex((s) => s.section === section);
     if (sectionIndex === -1) return;
-    const itemIndex = bookSections[sectionIndex].data.findIndex((b) => b.id === bookId);
+    const itemIndex = bookSections[sectionIndex].data.findIndex(
+      (b) => !isSearchRow(b) && b.id === bookId
+    );
     if (itemIndex === -1) return;
 
     const scrollTimeout = setTimeout(() => {
@@ -610,40 +749,6 @@ function BibleNavigationModalComponent({
     [selectedBookId, onSelectChapter, handleClose]
   );
 
-  const handleGoToReference = (ref: BibleReference) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (ref.chapter === undefined) {
-      // Book only: list just that book and open its chapter grid.
-      const book = allBooks.find((b) => b.id === ref.bookId);
-      if (!book) return;
-      setFilterText(book.name);
-      handleBookSelect(book, 'ALL_BOOKS');
-      return;
-    }
-    if (ref.verseStart === undefined) {
-      onSelectChapter(ref.bookId, ref.chapter);
-    } else {
-      onSelectVerse({
-        bookId: ref.bookId,
-        chapter: ref.chapter,
-        verse: ref.verseStart,
-        // A range into the next chapter only marks its first verse.
-        endVerse: ref.chapterEnd === undefined ? ref.verseEnd : undefined,
-        mark: true,
-      });
-    }
-    handleClose();
-  };
-
-  const handleVerseResult = (r: VerseSearchResult) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Every verse result lands on its verse and marks it yellow until the
-    // reader leaves the chapter — the same as a typed reference — rather than
-    // opening the Verse Insight tooltip.
-    onSelectVerse({ bookId: r.bookId, chapter: r.chapter, verse: r.verse, mark: true });
-    handleClose();
-  };
-
   // Handle topic selection
   const handleTopicSelect = useCallback(
     (topicId: string) => {
@@ -655,6 +760,122 @@ function BibleNavigationModalComponent({
     },
     [onSelectTopic, selectedTopicCategory, handleClose]
   );
+
+  // ─── Search: picking a verse or a reference ───────────────────────────────
+  const openVerse = useCallback(
+    (bookId: number, chapter: number, verse: number, endVerse?: number, mark = false) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (onSelectVerse) {
+        onSelectVerse(bookId, chapter, verse, endVerse, { mark });
+      } else {
+        router.push(
+          `/bible/${bookId}/${chapter}?verse=${verse}${endVerse ? `&endVerse=${endVerse}` : ''}${mark ? '&mark=1' : ''}`
+        );
+      }
+      handleClose();
+    },
+    [onSelectVerse, handleClose]
+  );
+
+  const handleVerseSelect = useCallback(
+    (result: VerseSearchResult, index: number) => {
+      analytics.track(AnalyticsEvent.BIBLE_SEARCH_RESULT_CLICK, {
+        match: result.match,
+        position: index,
+      });
+      // Every result lands on its verse and marks it yellow until the reader leaves the chapter,
+      // the same as a typed reference, rather than opening Verse Insight (Andy, #399).
+      openVerse(result.bookId, result.chapter, result.verse, undefined, true);
+    },
+    [openVerse]
+  );
+
+  const handleGoTo = useCallback(
+    (ref: BibleReference) => {
+      if (ref.chapter === undefined) return;
+      analytics.track(AnalyticsEvent.BIBLE_SEARCH_GO_TO, {
+        kind: ref.verseStart !== undefined ? 'verse' : 'chapter',
+      });
+      if (ref.verseStart !== undefined) {
+        // A typed reference is a place to go: the verse is marked, no Verse Insight (web #324).
+        // A range into the next chapter only marks its first verse.
+        openVerse(
+          ref.bookId,
+          ref.chapter,
+          ref.verseStart,
+          ref.chapterEnd === undefined ? ref.verseEnd : undefined,
+          true
+        );
+        return;
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onSelectChapter(ref.bookId, ref.chapter);
+      handleClose();
+    },
+    [openVerse, onSelectChapter, handleClose]
+  );
+
+  // The keyboard's Search key: a typed reference jumps; otherwise the
+  // keyboard just goes away so the results can be read.
+  const handleSubmitSearch = useCallback(() => {
+    if (searching && goToRefs.length > 0) handleGoTo(goToRefs[0]);
+  }, [searching, goToRefs, handleGoTo]);
+
+  const exitSearchMode = useCallback(() => {
+    setSearchMode(false);
+    if (selectedTab === 'TOPICS') setTopicFilterText('');
+    else setFilterText('');
+    Keyboard.dismiss();
+  }, [selectedTab]);
+
+  // Counts only, never the search text (the same events as web).
+  const searchTotals = verseSearch.totals;
+  const searchSource = verseSearch.source;
+  const { testament: filterTestament, book: filterBook } = verseSearch.filters;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one event per new result set, keyed on its totals
+  useEffect(() => {
+    if (!searchTotals || filterTestament || filterBook) return;
+    const total = searchTotals.exact + searchTotals.words;
+    analytics.track(
+      total === 0 ? AnalyticsEvent.BIBLE_SEARCH_NO_RESULTS : AnalyticsEvent.BIBLE_SEARCH,
+      {
+        version: bibleVersion,
+        word_count: filterText.trim().split(/\s+/).length,
+        exact_count: searchTotals.exact,
+        words_count: searchTotals.words,
+        source: searchSource,
+      }
+    );
+  }, [searchTotals]);
+
+  // New text or a new filter is a new list: start it at the top.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on text / filter change only
+  useEffect(() => {
+    if (!searching) return;
+    sectionListRef.current?.getScrollResponder()?.scrollTo({ y: 0, animated: false });
+  }, [filterText, filterTestament, filterBook]);
+
+  // The sheet hangs from the top and the keyboard rises from the bottom, so
+  // the end of the list can sit behind the keyboard. Pad the list by the part
+  // the keyboard covers so its last rows still scroll above it. Measured on
+  // screen, so a platform that already resized the window gets no padding.
+  const listAreaRef = useRef<View>(null);
+  const [keyboardOverlap, setKeyboardOverlap] = useState(0);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
+      const keyboardTop = e.endCoordinates.screenY;
+      listAreaRef.current?.measureInWindow((_x, y, _width, height) => {
+        setKeyboardOverlap(Math.max(0, Math.round(y + height - keyboardTop)));
+      });
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOverlap(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // Swipe-to-dismiss gesture
   const panGesture = Gesture.Pan()
@@ -694,6 +915,23 @@ function BibleNavigationModalComponent({
 
   const animatedBackdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
+  }));
+
+  // The title and tabs fold up (to their measured height × (1 − progress)),
+  // taking the gap below them along, and the back arrow grows in beside the
+  // search field as the room frees up.
+  const chromeFoldStyle = useAnimatedStyle(() => {
+    if (chromeHeight <= 0) return {};
+    return {
+      height: chromeHeight * (1 - foldProgress.value),
+      opacity: 1 - foldProgress.value,
+      marginBottom: -spacing.lg * foldProgress.value,
+    };
+  }, [chromeHeight]);
+  const backArrowStyle = useAnimatedStyle(() => ({
+    width: 36 * foldProgress.value,
+    marginRight: spacing.xs * foldProgress.value,
+    opacity: foldProgress.value,
   }));
 
   // Render title
@@ -929,8 +1167,26 @@ function BibleNavigationModalComponent({
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
 
     return (
-      <View style={styles.filterContainer}>
-        <View style={styles.filterInputWrapper}>
+      <View style={[styles.filterContainer, styles.filterRow]}>
+        {/* In search mode the arrow grows in here and leads back. */}
+        <Animated.View
+          style={[styles.searchBackContainer, backArrowStyle]}
+          pointerEvents={searchMode ? 'auto' : 'none'}
+        >
+          <Pressable
+            onPress={exitSearchMode}
+            style={styles.searchBackButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('search.back', 'Back to browsing')}
+            accessibilityElementsHidden={!searchMode}
+            importantForAccessibility={searchMode ? 'auto' : 'no-hide-descendants'}
+            hitSlop={8}
+            testID="search-mode-back"
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+        </Animated.View>
+        <View style={[styles.filterInputWrapper, styles.filterInputFlex]}>
           <Ionicons name="search" size={18} color={colors.textTertiary} />
           <TextInput
             style={styles.filterInput}
@@ -938,9 +1194,11 @@ function BibleNavigationModalComponent({
             placeholderTextColor={colors.textTertiary}
             value={currentFilterText}
             onChangeText={onChangeText}
+            onFocus={() => setSearchMode(true)}
+            onSubmitEditing={handleSubmitSearch}
             returnKeyType="search"
             autoCorrect={false}
-            autoCapitalize="words"
+            autoCapitalize="none"
             accessibilityLabel={placeholder}
             testID={isTopicsMode ? 'topics-search-input' : 'books-search-input'}
           />
@@ -987,6 +1245,211 @@ function BibleNavigationModalComponent({
     );
   };
 
+  /** The verse text with the matched words in bold. */
+  const renderHighlighted = (text: string, ranges: [number, number][]) => {
+    if (ranges.length === 0) return text;
+    const parts: ReactNode[] = [];
+    let at = 0;
+    for (const [start, end] of ranges) {
+      if (start < at || end > text.length) continue;
+      if (start > at) parts.push(<Fragment key={`t${at}`}>{text.slice(at, start)}</Fragment>);
+      parts.push(
+        <Text key={`m${start}`} style={styles.verseMatch}>
+          {text.slice(start, end)}
+        </Text>
+      );
+      at = end;
+    }
+    if (at < text.length) parts.push(<Fragment key="tail">{text.slice(at)}</Fragment>);
+    return parts;
+  };
+
+  const renderSearchRow = (row: SearchRow) => {
+    switch (row.kind) {
+      case 'goto':
+        return (
+          <Pressable
+            onPress={() => handleGoTo(row.ref)}
+            style={styles.bookItem}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('search.goTo', 'Go to')} ${row.ref.display}`}
+            testID={row._listKey}
+          >
+            <View style={styles.goToContent}>
+              <Ionicons name="return-down-forward" size={20} color={colors.gold} />
+              <Text style={styles.bookItemText}>
+                {t('search.goTo', 'Go to')}{' '}
+                <Text style={styles.goToReference}>{row.ref.display}</Text>
+              </Text>
+            </View>
+          </Pressable>
+        );
+      case 'verse': {
+        const r = row.result;
+        return (
+          <View>
+            {row.groupLabel && <Text style={styles.verseGroupLabel}>{row.groupLabel}</Text>}
+            <Pressable
+              onPress={() => handleVerseSelect(r, row.index)}
+              style={styles.verseRow}
+              accessibilityRole="button"
+              accessibilityLabel={`${r.bookName} ${r.chapter}:${r.verse}. ${r.text}`}
+              testID={`verse-result-${r.bookId}-${r.chapter}-${r.verse}`}
+            >
+              <Text style={styles.verseReference}>{`${r.bookName} ${r.chapter}:${r.verse}`}</Text>
+              <Text style={styles.verseText}>{renderHighlighted(r.text, r.highlights)}</Text>
+            </Pressable>
+          </View>
+        );
+      }
+      case 'status':
+        return (
+          <Text
+            style={styles.searchStatus}
+            accessibilityLiveRegion="polite"
+            testID="verse-search-status"
+          >
+            {row.text}
+          </Text>
+        );
+      case 'more':
+        return (
+          <Pressable
+            onPress={verseSearch.loadMore}
+            disabled={verseSearch.isLoadingMore}
+            style={styles.loadMoreButton}
+            accessibilityRole="button"
+            testID="verse-search-load-more"
+          >
+            <Text style={styles.loadMoreText}>
+              {verseSearch.isLoadingMore
+                ? t('search.loading', 'Loading…')
+                : t('search.loadMore', 'Load more')}
+            </Text>
+          </Pressable>
+        );
+    }
+  };
+
+  /** The pinned "Verses" header: count, and testament / book filter chips. */
+  const renderVersesHeader = (title: string) => {
+    const { totals, books, filters, setFilters, source } = verseSearch;
+    const total = totals ? totals.exact + totals.words : 0;
+    const otCount = (books ?? [])
+      .filter((b) => b.testament === 'OT')
+      .reduce((n, b) => n + b.count, 0);
+    const ntCount = (books ?? [])
+      .filter((b) => b.testament === 'NT')
+      .reduce((n, b) => n + b.count, 0);
+    const bookChips = (books ?? []).filter(
+      (b) => !filters.testament || b.testament === filters.testament
+    );
+    const chip = (
+      label: string,
+      count: number,
+      selected: boolean,
+      onPress: () => void,
+      testID: string
+    ) => (
+      <Pressable
+        key={testID}
+        onPress={onPress}
+        style={[styles.chip, selected && styles.chipSelected]}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        testID={testID}
+      >
+        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+          {label} <Text style={selected ? styles.chipTextSelected : styles.chipCount}>{count}</Text>
+        </Text>
+      </Pressable>
+    );
+    return (
+      <View style={styles.versesHeader} testID="verse-search-header">
+        <View style={styles.versesHeaderRow}>
+          <Text style={styles.sectionHeaderText}>{title}</Text>
+          {total > 0 && (
+            <Text style={styles.versesCount}>
+              {t('search.verseCount', '{{count}} verses', { count: total })}
+            </Text>
+          )}
+        </View>
+        {scope ? (
+          <Text style={styles.scopeText} testID="verse-search-scope">
+            {t('search.inBook', 'Searching “{{query}}” in {{book}}', {
+              query: searchedText.trim(),
+              book: scope.bookName,
+            })}
+            {' · '}
+            <Text
+              style={styles.scopeLink}
+              onPress={() => setUnscopedQuery(filterText.trim())}
+              accessibilityRole="button"
+              testID="verse-search-scope-all"
+            >
+              {t('search.allBooks', 'Search all books')}
+            </Text>
+          </Text>
+        ) : null}
+        {total > 0 && !scope && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
+            contentContainerStyle={styles.chipsRow}
+          >
+            {chip(
+              t('search.all', 'All'),
+              total,
+              !filters.testament && !filters.book,
+              () => setFilters({}),
+              'verse-filter-all'
+            )}
+            {otCount > 0 &&
+              chip(
+                t('search.oldTestament', 'Old Testament'),
+                otCount,
+                filters.testament === 'OT' && !filters.book,
+                () => setFilters({ testament: 'OT' }),
+                'verse-filter-ot'
+              )}
+            {ntCount > 0 &&
+              chip(
+                t('search.newTestament', 'New Testament'),
+                ntCount,
+                filters.testament === 'NT' && !filters.book,
+                () => setFilters({ testament: 'NT' }),
+                'verse-filter-nt'
+              )}
+            {bookChips.length > 1 &&
+              bookChips.map((b) =>
+                chip(
+                  b.name,
+                  b.count,
+                  filters.book === b.bookId,
+                  () =>
+                    setFilters(
+                      filters.book === b.bookId
+                        ? { testament: filters.testament }
+                        : { testament: filters.testament, book: b.bookId }
+                    ),
+                  `verse-filter-book-${b.bookId}`
+                )
+              )}
+          </ScrollView>
+        )}
+        {source === 'offline' && total > 0 && (
+          <Text style={styles.offlineNote}>
+            {t(
+              'search.offlineNote',
+              'Offline: exact words in the verses on this device, in Bible order.'
+            )}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
   // Render book list
   const renderBookList = () => {
     if (isBooksLoading) {
@@ -999,23 +1462,31 @@ function BibleNavigationModalComponent({
 
     return (
       <GestureDetector gesture={scrollGesture}>
-        <SectionList<BookListItem, BookListSection>
+        <SectionList<ListRow, BookListSection>
           ref={sectionListRef}
           sections={bookSections}
           style={styles.bookList}
-          contentContainerStyle={styles.bookListContent}
+          contentContainerStyle={[
+            styles.bookListContent,
+            keyboardOverlap > 0 && { paddingBottom: keyboardOverlap + spacing.xxl },
+          ]}
           keyboardShouldPersistTaps="always"
+          // Dragging the results puts the keyboard away, as in native search screens.
+          keyboardDismissMode="on-drag"
           keyExtractor={(item) => item._listKey}
           renderSectionHeader={({ section }) => {
             if (!section.title) return null;
+            if (section.section === 'VERSES') return renderVersesHeader(section.title);
             return (
               <Animated.View layout={Layout.duration(300)} style={styles.sectionHeader}>
                 <Text style={styles.sectionHeaderText}>{section.title}</Text>
               </Animated.View>
             );
           }}
-          renderItem={({ item: book, section }) => {
-            const sectionType = section.section;
+          renderItem={({ item, section }) => {
+            if (isSearchRow(item)) return renderSearchRow(item);
+            const book = item;
+            const sectionType = section.section === 'RECENTS' ? 'RECENTS' : 'ALL_BOOKS';
             const isRecent = sectionType === 'RECENTS';
             const isSelected = book.id === selectedBookId && selectedSection === sectionType;
             return (
@@ -1025,136 +1496,12 @@ function BibleNavigationModalComponent({
               </Animated.View>
             );
           }}
-          ListHeaderComponent={searching ? renderGoToRows() : null}
-          ListFooterComponent={searching ? renderVerseResults() : null}
-          stickySectionHeadersEnabled={false}
+          // While searching, the Verses header (count + filters) stays pinned.
+          stickySectionHeadersEnabled={searching}
           onScrollToIndexFailed={() => {}}
         />
       </GestureDetector>
     );
-  };
-
-  // "Go to John 3:16" rows above the books while searching
-  const renderGoToRows = () => {
-    if (goToRefs.length === 0) return null;
-    return (
-      <View testID="search-go-to">
-        {goToRefs.map((ref, i) => (
-          <Pressable
-            key={`${ref.bookId}-${ref.display}`}
-            onPress={() => handleGoToReference(ref)}
-            style={styles.goToItem}
-            accessibilityRole="button"
-            accessibilityLabel={`Go to ${ref.display}`}
-            testID={`search-go-to-${i}`}
-          >
-            <Ionicons name="return-down-forward" size={18} color={colors.gold} />
-            <Text style={styles.bookItemText}>
-              Go to <Text style={styles.goToReference}>{ref.display}</Text>
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    );
-  };
-
-  // Verse-text matches below the books while searching
-  const renderVerseResults = () => {
-    if (!verseSearch.active) {
-      if (goToRefs.length === 0 && filteredBooks.length === 0 && !isPureReference) {
-        return (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>No books found</Text>
-          </View>
-        );
-      }
-      return null;
-    }
-    const shownQuery = (scope ? scope.text : filterText).trim();
-    const { status, results, total, nextCursor, loadingMore } = verseSearch;
-    return (
-      <View testID="verse-search-section">
-        <View style={styles.verseSectionHeader}>
-          <Text style={styles.verseSectionTitle}>
-            {scope ? `VERSES IN ${scope.bookName.toUpperCase()}` : 'VERSES'}
-          </Text>
-          {total !== null && total > 0 && (
-            <Text style={styles.verseSectionCount} testID="verse-search-total">
-              {total} {total === 1 ? 'verse' : 'verses'}
-            </Text>
-          )}
-        </View>
-        {scope && (
-          <Text style={styles.verseScopeText} testID="verse-search-scope">
-            Searching “{shownQuery}” in {scope.bookName} ·{' '}
-            <Text
-              style={styles.verseScopeLink}
-              onPress={() => setUnscopedQuery(filterText.trim())}
-              accessibilityRole="button"
-              testID="verse-search-scope-all"
-            >
-              Search all books
-            </Text>
-          </Text>
-        )}
-        {results.length === 0 ? (
-          <Text style={styles.verseEmptyText} testID="verse-search-empty">
-            {status === 'loading' || status === 'idle'
-              ? 'Searching…'
-              : status === 'error'
-                ? 'Search is unavailable right now. Try again in a moment.'
-                : scope
-                  ? `No verses in ${scope.bookName} match "${shownQuery}".`
-                  : `No verses match "${shownQuery}". Try fewer words or check the spelling.`}
-          </Text>
-        ) : (
-          results.map((r) => (
-            <Pressable
-              key={`${r.bookId}-${r.chapter}-${r.verse}`}
-              onPress={() => handleVerseResult(r)}
-              style={styles.verseResultItem}
-              accessibilityRole="button"
-              accessibilityLabel={`${r.bookName} ${r.chapter}:${r.verse}`}
-              testID={`verse-result-${r.bookId}-${r.chapter}-${r.verse}`}
-            >
-              <Text style={styles.verseResultReference}>
-                {`${r.bookName} ${r.chapter}:${r.verse}`}
-              </Text>
-              <Text style={styles.verseResultText}>{renderMatchedText(r)}</Text>
-            </Pressable>
-          ))
-        )}
-        {nextCursor && (
-          <Pressable
-            onPress={verseSearch.loadMore}
-            disabled={loadingMore}
-            style={styles.verseLoadMore}
-            accessibilityRole="button"
-            testID="verse-search-load-more"
-          >
-            <Text style={styles.verseScopeLink}>{loadingMore ? 'Loading…' : 'Load more'}</Text>
-          </Pressable>
-        )}
-      </View>
-    );
-  };
-
-  // The verse text with the matched words in bold
-  const renderMatchedText = (r: VerseSearchResult) => {
-    const parts: React.ReactNode[] = [];
-    let at = 0;
-    r.highlights.forEach(([start, end]) => {
-      if (start < at || end > r.text.length) return;
-      if (start > at) parts.push(r.text.slice(at, start));
-      parts.push(
-        <Text key={`m${start}-${end}`} style={styles.verseResultMatch}>
-          {r.text.slice(start, end)}
-        </Text>
-      );
-      at = end;
-    });
-    if (at < r.text.length) parts.push(r.text.slice(at));
-    return parts;
   };
 
   // Render topics list
@@ -1180,8 +1527,12 @@ function BibleNavigationModalComponent({
         <FlatList
           data={filteredTopics}
           style={styles.bookList}
-          contentContainerStyle={styles.bookListContent}
+          contentContainerStyle={[
+            styles.bookListContent,
+            keyboardOverlap > 0 && { paddingBottom: keyboardOverlap + spacing.xxl },
+          ]}
           keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
           keyExtractor={(item) => item.topic_id.toString()}
           renderItem={({ item: topic }) => (
             <Pressable
@@ -1304,26 +1655,45 @@ function BibleNavigationModalComponent({
             }}
           />
 
-          {/* Title */}
-          {renderTitle()}
+          {/* Title and tabs: fold away in search mode */}
+          <Animated.View
+            style={[styles.chromeFold, chromeFoldStyle]}
+            pointerEvents={searchMode ? 'none' : 'auto'}
+            accessibilityElementsHidden={searchMode}
+            importantForAccessibility={searchMode ? 'no-hide-descendants' : 'auto'}
+            testID="search-chrome"
+          >
+            <View
+              style={styles.chromeInner}
+              onLayout={(event) => {
+                const height = event.nativeEvent.layout.height;
+                if (height > 0 && Math.abs(height - chromeHeight) > 0.5) setChromeHeight(height);
+              }}
+            >
+              {/* Title */}
+              {renderTitle()}
 
-          {/* Main tabs (OT, NT, Topics) */}
-          {renderMainTabs()}
+              {/* Main tabs (OT, NT, Topics) */}
+              {renderMainTabs()}
 
-          {/* Topic category tabs (only when Topics tab is active) */}
-          {selectedTab === 'TOPICS' && renderTopicCategoryTabs()}
+              {/* Topic category tabs (only when Topics tab is active) */}
+              {selectedTab === 'TOPICS' && renderTopicCategoryTabs()}
+            </View>
+          </Animated.View>
 
           {/* Filter input */}
           {renderFilterInput()}
 
           {/* Content area */}
-          {selectedTab === 'JESUS' ? (
-            <JesusNavTab query={filterText} onNavigate={handleClose} />
-          ) : selectedTab === 'TOPICS' ? (
-            renderTopicsList()
-          ) : (
-            renderBookList()
-          )}
+          <View ref={listAreaRef} style={styles.contentArea} collapsable={false}>
+            {selectedTab === 'JESUS' ? (
+              <JesusNavTab query={filterText} onNavigate={handleClose} />
+            ) : selectedTab === 'TOPICS' ? (
+              renderTopicsList()
+            ) : (
+              renderBookList()
+            )}
+          </View>
 
           {/* Swipe handle at bottom */}
           <GestureDetector gesture={panGesture}>
@@ -1477,6 +1847,144 @@ const createStyles = (
     filterContainer: {
       paddingHorizontal: spacing.lg,
     },
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    filterInputFlex: {
+      flex: 1,
+    },
+    searchBackContainer: {
+      overflow: 'hidden',
+      height: 36,
+      justifyContent: 'center',
+    },
+    searchBackButton: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chromeFold: {
+      overflow: 'hidden',
+    },
+    chromeInner: {
+      gap: spacing.lg,
+    },
+    contentArea: {
+      flex: 1,
+    },
+    goToContent: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    goToReference: {
+      fontWeight: fontWeights.semibold,
+    },
+    versesHeader: {
+      backgroundColor: modalSpecs.backgroundColor,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.sm,
+    },
+    versesHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+    },
+    versesCount: {
+      fontSize: 13,
+      color: colors.textTertiary,
+    },
+    chipsRow: {
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+    },
+    chip: {
+      height: 32,
+      paddingHorizontal: spacing.md,
+      borderRadius: 100,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chipSelected: {
+      backgroundColor: colors.gold,
+      borderColor: colors.gold,
+    },
+    chipText: {
+      fontSize: 13,
+      color: colors.textPrimary,
+    },
+    chipTextSelected: {
+      color: colors.black,
+    },
+    chipCount: {
+      color: colors.textTertiary,
+    },
+    offlineNote: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      paddingHorizontal: spacing.lg,
+    },
+    scopeText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      paddingHorizontal: spacing.lg,
+    },
+    scopeLink: {
+      color: colors.gold,
+      fontWeight: '600',
+    },
+    verseGroupLabel: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+    },
+    verseRow: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.xs,
+    },
+    verseReference: {
+      fontSize: 13,
+      fontWeight: fontWeights.medium,
+      color: colors.gold,
+    },
+    verseText: {
+      fontSize: fontSizes.body,
+      lineHeight: fontSizes.body * lineHeights.body,
+      color: colors.textSecondary,
+    },
+    verseMatch: {
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    searchStatus: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.xl,
+    },
+    loadMoreButton: {
+      paddingVertical: spacing.lg,
+      alignItems: 'center',
+    },
+    loadMoreText: {
+      fontSize: fontSizes.body,
+      color: colors.gold,
+    },
     filterInputWrapper: {
       backgroundColor: mode === 'dark' ? colors.gray200 : colors.gray50,
       borderRadius: 100,
@@ -1564,81 +2072,6 @@ const createStyles = (
     loadingText: {
       fontSize: fontSizes.body,
       color: colors.textSecondary,
-    },
-    goToItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingLeft: spacing.lg,
-      paddingRight: spacing.sm,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    goToReference: {
-      fontWeight: fontWeights.medium,
-    },
-    verseSectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      justifyContent: 'space-between',
-      paddingLeft: spacing.lg,
-      paddingRight: spacing.sm,
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.xs,
-    },
-    verseSectionTitle: {
-      fontSize: 11,
-      letterSpacing: 0.8,
-      color: colors.textTertiary,
-    },
-    verseSectionCount: {
-      fontSize: 12,
-      color: colors.textTertiary,
-    },
-    verseScopeText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      paddingLeft: spacing.lg,
-      paddingRight: spacing.sm,
-      paddingBottom: spacing.sm,
-    },
-    verseScopeLink: {
-      fontSize: 14,
-      color: colors.gold,
-    },
-    verseEmptyText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      paddingVertical: spacing.xl,
-      paddingHorizontal: spacing.lg,
-    },
-    verseResultItem: {
-      paddingLeft: spacing.lg,
-      paddingRight: spacing.sm,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    verseResultReference: {
-      fontSize: 13,
-      fontWeight: fontWeights.medium,
-      color: colors.gold,
-      marginBottom: 2,
-    },
-    verseResultText: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.textSecondary,
-    },
-    verseResultMatch: {
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
-    verseLoadMore: {
-      alignItems: 'center',
-      paddingVertical: spacing.lg,
     },
     chapterGridContainer: {
       flex: 1,

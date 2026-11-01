@@ -73,6 +73,8 @@ export interface BibleContentPanelProps {
 
   /** Target end verse for multi-verse highlights */
   targetEndVerse?: number;
+  /** See ChapterPage's targetKey. */
+  targetKey?: number;
   /** Mark the target verse (typed search reference) instead of opening its tooltip */
   markTargetVerse?: boolean;
 
@@ -104,6 +106,7 @@ export function BibleContentPanel({
   onTap,
   targetVerse,
   targetEndVerse,
+  targetKey,
   markTargetVerse = false,
   visible = true,
   testID = 'bible-content-panel',
@@ -155,12 +158,22 @@ export function BibleContentPanel({
           isPreloading={!isCurrent}
           targetVerse={isCurrent ? targetVerse : undefined}
           targetEndVerse={isCurrent ? targetEndVerse : undefined}
+          targetKey={isCurrent ? targetKey : undefined}
           markTargetVerse={markTargetVerse}
           hideChapterTitle
         />
       );
     },
-    [onScroll, onTap, bookId, chapterNumber, targetVerse, targetEndVerse, markTargetVerse]
+    [
+      onScroll,
+      onTap,
+      bookId,
+      chapterNumber,
+      targetVerse,
+      targetEndVerse,
+      targetKey,
+      markTargetVerse,
+    ]
   );
 
   return (

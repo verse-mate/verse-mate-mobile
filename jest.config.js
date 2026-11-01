@@ -25,8 +25,7 @@ module.exports = {
 
   // Transform Expo, React Native, and MSW packages
   transformIgnorePatterns: [
-    // Whitelist the @versemate/* github deps (studies, visuals, red-letter,
-    // bible-search) — they ship .ts
+    // Whitelist the @versemate packages — they ship .ts
     // source via a github:/file: dep, so Jest needs to run them through
     // babel-jest like any project file.
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async|@versemate/(studies|visuals|red-letter|bible-search)))',

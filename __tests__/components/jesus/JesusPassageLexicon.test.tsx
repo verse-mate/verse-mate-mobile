@@ -54,7 +54,7 @@ const passage: JesusEventPassage = {
   ],
 };
 
-it("hands ParagraphText the chapter's alignment and opens the definition on a word tap", () => {
+it("hands ParagraphText the chapter's alignment and opens the definition from Define", () => {
   render(
     <ThemeProvider>
       <JesusPassageBlock passage={passage} onOpen={jest.fn()} />

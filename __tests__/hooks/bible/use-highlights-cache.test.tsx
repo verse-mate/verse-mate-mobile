@@ -170,6 +170,93 @@ describe('useHighlights cache behavior', () => {
     });
   });
 
+  describe('word-level highlights in one verse (partial highlights)', () => {
+    const chapterKey = [
+      {
+        _id: 'getBibleHighlightsByUserIdByBookIdByChapterNumber',
+        path: { user_id: 'user-1', book_id: 1, chapter_number: 1 },
+      },
+    ];
+    const row = (id: number, startChar: number, endChar: number) => ({
+      highlight_id: id,
+      user_id: 'user-1',
+      chapter_id: 1001,
+      book_id: 1,
+      chapter_number: 1,
+      start_verse: 3,
+      end_verse: 3,
+      color: 'yellow',
+      start_char: startChar,
+      end_char: endChar,
+      selected_text: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
+    const ids = () =>
+      (queryClient.getQueryData<{ highlights: any[] }>(chapterKey)?.highlights ?? [])
+        .map((h) => h.highlight_id)
+        .sort((a, b) => a - b);
+    const addInVerse3 = (result: { current: ReturnType<typeof useHighlights> }) =>
+      result.current.addHighlight({
+        bookId: 1,
+        chapterNumber: 1,
+        startVerse: 3,
+        endVerse: 3,
+        startChar: 10,
+        endChar: 20,
+        color: 'green',
+      });
+
+    it('treats a refusal (HTTP 200, success: false) as a failure and rolls the highlight back', async () => {
+      // The backend answers an overlap with 200 and `success: false`. Counting that as saved left the
+      // highlight on screen until the next refetch silently dropped it.
+      mockAddMutationFn.mockResolvedValue({ success: false, error: 'Highlight overlaps' });
+      queryClient.setQueryData(chapterKey, { highlights: [row(1, 0, 5)] });
+      const { result } = renderHook(() => useHighlights({ bookId: 1, chapterNumber: 1 }), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await expect(addInVerse3(result)).rejects.toThrow('Highlight overlaps');
+      });
+      expect(ids()).toEqual([1]);
+    });
+
+    it('replaces only its own optimistic entry, keeping the other highlights in that verse', async () => {
+      // The swap used to match on start/end verse, so the new highlight also replaced every other
+      // highlight in verse 3 until a refetch.
+      mockAddMutationFn.mockResolvedValue({ success: true, highlight: row(999, 10, 20) });
+      queryClient.setQueryData(chapterKey, { highlights: [row(1, 0, 5), row(2, 30, 40)] });
+      const { result } = renderHook(() => useHighlights({ bookId: 1, chapterNumber: 1 }), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await addInVerse3(result);
+      });
+      expect(ids()).toEqual([1, 2, 999]);
+    });
+
+    it('drops the highlights the server merged into the new one, here and locally', async () => {
+      const { deleteLocalHighlight } = jest.requireMock('@/services/offline');
+      mockAddMutationFn.mockResolvedValue({
+        success: true,
+        highlight: row(999, 0, 20),
+        merged_highlight_ids: [1],
+      });
+      queryClient.setQueryData(chapterKey, { highlights: [row(1, 0, 12), row(2, 30, 40)] });
+      const { result } = renderHook(() => useHighlights({ bookId: 1, chapterNumber: 1 }), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await addInVerse3(result);
+      });
+      expect(ids()).toEqual([2, 999]);
+      expect(deleteLocalHighlight).toHaveBeenCalledWith(1);
+    });
+  });
+
   describe('isUserDataSynced gating (T-002)', () => {
     it('enables remote queries when isUserDataSynced is false', () => {
       mockIsUserDataSynced = false;

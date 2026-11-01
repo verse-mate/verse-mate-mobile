@@ -9,6 +9,9 @@ import android.text.Layout
 import android.text.TextPaint
 import android.util.TypedValue
 import android.util.Log
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.ViewGroup
@@ -62,8 +65,33 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
   private val onRangeTap by EventDispatcher<Map<String, Any?>>()
   private val onTextLayout by EventDispatcher<Map<String, Any?>>()
   private val onSelectionChange by EventDispatcher<Map<String, Any?>>()
+  private val onSelectionAction by EventDispatcher<Map<String, Any?>>()
 
   private var spec: VMTextSpec = VMTextSpec.EMPTY
+
+  /**
+   * The app's items in the selection menu, ahead of Copy, as (id, label).
+   *
+   * Andy asked for Olive Tree's gesture: hold a word, drag to extend over a few words or a whole
+   * verse, and act on it from the menu (Highlight, Define). The platform already does the hold,
+   * the handles and the floating menu; this only adds entries to that menu.
+   */
+  private var selectionActions: List<Pair<String, String>> = emptyList()
+
+  /** Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx). */
+  fun setSelectionActions(encoded: String?) {
+    selectionActions = (encoded ?: "")
+      .split('|')
+      .filter { it.isNotEmpty() }
+      .mapNotNull { chunk ->
+        val parts = chunk.split('~', limit = 2)
+        if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+          parts[0] to parts[1]
+        } else {
+          null
+        }
+      }
+  }
 
   /**
    * False until construction finishes. Events must not be dispatched before then.
@@ -195,10 +223,78 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     /** Event time of the previous ACTION_UP, for double-tap detection. */
     private var lastTapUpTime = 0L
 
+    /** Whether this gesture's long-press started a selection, which a drag now extends. */
+    private var selectingByHold = false
+
+    /**
+     * Adds the app's items to the floating selection menu and reports the one chosen.
+     *
+     * The selection is read when the item is tapped, which is what the menu was showing for, and
+     * dropped right after: the app opens its own sheet next, and handles left on the text beneath
+     * it read as still active.
+     */
+    private val selectionMenuCallback = object : ActionMode.Callback {
+      override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+        addSelectionActions(menu)
+        return true
+      }
+
+      override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean =
+        addSelectionActions(menu)
+
+      override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+        val action = selectionActions.getOrNull(item.itemId - SELECTION_MENU_ID_BASE) ?: return false
+        val start = selectionStart
+        val end = selectionEnd
+        if (end > start) {
+          this@VMTextView.onSelectionAction(mapOf("id" to action.first, "start" to start, "end" to end))
+        }
+        clearSelectionIfAny()
+        mode.finish()
+        return true
+      }
+
+      override fun onDestroyActionMode(mode: ActionMode) {}
+    }
+
+    /** Add any missing app items, in order, before the platform's. True when the menu changed. */
+    private fun addSelectionActions(menu: Menu): Boolean {
+      var changed = false
+      selectionActions.forEachIndexed { index, (_, label) ->
+        val id = SELECTION_MENU_ID_BASE + index
+        if (menu.findItem(id) == null) {
+          menu.add(Menu.NONE, id, index, label).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+          changed = true
+        }
+      }
+      return changed
+    }
+
+    /**
+     * The long-press timer fired and the platform selected the word: from here the gesture is a
+     * selection, and dragging extends it word by word (the platform's drag accelerator).
+     *
+     * Two things would otherwise end it the moment the finger moves sideways. This view's own swipe
+     * claim (see ACTION_MOVE) clears any selection on a horizontal drag; it now stands down for a
+     * held gesture. And the chapter pager's pan takes the touch at 14px. Disallowing intercept
+     * stops the ScrollView and makes react-native-gesture-handler's root cancel its handlers, the
+     * pager pan included, for the rest of this gesture only.
+     */
+    override fun performLongClick(): Boolean {
+      val handled = super.performLongClick()
+      if (!swipeClaimed && anySelection()) {
+        selectingByHold = true
+        parent?.requestDisallowInterceptTouchEvent(true)
+        Log.d(TOUCH_TAG, "LONGPRESS selecting sel=${selectionStart}..${selectionEnd}")
+      }
+      return handled
+    }
+
     init {
       configureForMeasurementParity()
       // Selection handles, magnifier, and the floating Copy / Select-all menu.
       setTextIsSelectable(true)
+      customSelectionActionModeCallback = selectionMenuCallback
       // The text fills the view; padding would shift it out of alignment with the
       // width its height was measured against.
       setPadding(0, 0, 0, 0)
@@ -411,6 +507,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           downTime = event.eventTime
           longPressCancelled = false
           swipeClaimed = false
+          selectingByHold = false
           // Native logging, because three JS-side reasoning attempts at the selection
           // behaviour all failed and none of them established whether this code runs
           // at all. `android.util.Log` reaches logcat even though the app's
@@ -473,7 +570,8 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // past the touch slop and dominant over vertical travel keeps swiping and
           // scrolling intact while leaving the real selection gesture — press and
           // HOLD, without moving — completely untouched.
-          if (!longPressCancelled) {
+          // Not once the hold has started a selection: then a sideways drag is extending it.
+          if (!longPressCancelled && !selectingByHold) {
             val mdx = kotlin.math.abs(event.x - downX)
             val mdy = kotlin.math.abs(event.y - downY)
             Log.d(TOUCH_TAG, "MOVE dx=$mdx dy=$mdy claimed=$swipeClaimed")
@@ -614,6 +712,9 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
   }
 
   companion object {
+    /** First menu item id for the app's selection actions; well clear of android.R.id values. */
+    private const val SELECTION_MENU_ID_BASE = 0x5600
+
     /**
      * Gap between the text baseline and the underline, in dp. Clears descenders
      * (g, y, p) at body sizes without the line detaching from the word.

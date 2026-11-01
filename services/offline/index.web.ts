@@ -186,6 +186,11 @@ export async function updateLocalHighlightColor(
   _color: string
 ): Promise<void> {}
 export async function deleteLocalHighlight(_highlightId: number): Promise<void> {}
+export const LOCAL_TEMP_HIGHLIGHT_ID_MIN = 1_000_000_000_000;
+export async function settleSyncedLocalHighlight(
+  _server: OfflineHighlight,
+  _mergedIds: number[]
+): Promise<void> {}
 export async function addLocalBookmark(_bookmark: OfflineBookmark): Promise<void> {}
 export async function deleteLocalBookmark(_bookmarkId: number): Promise<void> {}
 export async function deleteLocalBookmarkByChapter(

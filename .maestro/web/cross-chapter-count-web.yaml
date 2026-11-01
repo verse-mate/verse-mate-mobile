@@ -48,7 +48,7 @@ url: http://localhost:8081
 
 # Use filter to find Psalms (avoids scroll issues in web modals)
 - tapOn:
-    text: "Search verses, or go to John 3:16"
+    id: "books-search-input"
 - inputText: "Psalms"
 - waitForAnimationToEnd
 

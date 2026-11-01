@@ -35,6 +35,7 @@ import { useBundledLexEntry } from '@/hooks/use-bundled-lex-entry';
 import { useLemma } from '@/hooks/use-lemma';
 import { mergeLemmaCard } from '@/lib/lexicon/lemma-card';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
+import { WordChoiceChips } from './WordChoiceChips';
 
 // Hebrew + Aramaic Unicode block — RTL render for `<Text>` containing
 // these characters. Greek lemmas have no Hebrew chars so detection is
@@ -61,6 +62,10 @@ export interface LexiconPopoverProps {
    * Used for non-English Bibles.
    */
   apiLang?: string;
+  /** Several words were selected for Define: show them as chips to switch between. */
+  wordChoices?: string[];
+  activeWordChoice?: number;
+  onChooseWord?: (index: number) => void;
   testID?: string;
 }
 
@@ -72,6 +77,9 @@ export function LexiconPopover({
   token,
   isTheme: _isTheme,
   apiLang,
+  wordChoices,
+  activeWordChoice = 0,
+  onChooseWord,
   testID = 'lexicon-popover',
 }: LexiconPopoverProps) {
   const { colors } = useTheme();
@@ -205,6 +213,15 @@ export function LexiconPopover({
       <BottomSheetScrollView contentContainerStyle={styles.scrollContent} stickyHeaderIndices={[0]}>
         {/* HEADER — pinned via stickyHeaderIndices */}
         <View style={styles.header} testID={`${testID}-header`}>
+          {wordChoices && onChooseWord ? (
+            <WordChoiceChips
+              colors={colors}
+              words={wordChoices}
+              active={activeWordChoice}
+              onChoose={onChooseWord}
+              testID={`${testID}-word-choices`}
+            />
+          ) : null}
           <View style={styles.headerRow}>
             <Text
               style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}

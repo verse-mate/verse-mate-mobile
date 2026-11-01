@@ -33,6 +33,23 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
+// The sheet's verse search (react-query) is covered by its own tests; here it stays idle.
+jest.mock('@/hooks/bible/use-verse-search', () => ({
+  useVerseSearch: () => ({
+    active: false,
+    isPending: false,
+    isError: false,
+    results: [],
+    totals: null,
+    books: null,
+    source: 'online',
+    hasMore: false,
+    isLoadingMore: false,
+    loadMore: jest.fn(),
+    filters: {},
+    setFilters: jest.fn(),
+  }),
+}));
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
@@ -294,7 +311,7 @@ describe('BibleNavigationModal', () => {
     );
 
     // Filter input should be present
-    const filterInput = screen.getByPlaceholderText('Search verses, or go to John 3:16');
+    const filterInput = screen.getByTestId('books-search-input');
     expect(filterInput).toBeTruthy();
   });
 
@@ -310,79 +327,12 @@ describe('BibleNavigationModal', () => {
     );
 
     // Enter filter text
-    const filterInput = screen.getByPlaceholderText('Search verses, or go to John 3:16');
+    const filterInput = screen.getByTestId('books-search-input');
     fireEvent.changeText(filterInput, 'exo');
 
     // Book list should show (chapter grid hidden when filtering)
     await waitFor(() => {
       expect(screen.getByText('Exodus')).toBeTruthy();
-    });
-  });
-
-  describe('Bible search', () => {
-    const renderModal = (onSelectVerse = jest.fn()) => {
-      renderWithTheme(
-        <BibleNavigationModal
-          visible={true}
-          currentBookId={1}
-          currentChapter={1}
-          onClose={mockOnClose}
-          onSelectChapter={mockOnSelectChapter}
-          onSelectVerse={onSelectVerse}
-        />
-      );
-      return {
-        onSelectVerse,
-        input: screen.getByPlaceholderText('Search verses, or go to John 3:16'),
-      };
-    };
-
-    it('turns a typed reference into a Go to row that marks the verse', async () => {
-      const { input, onSelectVerse } = renderModal();
-      fireEvent.changeText(input, 'ps 23:1');
-
-      fireEvent.press(await screen.findByTestId('search-go-to-0'));
-      expect(onSelectVerse).toHaveBeenCalledWith({
-        bookId: 19,
-        chapter: 23,
-        verse: 1,
-        endVerse: undefined,
-        mark: true,
-      });
-      expect(screen.queryByTestId('verse-search-section')).toBeNull();
-    });
-
-    it('searches the words after a book name within that book', async () => {
-      const { input, onSelectVerse } = renderModal();
-      fireEvent.changeText(input, 'Psalms shepherd');
-
-      expect(await screen.findByTestId('verse-search-scope')).toHaveTextContent(
-        /Searching “shepherd” in Psalms/
-      );
-      const result = await screen.findByTestId('verse-result-19-1-1');
-      expect(result).toHaveTextContent(/A verse about shepherd/);
-
-      fireEvent.press(result);
-      // Book-scoped: lands on the verse and marks it, no Verse Insight.
-      expect(onSelectVerse).toHaveBeenCalledWith({
-        bookId: 19,
-        chapter: 1,
-        verse: 1,
-        mark: true,
-      });
-    });
-
-    it('can widen a book-scoped search to all books', async () => {
-      const { input, onSelectVerse } = renderModal();
-      fireEvent.changeText(input, 'Psalms shepherd');
-      fireEvent.press(await screen.findByTestId('verse-search-scope-all'));
-
-      await waitFor(() => expect(screen.queryByTestId('verse-search-scope')).toBeNull());
-      expect(await screen.findByText(/A verse about Psalms shepherd/)).toBeTruthy();
-
-      // An all-books text result is marked the same way (no Verse Insight).
-      fireEvent.press(screen.getByTestId('verse-result-19-1-1'));
-      expect(onSelectVerse).toHaveBeenLastCalledWith(expect.objectContaining({ mark: true }));
     });
   });
 

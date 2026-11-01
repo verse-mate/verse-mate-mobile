@@ -8,7 +8,14 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, type TextStyle } from 'react-native';
 import { perfAdd } from '@/lib/perf';
-import type { TextLineLayout, TextPressEvent, TextRange, TextSelectionRange } from './types';
+import type {
+  TextLineLayout,
+  TextPressEvent,
+  TextRange,
+  TextSelectionAction,
+  TextSelectionActionEvent,
+  TextSelectionRange,
+} from './types';
 import { getNativeVMTextView, isNativeTextAvailable, type NativeVMTextProps } from './VMTextModule';
 
 export interface VMTextProps {
@@ -42,8 +49,26 @@ export interface VMTextProps {
    * button for a dictionary lookup.
    */
   onSelectionChange?: (selection: TextSelectionRange) => void;
+  /**
+   * The app's items in the platform's selection menu, in order, ahead of Copy. Hold a word to
+   * select it, drag to extend, and the menu offers these.
+   */
+  selectionActions?: TextSelectionAction[];
+  /** One of `selectionActions` was chosen. The selection is cleared natively right after. */
+  onSelectionAction?: (event: TextSelectionActionEvent) => void;
   testID?: string;
   accessibilityLabel?: string;
+}
+
+/**
+ * Encode selection-menu items for the native prop: `id~label|id~label`.
+ *
+ * A string for the same reason as `encodeRanges`. A label containing `~` or `|` would split, so
+ * both are dropped from it; no translation uses either.
+ */
+export function encodeSelectionActions(actions: TextSelectionAction[] | undefined): string {
+  if (!actions || actions.length === 0) return '';
+  return actions.map((a) => `${a.id}~${a.label.replace(/[~|]/g, '')}`).join('|');
 }
 
 /**
@@ -116,6 +141,8 @@ export function VMText(props: VMTextProps) {
     onPress,
     onTextLayout,
     onSelectionChange,
+    selectionActions,
+    onSelectionAction,
     testID,
     accessibilityLabel,
   } = props;
@@ -139,6 +166,18 @@ export function VMText(props: VMTextProps) {
   // legacy path underlined nearly every phrase. Caught by diffing device
   // screenshots of the two arms.
   const rangesEncoded = useMemo(() => encodeRanges(ranges), [ranges]);
+
+  const selectionActionsEncoded = useMemo(
+    () => encodeSelectionActions(selectionActions),
+    [selectionActions]
+  );
+
+  const handleSelectionAction = useCallback(
+    (event: { nativeEvent: TextSelectionActionEvent }) => {
+      onSelectionAction?.(event.nativeEvent);
+    },
+    [onSelectionAction]
+  );
 
   const handleRangeTap = useCallback(
     (event: { nativeEvent: { index: number; charOffset: number } }) => {
@@ -213,6 +252,8 @@ export function VMText(props: VMTextProps) {
     // Always attached so the dev-only selection counters see every event, not
     // only the ones a consumer happened to subscribe to.
     onSelectionChange: handleSelectionChange,
+    selectionActions: selectionActionsEncoded || undefined,
+    onSelectionAction: onSelectionAction ? handleSelectionAction : undefined,
   };
 
   return <NativeView {...nativeProps} />;

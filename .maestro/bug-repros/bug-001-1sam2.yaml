@@ -36,7 +36,8 @@ tags:
     id: "tab-old-testament"
 
 # Use the filter input to disambiguate — much more reliable than scrollUntilVisible
-- tapOn: "Search verses, or go to John 3:16"
+- tapOn:
+    id: "books-search-input"
 - inputText: "1 Samuel"
 - waitForAnimationToEnd
 

@@ -162,9 +162,32 @@ export default function ChapterScreen() {
     /** "1" when the verse came from a typed search reference: mark, no tooltip. */
     mark?: string;
   }>();
-  const targetVerse = params.verse ? Number(params.verse) : undefined;
-  const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
-  const markTargetVerse = params.mark === '1';
+  // A verse picked in Search. Kept here, not in the URL: the URL sync clears
+  // ?verse= after a chapter jump, and the pager only follows
+  // navigateExternally. It applies while the reader is on its chapter, and
+  // `key` lets the same verse be asked for twice.
+  const [searchTarget, setSearchTarget] = useState<{
+    bookId: number;
+    chapterNumber: number;
+    verse: number;
+    endVerse?: number;
+    /** A typed reference: mark the verse, no Verse Insight (web #324). */
+    mark?: boolean;
+    key: number;
+  } | null>(null);
+  const searchTargetHere =
+    searchTarget && searchTarget.bookId === bookId && searchTarget.chapterNumber === chapterNumber
+      ? searchTarget
+      : null;
+  const targetVerse = params.verse ? Number(params.verse) : searchTargetHere?.verse;
+  const targetEndVerse = params.endVerse ? Number(params.endVerse) : searchTargetHere?.endVerse;
+  const targetKey = params.verse ? undefined : searchTargetHere?.key;
+  /** The target came from a typed reference ("John 3:16"): mark it instead of opening Insight. */
+  const markTargetVerse = params.verse ? params.mark === '1' : !!searchTargetHere?.mark;
+  // Leaving that chapter drops the target, so coming back doesn't jump again.
+  useEffect(() => {
+    if (searchTarget && !searchTargetHere) setSearchTarget(null);
+  }, [searchTarget, searchTargetHere]);
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -256,6 +279,31 @@ export default function ChapterScreen() {
 
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
+
+  const handleSelectVerse = useCallback(
+    (
+      selectedBookId: number,
+      chapterNum: number,
+      verse: number,
+      endVerse?: number,
+      options?: { mark?: boolean }
+    ) => {
+      setIsNavigationModalOpen(false);
+      setActiveView('bible');
+      setSearchTarget({
+        bookId: selectedBookId,
+        chapterNumber: chapterNum,
+        verse,
+        endVerse,
+        mark: options?.mark,
+        key: Date.now(),
+      });
+      if (selectedBookId !== bookId || chapterNum !== chapterNumber) {
+        navigateExternally(selectedBookId, chapterNum);
+      }
+    },
+    [bookId, chapterNumber, navigateExternally, setActiveView]
+  );
 
   // Transitions for view + tab switches. The actual state updates take
   // ~300-500ms of JS-thread reconciliation because the chapter tree is
@@ -722,6 +770,7 @@ export default function ChapterScreen() {
           isPreloading={!isCurrent}
           targetVerse={isUrgentCurrent ? targetVerse : undefined}
           targetEndVerse={isUrgentCurrent ? targetEndVerse : undefined}
+          targetKey={isUrgentCurrent ? targetKey : undefined}
           markTargetVerse={markTargetVerse}
           fabVisible={fabVisible}
           onFABInteraction={showButtons}
@@ -741,6 +790,7 @@ export default function ChapterScreen() {
       deferredChapterNumber,
       targetVerse,
       targetEndVerse,
+      targetKey,
       markTargetVerse,
       fabVisible,
       showButtons,
@@ -776,6 +826,7 @@ export default function ChapterScreen() {
             setActiveView('bible');
             navigateExternally(selectedBookId, chapterNum);
           }}
+          onSelectVerse={handleSelectVerse}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
@@ -823,6 +874,7 @@ export default function ChapterScreen() {
             setActiveView('bible');
             navigateExternally(selectedBookId, chapterNum);
           }}
+          onSelectVerse={handleSelectVerse}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
@@ -865,6 +917,7 @@ export default function ChapterScreen() {
                   onTap={handleTap}
                   targetVerse={targetVerse}
                   targetEndVerse={targetEndVerse}
+                  targetKey={targetKey}
                   markTargetVerse={markTargetVerse}
                   visible={fabVisible}
                 />
@@ -1002,6 +1055,7 @@ export default function ChapterScreen() {
             // V3: Update state via hook (single source of truth)
             navigateExternally(selectedBookId, chapterNum);
           }}
+          onSelectVerse={handleSelectVerse}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
             // Always default to Bible text view when navigating to topics

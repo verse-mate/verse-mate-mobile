@@ -27,6 +27,7 @@ import {
   isCommentaryDownloaded,
   isTopicsDownloaded,
   saveMetadata,
+  settleSyncedLocalHighlight,
   updateSyncActionStatus,
 } from './sqlite-manager';
 import type {
@@ -37,6 +38,7 @@ import type {
   LanguageBundle,
   LanguageBundleStatus,
   OfflineDownloadOrigin,
+  OfflineHighlight,
   OfflineManifest,
   SyncProgress,
   TopicsDownloadData,
@@ -876,6 +878,36 @@ async function sendSyncRequest(url: string, init: RequestInit): Promise<void> {
   throw new Error(`Sync request failed: HTTP ${response.status} for ${init.method} ${url}`);
 }
 
+/**
+ * Replay a highlight made offline, and settle the device's copy of it.
+ *
+ * The backend refuses a highlight with HTTP 200 and `success: false`; that is a failure, not a
+ * sync, so it throws and the item stays queued as FAILED rather than vanishing. On success the
+ * temporary local row and any highlights the server merged into this one are replaced by the
+ * server's row.
+ */
+async function syncHighlightCreate(payload: unknown): Promise<void> {
+  const response = await authenticatedFetch(`${API_URL}/bible/highlight/add`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Sync request failed: HTTP ${response.status} for POST /bible/highlight/add`);
+  }
+  const result = (await response.json().catch(() => null)) as {
+    success?: boolean;
+    error?: string;
+    highlight?: OfflineHighlight;
+    merged_highlight_ids?: number[];
+  } | null;
+  if (result?.success === false) {
+    throw new Error(`Highlight refused by the server: ${result.error ?? 'no reason given'}`);
+  }
+  if (result?.highlight) {
+    await settleSyncedLocalHighlight(result.highlight, result.merged_highlight_ids ?? []);
+  }
+}
+
 export async function processSyncQueue(): Promise<SyncQueueResult> {
   const actions = await getPendingSyncActions();
   if (actions.length === 0) return { total: 0, succeeded: 0, failed: 0 };
@@ -909,10 +941,7 @@ export async function processSyncQueue(): Promise<SyncQueueResult> {
         }
       } else if (action.type === 'HIGHLIGHT') {
         if (action.action === 'CREATE') {
-          await sendSyncRequest(`${API_URL}/bible/highlight/add`, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-          });
+          await syncHighlightCreate(payload);
         } else if (action.action === 'UPDATE') {
           // payload includes highlight_id for path param
           const { highlight_id, ...body } = payload;

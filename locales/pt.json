@@ -98,7 +98,9 @@
     "no_translation_available": "Exibindo em inglês (tradução não disponível)",
     "offline_indicator": "Offline — exibindo conteúdo em cache",
     "expand_all": "Expandir tudo",
-    "collapse_all": "Recolher tudo"
+    "collapse_all": "Recolher tudo",
+    "selection_highlight": "Destacar",
+    "selection_define": "Definir"
   },
   "bookmarks": {
     "title": "Favoritos",
@@ -116,7 +118,8 @@
     "empty_subtitle": "Comece a destacar versículos para vê-los aqui.",
     "auto_highlights": "Destaques automáticos",
     "my_highlights": "Meus destaques",
-    "remove_confirm": "Remover este destaque?"
+    "remove_confirm": "Remover este destaque?",
+    "sign_in_to_save": "Entre para salvar destaques"
   },
   "notes": {
     "title": "Notas",
@@ -309,6 +312,29 @@
     "searchJesus": "Pesquisar Suas palavras e ações...",
     "filterTopics": "Filtrar temas...",
     "filterBooks": "Filtrar livros...",
-    "searchBible": "Pesquisar versículos, ou ir para João 3:16"
+    "searchBible": "Pesquisar versículos ou ir para João 3:16"
+  },
+  "search": {
+    "searching": "Pesquisando…",
+    "unavailable": "A pesquisa não está disponível agora. Tente novamente em instantes.",
+    "offlineNoDownload": "Você está offline. Baixe esta tradução para pesquisá-la sem conexão.",
+    "noVerses": "Nenhum versículo corresponde a \"{{query}}\". Tente menos palavras ou verifique a ortografia.",
+    "exactPhrase": "Frase exata",
+    "allWords": "Todas as palavras",
+    "otherForms": "Outras formas da palavra",
+    "books": "LIVROS",
+    "verses": "VERSÍCULOS",
+    "back": "Voltar à navegação",
+    "goTo": "Ir para",
+    "loading": "Carregando…",
+    "loadMore": "Carregar mais",
+    "verseCount": "{{count}} versículos",
+    "all": "Todos",
+    "oldTestament": "Antigo Testamento",
+    "newTestament": "Novo Testamento",
+    "offlineNote": "Offline: palavras exatas nos versículos deste dispositivo, em ordem bíblica.",
+    "inBook": "Buscando “{{query}}” em {{book}}",
+    "allBooks": "Buscar em todos os livros",
+    "noVersesInBook": "Nenhum versículo de {{book}} corresponde a “{{query}}”."
   }
 }

@@ -1,0 +1,129 @@
+---
+appId: org.versemate.app
+name: Bible Search Flow
+description: Search mode, Go to a typed reference, verse text results, and opening a result
+tags:
+  - navigation
+  - search
+  - user-flow
+
+---
+
+# Bible search in the navigation sheet
+#
+# - Tapping the search field enters search mode: the title and tabs fold away
+#   and an arrow appears beside the field
+# - A typed reference becomes a "Go to" row; the keyboard's Search key opens it
+# - Verse text results (needs the search API, or the downloaded NASB1995 offline)
+# - Search mode survives the keyboard closing; the arrow leaves it
+
+- runFlow: ../shared/setup.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- assertVisible:
+    id: "bible-navigation-modal"
+- assertVisible:
+    id: "tab-old-testament"
+- takeScreenshot: search-01-sheet
+
+# Search mode on tap, before typing anything
+- tapOn:
+    id: "books-search-input"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "search-mode-back"
+- assertNotVisible:
+    id: "tab-old-testament"
+- takeScreenshot: search-02-mode
+
+# A reference
+- inputText: "jn 3.16"
+- assertVisible:
+    id: "go-to-0"
+- takeScreenshot: search-03-goto
+
+# Verse text
+- eraseText: 10
+- inputText: "east and west"
+- extendedWaitUntil:
+    visible:
+      id: "verse-result-40-8-11"
+    timeout: 15000
+- assertVisible:
+    id: "verse-search-header"
+- takeScreenshot: search-04-results
+
+# Dragging the results closes the keyboard; search mode stays
+- swipe:
+    from:
+      id: "verse-result-40-8-11"
+    direction: UP
+- waitForAnimationToEnd
+- assertVisible:
+    id: "search-mode-back"
+- assertNotVisible:
+    id: "tab-old-testament"
+- takeScreenshot: search-05-keyboard-closed
+
+# Filter to the New Testament
+- tapOn:
+    id: "verse-filter-nt"
+- extendedWaitUntil:
+    visible:
+      id: "verse-result-40-8-11"
+    timeout: 15000
+- assertNotVisible:
+    id: "verse-result-19-103-12"
+- takeScreenshot: search-06-filtered
+
+# Open a result: the sheet closes, the reader goes to Matthew 8 and opens
+# Verse Insight for 8:11
+- tapOn:
+    id: "verse-result-40-8-11"
+- extendedWaitUntil:
+    visible:
+      text: "Matthew 8:11"
+    timeout: 15000
+- assertNotVisible:
+    id: "bible-navigation-modal"
+- takeScreenshot: search-07-insight
+- tapOn: "Close"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Matthew 8"
+- takeScreenshot: search-08-reader
+
+# The keyboard's Search key opens a typed reference
+- tapOn:
+    id: "chapter-selector-button"
+- tapOn:
+    id: "books-search-input"
+- inputText: "Rom 8:28"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      text: "Romans 8:28"
+    timeout: 15000
+- assertNotVisible:
+    id: "bible-navigation-modal"
+- takeScreenshot: search-09-reference
+- tapOn: "Close"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Romans 8"
+
+# The arrow leaves search mode and clears the field
+- tapOn:
+    id: "chapter-selector-button"
+- tapOn:
+    id: "books-search-input"
+- inputText: "love"
+- tapOn:
+    id: "search-mode-back"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tab-old-testament"
+- assertNotVisible:
+    id: "search-mode-back"
+- takeScreenshot: search-10-left

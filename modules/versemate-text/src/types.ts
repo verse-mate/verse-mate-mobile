@@ -134,6 +134,29 @@ export interface TextSelectionRange {
   end: number;
 }
 
+/**
+ * A custom item in the platform's text-selection menu (beside Copy).
+ *
+ * Andy asked for Olive Tree's gesture: hold a word, drag to extend over a few words or a whole
+ * verse, then act on it. The platform owns the selection, its handles and the menu; these are the
+ * app's own entries in that menu.
+ */
+export interface TextSelectionAction {
+  /** Returned in `onSelectionAction`. Letters, digits, `-` and `_` only. */
+  id: string;
+  /** Shown in the menu, already localised. */
+  label: string;
+}
+
+/** Payload for `onSelectionAction`: which menu item, and the selection it acted on. */
+export interface TextSelectionActionEvent {
+  id: string;
+  /** Inclusive char offset. */
+  start: number;
+  /** Exclusive char offset. */
+  end: number;
+}
+
 /** Payload for `onPress` — a tap that did not land on an interactive range. */
 export interface TextPressEvent {
   /**

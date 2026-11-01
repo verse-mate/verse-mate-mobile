@@ -532,6 +532,11 @@ export interface ChapterPageProps {
   /** Target end verse for multi-verse highlights (optional) */
   targetEndVerse?: number;
   /**
+   * Changes each time the same target is asked for again (a verse picked in
+   * Search twice), so the page scrolls to it and opens its Insight again.
+   */
+  targetKey?: number;
+  /**
    * The target came from a typed search reference ("John 3:16"): mark the
    * verse(s) in yellow until the reader leaves the chapter, instead of opening
    * the Verse Insight tooltip. Display-only — never saved as a highlight.
@@ -590,6 +595,7 @@ export function ChapterPage({
   isPreloading = false,
   targetVerse,
   targetEndVerse,
+  targetKey,
   markTargetVerse = false,
   onScroll,
   onTap,
@@ -699,17 +705,21 @@ export function ChapterPage({
     start: number;
     end: number;
   } | null>(null);
-  const searchMarkShownRef = useRef(false);
+  // Marked once per request: a URL target once per page, a Search pick once per `targetKey`, so
+  // jumping to "John 3:16" again (from another chapter, or the same one) marks it again.
+  const searchMarkShownRef = useRef<number | 'url' | null>(null);
   useEffect(() => {
-    if (!markTargetVerse || !targetVerse || searchMarkShownRef.current) return;
-    searchMarkShownRef.current = true;
+    if (!markTargetVerse || !targetVerse) return;
+    const request = targetKey ?? 'url';
+    if (searchMarkShownRef.current === request) return;
+    searchMarkShownRef.current = request;
     setSearchMark({
       bookId,
       chapterNumber,
       start: targetVerse,
       end: Math.max(targetEndVerse ?? targetVerse, targetVerse),
     });
-  }, [markTargetVerse, targetVerse, targetEndVerse, bookId, chapterNumber]);
+  }, [markTargetVerse, targetVerse, targetEndVerse, targetKey, bookId, chapterNumber]);
   const searchMarkActive =
     !!searchMark &&
     !isPreloading &&
@@ -1324,6 +1334,16 @@ export function ChapterPage({
     }
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [targetVerse, attemptScrollToVerse]);
+
+  // A new request for a target (Search, same chapter or same verse again):
+  // allow the scroll and the Insight to run once more.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-arm only when the key changes
+  useEffect(() => {
+    if (targetKey === undefined || !targetVerse) return;
+    hasScrolledRef.current = false;
+    setVerseTooltipVisible(false);
+    attemptScrollToVerse();
+  }, [targetKey]);
 
   // Fallback: if initial layout was late, retry after mount
   useEffect(() => {

@@ -1,140 +1,104 @@
 /**
- * Search-as-you-type over verse text (GET /bible/search), for the Search
- * sheet's Old / New Testament tabs. Mirrors verse-mate-web's useVerseSearch:
- * waits for a 250 ms typing pause and cancels the previous request when a new
- * one starts, so a slow answer for "east and" can never overwrite the one for
- * "east and west".
+ * Search-as-you-type over verse text, for the Search sheet.
  *
- * `scopeBookId` limits the search to one book — "Amos day of the Lord"
- * searches "day of the Lord" in Amos (see utils/bible/bookScope).
+ * Waits for a 250 ms typing pause (the same as web and the Jesus search).
+ * React Query keys every search by its text, version and filters, so an
+ * answer for text the user has typed past can never show, and leaving a key
+ * aborts its request through the query's signal. The previous results stay on
+ * screen while the next ones load, so the list doesn't flash empty between
+ * keystrokes. The filters reset whenever the text changes.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useOfflineContext } from '@/contexts/OfflineContext';
+import { isSearchable } from '@/lib/bible-search/search-words';
+import type { VerseSearchFilters, VerseSearchPage } from '@/lib/bible-search/types';
+import { searchVerses } from '@/services/bible-search';
 
 const DEBOUNCE_MS = 250;
-/** Fewer letters than this is not worth a request ("a", "I"). */
-const MIN_LETTERS = 2;
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
-export interface VerseSearchResult {
-  match: 'exact' | 'words';
-  bookId: number;
-  bookName: string;
-  chapter: number;
-  verse: number;
-  text: string;
-  /** [start, end) character ranges of the matched words in `text`. */
-  highlights: [number, number][];
+function useDebounced(value: string, ms = DEBOUNCE_MS): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return debounced;
 }
 
-interface VerseSearchResponse {
-  results: VerseSearchResult[];
-  nextCursor: string | null;
-  totals: { exact: number; words: number } | null;
-}
-
-export interface VerseSearchState {
-  status: 'idle' | 'loading' | 'done' | 'error';
-  results: VerseSearchResult[];
-  total: number | null;
-  nextCursor: string | null;
-  loadingMore: boolean;
-}
-
-const IDLE: VerseSearchState = {
-  status: 'idle',
-  results: [],
-  total: null,
-  nextCursor: null,
-  loadingMore: false,
-};
-
-export function isVerseSearchable(query: string): boolean {
-  return (query.match(/[\p{L}\p{N}]/gu) ?? []).length >= MIN_LETTERS;
-}
-
-async function searchVerses(params: {
-  q: string;
-  version: string;
-  book?: number;
-  cursor?: string | null;
-  signal?: AbortSignal;
-}): Promise<VerseSearchResponse> {
-  const qs = new URLSearchParams({ q: params.q, bible_version: params.version });
-  if (params.book) qs.set('book', String(params.book));
-  if (params.cursor) qs.set('cursor', params.cursor);
-  const response = await fetch(`${API_URL}/bible/search?${qs.toString()}`, {
-    signal: params.signal,
-  });
-  if (!response.ok) throw new Error(`Verse search failed: ${response.status}`);
-  return response.json();
-}
-
+/**
+ * `scopeBookId` limits the search to one book: the sheet sets it for "Amos day of the Lord" (the
+ * words, in Amos; see utils/bible/bookScope). While it is set the chips' own filters are not used.
+ */
 export function useVerseSearch(
   query: string,
-  version: string,
+  versionKey: string,
   enabled: boolean,
   scopeBookId?: number
 ) {
-  const [state, setState] = useState<VerseSearchState>(IDLE);
-  const keyRef = useRef('');
-  const active = enabled && isVerseSearchable(query.trim());
+  const { isOnline } = useOfflineContext();
+  // The raw text, not trimmed: a trailing space tells the search the last
+  // word is finished (no prefix match).
+  const debounced = useDebounced(query);
+  const active = enabled && isSearchable(debounced);
+  const [filters, setFilters] = useState<VerseSearchFilters>({});
 
+  const trimmed = debounced.trim();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new text resets the filters
   useEffect(() => {
-    if (!active) {
-      keyRef.current = '';
-      setState(IDLE);
-      return;
-    }
-    const key = JSON.stringify([version, query, scopeBookId]);
-    keyRef.current = key;
-    setState((s) => ({ ...s, status: 'loading' }));
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      // The raw text, not the trimmed one: a trailing space tells the server
-      // the last word is finished (no prefix match).
-      searchVerses({ q: query, version, book: scopeBookId, signal: controller.signal })
-        .then((data) => {
-          if (keyRef.current !== key) return;
-          setState({
-            status: 'done',
-            results: data.results,
-            total: data.totals ? data.totals.exact + data.totals.words : data.results.length,
-            nextCursor: data.nextCursor,
-            loadingMore: false,
-          });
-        })
-        .catch(() => {
-          if (keyRef.current !== key || controller.signal.aborted) return;
-          setState((s) => ({ ...s, status: 'error', loadingMore: false }));
-        });
-    }, DEBOUNCE_MS);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [active, query, version, scopeBookId]);
+    setFilters({});
+  }, [trimmed]);
 
-  const loadMore = useCallback(() => {
-    const cursor = state.nextCursor;
-    if (!cursor || state.loadingMore) return;
-    const key = keyRef.current;
-    setState((s) => ({ ...s, loadingMore: true }));
-    searchVerses({ q: query, version, book: scopeBookId, cursor })
-      .then((data) => {
-        if (keyRef.current !== key) return;
-        setState((s) => ({
-          ...s,
-          results: [...s.results, ...data.results],
-          nextCursor: data.nextCursor,
-          loadingMore: false,
-        }));
-      })
-      .catch(() => {
-        if (keyRef.current !== key) return;
-        setState((s) => ({ ...s, loadingMore: false }));
-      });
-  }, [state.nextCursor, state.loadingMore, query, version, scopeBookId]);
+  const effectiveFilters = useMemo<VerseSearchFilters>(
+    () => (scopeBookId ? { book: scopeBookId } : filters),
+    [scopeBookId, filters]
+  );
 
-  return { ...state, active, loadMore };
+  const search = useInfiniteQuery({
+    queryKey: ['bible-search', versionKey, debounced, effectiveFilters, isOnline],
+    queryFn: ({ pageParam, signal }) =>
+      searchVerses({
+        q: debounced,
+        versionKey,
+        filters: effectiveFilters,
+        cursor: pageParam,
+        isOnline,
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: VerseSearchPage) => last.nextCursor,
+    enabled: active,
+    placeholderData: keepPreviousData,
+    // Results only move when the server's popularity refresh runs (hourly).
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const firstPage = search.data?.pages[0];
+  const results = useMemo(
+    () => (search.data ? search.data.pages.flatMap((p) => p.results) : []),
+    [search.data]
+  );
+
+  return {
+    /** The search has something to show for (2+ letters typed). */
+    active,
+    /** Waiting for the typing pause or the first answer. */
+    isPending: active && (debounced !== query || search.isPending),
+    isError: active && search.isError,
+    results: active ? results : [],
+    totals: active ? (firstPage?.totals ?? null) : null,
+    books: active ? (firstPage?.books ?? null) : null,
+    source: firstPage?.source ?? 'online',
+    hasMore: active && !!search.hasNextPage,
+    isLoadingMore: search.isFetchingNextPage,
+    loadMore: () => {
+      if (search.hasNextPage && !search.isFetchingNextPage) void search.fetchNextPage();
+    },
+    filters: effectiveFilters,
+    setFilters,
+  };
 }

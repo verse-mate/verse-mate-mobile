@@ -11,7 +11,7 @@
 import { render } from '@testing-library/react-native';
 import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import { compileParagraph } from '@/lib/text/compile-paragraph';
-import { ParagraphText } from '@/lib/text/ParagraphText';
+import { defineChoicesFor, ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileHighlight, CompileTheme } from '@/lib/text/types';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
@@ -110,21 +110,21 @@ describe('ParagraphText rendering', () => {
 });
 
 describe('ParagraphText tap routing', () => {
-  it('routes a lexicon range tap to onLexiconWordPress with its entry', () => {
+  it('opens the verse for a tap on a lexicon word; its card is a hold away', () => {
+    // Replaces "routes a lexicon range tap to onLexiconWordPress". Andy moved Verse Insight back onto
+    // the whole verse ("press the verse once for the insight", web #313): a tap anywhere in a verse,
+    // a lexicon word included, opens it, and the definition comes from the selection menu's Define.
     const alignment = alignmentFor({ G1: 'beginning' });
     const input = { verses: VERSES, alignment, theme: THEME };
+    const compiled = compileParagraph(input);
     const tree = renderParagraph({ alignment });
     const index = indexOfTag('lexicon:', input);
 
     // Invoke the handler the way native would: by range index.
-    tree.handlers.onLexiconWordPress.mockClear();
-    getRangeTap(tree)(index, 0);
+    getRangeTap(tree)(index, compiled.text.indexOf('beginning') + 3);
 
-    expect(tree.handlers.onLexiconWordPress).toHaveBeenCalledTimes(1);
-    expect(tree.handlers.onLexiconWordPress.mock.calls[0][0]).toMatchObject({
-      surface: 'beginning',
-      isTheme: false,
-    });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1, 'text');
+    expect(tree.handlers.onLexiconWordPress).not.toHaveBeenCalled();
   });
 
   it('routes a highlight range tap to onHighlightTap with its id', () => {
@@ -177,66 +177,43 @@ describe('ParagraphText verse resolution', () => {
     const tree = renderParagraph();
 
     getRangeTap(tree)(indexOfTag('verse-number:1', input), 0);
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1, 'number');
 
     tree.handlers.onVerseTap.mockClear();
     getRangeTap(tree)(indexOfTag('verse-number:2', input), 0);
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2, 'number');
   });
 
-  it('opens a verse for a plain-text tap just beside its number, and for nothing else', () => {
-    // Replaces "wires no plain-press handler at all". Plain text is still inert — a tap in the middle
-    // of a verse opens nothing — but Andy asked for more room around the numbers without more space
-    // on the page, so a tap that lands on the first letters after a number is taken as aimed at it.
-    // The resolver itself is covered in verse-number-near-offset.test.ts; this pins the wiring.
+  it('opens the verse a plain-text tap lands in, anywhere in it', () => {
+    // Replaces "opens a verse for a plain-text tap just beside its number, and for nothing else" and
+    // "defines the tapped word when the tap is not beside a number". Plain text used to be inert
+    // (then a word tap defined the word); Andy asked for the verse itself to open its insight, as on
+    // web, because the numbers alone were not intuitive.
     const compiled = compileParagraph({ verses: VERSES, theme: THEME });
-    const tree = renderParagraph();
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
     const press = getPress(tree);
 
-    press({ charOffset: compiled.verses[1].textStart, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+    press({ charOffset: compiled.text.indexOf('beginning') + 2, x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1, 'text');
 
     tree.handlers.onVerseTap.mockClear();
-    press({ charOffset: compiled.verses[0].textStart + 8, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+    press({ charOffset: compiled.text.indexOf('formless'), x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2, 'text');
+    expect(onWordPress).not.toHaveBeenCalled();
   });
 
-  it('defines the tapped word when the tap is not beside a number', () => {
-    // Andy: "expand the definitions to all words". A word with no lexicon entry is a plain-text tap,
-    // and it now opens the dictionary for that word.
+  it('gives a tap beside a number to the number, not to the verse before it', () => {
+    // The joining space before a number belongs to the previous verse's text; the tolerance Andy
+    // asked for around numbers still sends it to the number.
     const compiled = compileParagraph({ verses: VERSES, theme: THEME });
-    const onWordPress = jest.fn();
-    const tree = renderParagraph({ onWordPress });
-    const offset = compiled.text.indexOf('beginning') + 2;
-
-    getPress(tree)({ charOffset: offset, x: 0, y: 0 });
-    expect(onWordPress).toHaveBeenCalledWith({ word: 'beginning', verseNumber: 1 });
-    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
-  });
-
-  it('gives a tap beside a number to the number, not to the word it overlaps', () => {
-    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
-    const onWordPress = jest.fn();
-    const tree = renderParagraph({ onWordPress });
+    const tree = renderParagraph();
 
     getPress(tree)({ charOffset: compiled.verses[1].textStart, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
-    expect(onWordPress).not.toHaveBeenCalled();
-  });
-
-  it('defines nothing for a tap on whitespace', () => {
-    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
-    const onWordPress = jest.fn();
-    const tree = renderParagraph({ onWordPress });
-    const space = compiled.text.indexOf(' beginning');
-
-    getPress(tree)({ charOffset: space, x: 0, y: 0 });
-    expect(onWordPress).not.toHaveBeenCalled();
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2, 'number');
   });
 
   it('gives a tap on the first letters after a number to the number, even on a lexicon word', () => {
-    // The first word after a number is often a lexicon word, and with the underlines off nothing
-    // shows it. Letting the word win would keep the miss Andy reported.
     const alignment = alignmentFor({ en: 'In' });
     const input = { verses: VERSES, alignment, theme: THEME };
     const compiled = compileParagraph(input);
@@ -244,7 +221,7 @@ describe('ParagraphText verse resolution', () => {
     const lexiconIndex = indexOfTag('lexicon:1:0', input);
 
     getRangeTap(tree)(lexiconIndex, compiled.verses[0].textStart);
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1, 'number');
     expect(tree.handlers.onLexiconWordPress).not.toHaveBeenCalled();
   });
 
@@ -261,6 +238,111 @@ describe('ParagraphText verse resolution', () => {
   });
 });
 
+describe('ParagraphText selection menu', () => {
+  const LABELS = { highlight: 'Highlight', define: 'Define' };
+
+  it('offers Highlight and Define only when each has a label and a handler', () => {
+    renderParagraph({ onHighlightSelection: jest.fn(), selectionLabels: LABELS });
+    expect(capturedSelectionActions).toEqual([
+      { id: 'highlight', label: 'Highlight' },
+      { id: 'define', label: 'Define' },
+    ]);
+
+    renderParagraph({ onLexiconWordPress: undefined, selectionLabels: LABELS });
+    expect(capturedSelectionActions).toEqual([]);
+    expect(capturedSelectionAction).toBeUndefined();
+  });
+
+  it('turns Highlight into verse and character offsets, numbers left out', () => {
+    // "In the beginning God created. 2 And the earth was formless." — select from "God" to "earth".
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onHighlightSelection = jest.fn();
+    renderParagraph({ onHighlightSelection, selectionLabels: LABELS });
+    const start = compiled.text.indexOf('God');
+    const end = compiled.text.indexOf('earth') + 'earth'.length;
+
+    getSelectionAction()({ id: 'highlight', start, end });
+    expect(onHighlightSelection).toHaveBeenCalledWith({
+      startVerse: 1,
+      startChar: VERSES[0].text.indexOf('God'),
+      endVerse: 2,
+      endChar: VERSES[1].text.indexOf('earth') + 'earth'.length,
+      text: 'God created. And the earth',
+    });
+  });
+
+  it('defines a lexicon word with its Greek/Hebrew card', () => {
+    const alignment = alignmentFor({ G1: 'beginning' });
+    const compiled = compileParagraph({ verses: VERSES, alignment, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ alignment, onWordPress, selectionLabels: LABELS });
+    const start = compiled.text.indexOf('beginning');
+
+    getSelectionAction()({ id: 'define', start, end: start + 'beginning'.length });
+    expect(tree.handlers.onLexiconWordPress).toHaveBeenCalledTimes(1);
+    expect(tree.handlers.onLexiconWordPress.mock.calls[0][0]).toMatchObject({
+      surface: 'beginning',
+      isTheme: false,
+    });
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+
+  it('hands a multi-word Define its words, so the sheet can offer each one', () => {
+    const alignment = alignmentFor({ G1: 'beginning' });
+    const compiled = compileParagraph({ verses: VERSES, alignment, theme: THEME });
+    const onDefineSelection = jest.fn();
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({
+      alignment,
+      onWordPress,
+      onDefineSelection,
+      selectionLabels: LABELS,
+    });
+    const start = compiled.text.indexOf('the beginning');
+    const end = compiled.text.indexOf('created') + 'created'.length;
+
+    getSelectionAction()({ id: 'define', start, end });
+    expect(onDefineSelection).toHaveBeenCalledTimes(1);
+    const choices = onDefineSelection.mock.calls[0][0];
+    expect(choices.map((c: { label: string }) => c.label)).toEqual(['beginning', 'God', 'created']);
+    expect(choices[0].lexicon).toMatchObject({ surface: 'beginning' });
+    expect(choices[1].lexicon).toBeUndefined();
+    expect(onWordPress).not.toHaveBeenCalled();
+    expect(tree.handlers.onLexiconWordPress).not.toHaveBeenCalled();
+  });
+
+  it('keeps the one-word Define when the selection has only one word to offer', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onDefineSelection = jest.fn();
+    const onWordPress = jest.fn();
+    renderParagraph({ onWordPress, onDefineSelection, selectionLabels: LABELS });
+    // "the earth": "the" is filler, so only "earth" is left to offer.
+    const start = compiled.text.indexOf('the earth');
+
+    getSelectionAction()({ id: 'define', start, end: start + 'the earth'.length });
+    expect(onDefineSelection).not.toHaveBeenCalled();
+    expect(onWordPress).toHaveBeenCalledWith({ word: 'the', verseNumber: 2 });
+  });
+
+  it('defines any other word with the dictionary, and nothing for a verse number', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    renderParagraph({ onWordPress, selectionLabels: LABELS });
+    const start = compiled.text.indexOf('formless');
+
+    getSelectionAction()({ id: 'define', start, end: start + 'formless'.length });
+    expect(onWordPress).toHaveBeenCalledWith({ word: 'formless', verseNumber: 2 });
+
+    onWordPress.mockClear();
+    getSelectionAction()({
+      id: 'define',
+      start: compiled.verses[1].start,
+      end: compiled.verses[1].start + 1,
+    });
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The fallback renders an RN <Text>, so the native callbacks are not reachable
 // from the tree. Re-render through a captured VMText to invoke them directly.
@@ -268,6 +350,10 @@ describe('ParagraphText verse resolution', () => {
 
 let capturedRangeTap: ((index: number, charOffset: number) => void) | undefined;
 let capturedPress: ((event: { charOffset: number; x: number; y: number }) => void) | undefined;
+let capturedSelectionActions: { id: string; label: string }[] | undefined;
+let capturedSelectionAction:
+  | ((event: { id: string; start: number; end: number }) => void)
+  | undefined;
 
 jest.mock('@/modules/versemate-text', () => {
   const actual = jest.requireActual('@/modules/versemate-text');
@@ -279,10 +365,14 @@ jest.mock('@/modules/versemate-text', () => {
     VMText: (props: {
       onRangeTap?: (index: number, charOffset: number) => void;
       onPress?: (event: { charOffset: number; x: number; y: number }) => void;
+      selectionActions?: { id: string; label: string }[];
+      onSelectionAction?: (event: { id: string; start: number; end: number }) => void;
       text: string;
     }) => {
       capturedRangeTap = props.onRangeTap;
       capturedPress = props.onPress;
+      capturedSelectionActions = props.selectionActions;
+      capturedSelectionAction = props.onSelectionAction;
       return actual.VMText(props);
     },
   };
@@ -296,4 +386,9 @@ function getRangeTap(_tree: unknown): (index: number, charOffset: number) => voi
 function getPress(_tree: unknown): (event: { charOffset: number; x: number; y: number }) => void {
   if (!capturedPress) throw new Error('VMText never received onPress');
   return capturedPress;
+}
+
+function getSelectionAction(): (event: { id: string; start: number; end: number }) => void {
+  if (!capturedSelectionAction) throw new Error('VMText never received onSelectionAction');
+  return capturedSelectionAction;
 }
