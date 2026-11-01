@@ -290,7 +290,7 @@ export function HighlightSelectionSheet({
             </View>
           ) : null}
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.lastSection]}>
             <Text style={styles.sectionTitle}>
               {activeScope === 'verse' && scopes.length === 0 ? 'HIGHLIGHT VERSE' : 'HIGHLIGHT'}
             </Text>
@@ -303,7 +303,7 @@ export function HighlightSelectionSheet({
           </View>
         </ScrollView>
 
-        {/* Pinned to the bottom of the sheet, under the scrolling colour area (Sebastian). */}
+        {/* At the bottom of the sheet, outside the scrolling colour area (Sebastian). */}
         {actions ? (
           <View style={styles.quickActions} testID="highlight-actions">
             {actionRows.map(({ key, label, icon }) => {
@@ -363,7 +363,9 @@ const createStyles = (
       backgroundColor: modalSpecs.backdropColor,
     },
     modalContent: {
-      height: modalSpecs.height,
+      // As tall as its content (capped), so Copy / Share / Note at the bottom sit just under the
+      // colours rather than a screen-height away from them.
+      maxHeight: modalSpecs.height,
       width: rightPanelWidth ?? '100%', // Use dynamic width or full width
       backgroundColor: modalSpecs.backgroundColor,
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
@@ -387,13 +389,18 @@ const createStyles = (
       padding: spacing.xs,
     },
     scrollView: {
-      flex: 1,
+      flexGrow: 0,
+      flexShrink: 1,
     },
     scrollContent: {
       padding: spacing.lg,
+      paddingBottom: 0,
     },
     section: {
       marginBottom: spacing.xl,
+    },
+    lastSection: {
+      marginBottom: 0,
     },
     sectionTitle: {
       fontSize: fontSizes.caption,
@@ -431,10 +438,8 @@ const createStyles = (
     quickActions: {
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
+      paddingTop: spacing.lg,
       paddingBottom: spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
     },
     quickActionItem: {
       flexDirection: 'row',
