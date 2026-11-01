@@ -112,6 +112,7 @@ final class VMTextView: ExpoView {
         return (String(parts[0]), String(parts[1]))
       }
     textView.trimsSystemMenu = !selectionActions.isEmpty
+    textView.keepsSystemCopy = !selectionActions.contains { $0.id == "copy" }
   }
 
   /// iOS 15's menu validates the app's items up the responder chain to here (see the extension below).
@@ -642,11 +643,12 @@ extension VMTextView: UITextViewDelegate {
     }
   }
 
-  /// iOS 16+: the app's items, then the system's Copy and nothing else.
+  /// iOS 16+: the app's items and nothing of the system's, except Copy when the app has none.
   ///
   /// Andy asked for the rest to go (2026-11-01): Writing Tools, Look Up, Translate, Search Web and
-  /// Share… crowded Highlight and Define, and Share… sent bare text, so the share sheet showed a
-  /// generic text icon instead of VerseMate's. Olive Tree's menu is the same three items.
+  /// Share… crowded the app's items, and Share… sent bare text, so the share sheet showed a generic
+  /// text icon instead of VerseMate's. The reader supplies its own Copy and Share (with the verse
+  /// reference and a link), so there the menu is exactly the app's list, in its order.
   ///
   /// `range` is the selection the menu is for, captured when the menu opens, so the action reports
   /// exactly what the reader saw selected even if the selection moves afterwards.
@@ -662,8 +664,12 @@ extension VMTextView: UITextViewDelegate {
         self?.dispatchSelectionAction(id: action.id, range: range)
       }
     }
-    return UIMenu(children: custom + Self.copyOnly(suggestedActions))
+    let appCopies = selectionActions.contains { $0.id == Self.appCopyActionId }
+    return UIMenu(children: custom + (appCopies ? [] : Self.copyOnly(suggestedActions)))
   }
+
+  /// An app action with this id replaces the system's Copy.
+  private static let appCopyActionId = "copy"
 
   /// The system's Copy command (localized, with its icon), wherever it sits in the suggested menu tree.
   @available(iOS 16.0, *)
@@ -688,10 +694,12 @@ extension VMTextView: UITextViewDelegate {
 /// are refused, leaving the app's items and Copy. iOS 16+ trims the menu in `editMenuForTextIn`.
 final class VMMenuTextView: UITextView {
   var trimsSystemMenu = false
+  /// False when the app supplies its own Copy, which then replaces the system's.
+  var keepsSystemCopy = true
 
   override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
     if #unavailable(iOS 16.0), trimsSystemMenu,
-      action != #selector(UIResponderStandardEditActions.copy(_:)),
+      !(keepsSystemCopy && action == #selector(UIResponderStandardEditActions.copy(_:))),
       // The app's items are implemented on VMTextView, not here: those still go up the chain.
       responds(to: action)
     {
@@ -702,13 +710,15 @@ final class VMMenuTextView: UITextView {
 }
 
 /// iOS 15 has no `editMenuForTextIn`; its menu is `UIMenuController`, which takes items with fixed
-/// selectors. Three slots cover the app's actions (it uses two). The text view is first responder,
+/// selectors. Five slots cover the app's actions (the reader uses all five). The text view is first responder,
 /// so UIKit validates and sends these up the responder chain to this view, its superview.
 extension VMTextView {
   private static let legacySelectors: [Selector] = [
     #selector(VMTextView.vmSelectionAction0),
     #selector(VMTextView.vmSelectionAction1),
     #selector(VMTextView.vmSelectionAction2),
+    #selector(VMTextView.vmSelectionAction3),
+    #selector(VMTextView.vmSelectionAction4),
   ]
 
   fileprivate func canPerformLegacyAction(_ action: Selector) -> Bool? {
@@ -726,6 +736,8 @@ extension VMTextView {
   @objc fileprivate func vmSelectionAction0() { performLegacySelectionAction(0) }
   @objc fileprivate func vmSelectionAction1() { performLegacySelectionAction(1) }
   @objc fileprivate func vmSelectionAction2() { performLegacySelectionAction(2) }
+  @objc fileprivate func vmSelectionAction3() { performLegacySelectionAction(3) }
+  @objc fileprivate func vmSelectionAction4() { performLegacySelectionAction(4) }
 
   private func performLegacySelectionAction(_ slot: Int) {
     guard slot < selectionActions.count else { return }

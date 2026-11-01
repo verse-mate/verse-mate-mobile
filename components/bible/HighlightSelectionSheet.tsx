@@ -6,8 +6,12 @@
  *
  * Features:
  * - Verse range label at top (e.g., "Verses 1-5" or "Verse 2")
- * - "HIGHLIGHT VERSE" section with 6-color picker
- * - Additional quick actions: Bookmarked, Take a Note, Copy Verse, Share Verse
+ * - Colour picker; tapping a colour highlights the chosen scope
+ * - Scope, for words selected in the text: just those words, the whole verse, or every place the
+ *   words occur in the book ("Highlight all", Andy 2026-11-01: a study method for repeated words
+ *   and phrases, like "I am" in John)
+ * - No Copy / Note / Share here: the selection menu has them at its top level (Andy: they were
+ *   repeats, and these four rows were placeholders that did nothing)
  * - Slides up from bottom with backdrop
  * - Haptic feedback on color selection
  * - Closes on backdrop tap or after successful highlight creation
@@ -29,7 +33,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -70,6 +74,43 @@ export interface VerseRange {
 }
 
 /**
+ * What a colour applies to: the selected words, the verses they are in, or every place those words
+ * occur in the book.
+ */
+export type HighlightScope = 'selection' | 'verse' | 'book';
+
+/** Longest selection "Highlight all" is offered for: a word or a phrase, not a sentence. */
+const HIGHLIGHT_ALL_MAX_WORDS = 6;
+
+/**
+ * The scopes the sheet offers, in order. None when there is nothing to choose: a whole-verse
+ * selection can only highlight its verses.
+ */
+export function highlightScopes({
+  verseRange,
+  text,
+  canHighlightAll,
+}: {
+  verseRange: VerseRange;
+  text?: string;
+  canHighlightAll: boolean;
+}): HighlightScope[] {
+  const words = text?.trim().split(/\s+/).filter(Boolean) ?? [];
+  const isWords = verseRange.startChar !== undefined && verseRange.endChar !== undefined;
+  if (!isWords) return [];
+  const scopes: HighlightScope[] = ['selection', 'verse'];
+  if (
+    canHighlightAll &&
+    verseRange.start === verseRange.end &&
+    words.length > 0 &&
+    words.length <= HIGHLIGHT_ALL_MAX_WORDS
+  ) {
+    scopes.push('book');
+  }
+  return scopes;
+}
+
+/**
  * Props for HighlightSelectionSheet component
  */
 export interface HighlightSelectionSheetProps {
@@ -77,8 +118,14 @@ export interface HighlightSelectionSheetProps {
   visible: boolean;
   /** Verse range being highlighted */
   verseRange: VerseRange;
-  /** Callback when color is selected (creates highlight) */
-  onColorSelect: (color: HighlightColor) => void;
+  /** The selected words, for the "Highlight all" description. */
+  text?: string;
+  /** Book name, for the "All in John" label. */
+  bookName?: string;
+  /** Offer "Highlight all": every place the selected words occur in the book. */
+  canHighlightAll?: boolean;
+  /** A colour was chosen for this scope. */
+  onColorSelect: (color: HighlightColor, scope: HighlightScope) => void;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Whether to use a system Modal (true) or a View overlay (false) */
@@ -93,10 +140,20 @@ export interface HighlightSelectionSheetProps {
 export function HighlightSelectionSheet({
   visible,
   verseRange,
+  text,
+  bookName,
+  canHighlightAll = false,
   onColorSelect,
   onClose,
   useModal = true,
 }: HighlightSelectionSheetProps) {
+  const scopes = highlightScopes({ verseRange, text, canHighlightAll });
+  const [scope, setScope] = useState<HighlightScope>('selection');
+  // Every opening starts on the selected words, whatever the last one chose.
+  useEffect(() => {
+    if (visible) setScope('selection');
+  }, [visible]);
+  const activeScope: HighlightScope = scopes.length === 0 ? 'verse' : scope;
   const { colors, mode } = useTheme();
   const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
@@ -125,7 +182,14 @@ export function HighlightSelectionSheet({
    */
   const handleColorSelect = async (color: HighlightColor) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onColorSelect(color);
+    onColorSelect(color, activeScope);
+  };
+
+  const scopeLabel = (value: HighlightScope) => {
+    if (value === 'selection') return 'Selection';
+    if (value === 'verse')
+      return verseRange.start === verseRange.end ? 'Whole verse' : 'Whole verses';
+    return bookName ? `All in ${bookName}` : 'All in book';
   };
 
   /**
@@ -134,15 +198,6 @@ export function HighlightSelectionSheet({
   const handleBackdropPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-  };
-
-  /**
-   * Handle quick action press (placeholder)
-   */
-  const handleQuickAction = async (action: string) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // TODO: Implement quick actions in future
-    console.log(`Quick action: ${action}`);
   };
 
   const content = (
@@ -177,42 +232,48 @@ export function HighlightSelectionSheet({
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Highlight Verse Section */}
+          {scopes.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.scopeRow} accessibilityRole="radiogroup">
+                {scopes.map((value) => {
+                  const selected = value === activeScope;
+                  return (
+                    <Pressable
+                      key={value}
+                      style={[styles.scopeOption, selected && styles.scopeOptionSelected]}
+                      onPress={() => setScope(value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      testID={`highlight-scope-${value}`}
+                    >
+                      <Text
+                        style={[styles.scopeText, selected && styles.scopeTextSelected]}
+                        numberOfLines={1}
+                      >
+                        {scopeLabel(value)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {activeScope === 'book' && text ? (
+                <Text style={styles.scopeHint} testID="highlight-scope-hint">
+                  {`Highlights every \u201C${text.trim()}\u201D in ${bookName ?? 'this book'}`}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>HIGHLIGHT VERSE</Text>
+            <Text style={styles.sectionTitle}>
+              {activeScope === 'verse' && scopes.length === 0 ? 'HIGHLIGHT VERSE' : 'HIGHLIGHT'}
+            </Text>
 
             <HighlightColorPicker
               selectedColor="yellow"
               onColorSelect={handleColorSelect}
               variant={mode === 'dark' ? 'dark' : 'light'}
             />
-          </View>
-
-          {/* Quick Actions Section */}
-          <View style={styles.quickActions}>
-            {/* Bookmarked */}
-            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('bookmark')}>
-              <Ionicons name="bookmark" size={20} color={colors.info} />
-              <Text style={styles.quickActionText}>Bookmarked</Text>
-            </Pressable>
-
-            {/* Take a Note */}
-            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('note')}>
-              <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.quickActionText}>Take a Note</Text>
-            </Pressable>
-
-            {/* Copy Verse */}
-            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('copy')}>
-              <Ionicons name="copy-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.quickActionText}>Copy Verse</Text>
-            </Pressable>
-
-            {/* Share Verse */}
-            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('share')}>
-              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.quickActionText}>Share Verse</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -294,22 +355,36 @@ const createStyles = (
       letterSpacing: 1,
       marginBottom: spacing.md,
     },
-    quickActions: {
-      gap: spacing.xs,
-    },
-    quickActionItem: {
+    scopeRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      gap: spacing.md,
-      borderRadius: 8,
+      borderRadius: 10,
+      padding: 3,
       backgroundColor: colors.gray50,
+      gap: 3,
     },
-    quickActionText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.regular,
+    scopeOption: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      borderRadius: 8,
+    },
+    scopeOptionSelected: {
+      backgroundColor: colors.backgroundElevated,
+    },
+    scopeText: {
+      fontSize: fontSizes.bodySmall,
+      fontWeight: fontWeights.medium,
+      color: colors.textSecondary,
+    },
+    scopeTextSelected: {
       color: colors.textPrimary,
+      fontWeight: fontWeights.semibold,
+    },
+    scopeHint: {
+      marginTop: spacing.sm,
+      fontSize: fontSizes.caption,
+      color: colors.textTertiary,
     },
   });
 };

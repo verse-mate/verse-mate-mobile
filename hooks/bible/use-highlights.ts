@@ -133,6 +133,11 @@ export interface UseHighlightsResult {
   ) => boolean;
   /** Add a highlight with optimistic update */
   addHighlight: (params: AddHighlightParams) => Promise<void>;
+  /**
+   * Save many highlights, across chapters ("Highlight all"). Online only; resolves to how many
+   * the server kept.
+   */
+  addHighlights: (list: AddHighlightParams[]) => Promise<number>;
   /** Update highlight color with optimistic update */
   updateHighlightColor: (highlightId: number, color: HighlightColor) => Promise<void>;
   /** Delete highlight with optimistic update */
@@ -804,6 +809,87 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   };
 
   /**
+   * Save many highlights at once, for "Highlight all".
+   *
+   * Straight to the API, a few at a time, without the optimistic entries `addHighlight` makes:
+   * those are keyed to this hook's chapter, and most of these highlights are in other chapters.
+   * Each saved one is mirrored into the device copy the reader reads once user data is synced (and
+   * the highlights the server merged into it are dropped there), then every highlight query
+   * refetches. A refused or failed one is skipped, not fatal: the count says how many were kept.
+   */
+  const addHighlights = async (list: AddHighlightParams[]): Promise<number> => {
+    if (!isAuthenticated || !user?.id) return 0;
+    if (!isOnline) throw new Error('Highlight all needs a connection');
+    const post = postBibleHighlightAddMutation().mutationFn;
+    if (!post) throw new Error('Mutation function missing');
+    const userId = user.id;
+
+    let saved = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < list.length) {
+        const params = list[next++];
+        try {
+          const result = (await post(
+            {
+              body: {
+                user_id: userId,
+                book_id: params.bookId,
+                chapter_number: params.chapterNumber,
+                start_verse: params.startVerse,
+                end_verse: params.endVerse,
+                color: params.color,
+                start_char: params.startChar,
+                end_char: params.endChar,
+                selected_text: params.selectedText,
+              },
+            },
+            // biome-ignore lint/suspicious/noExplicitAny: context required by type
+            undefined as any
+          )) as {
+            success?: boolean;
+            highlight?: Highlight;
+            merged_highlight_ids?: number[];
+          };
+          if (result?.success === false || !result?.highlight) continue;
+          saved++;
+          const h = result.highlight;
+          try {
+            await addLocalHighlight({
+              highlight_id: h.highlight_id,
+              book_id: h.book_id,
+              chapter_number: h.chapter_number,
+              start_verse: h.start_verse,
+              end_verse: h.end_verse,
+              color: h.color,
+              start_char: (h.start_char as number | null) ?? null,
+              end_char: (h.end_char as number | null) ?? null,
+              updated_at: h.created_at ?? new Date().toISOString(),
+            });
+            for (const id of result.merged_highlight_ids ?? []) {
+              if (id !== h.highlight_id) await deleteLocalHighlight(id);
+            }
+          } catch (e) {
+            console.warn('[highlights] local mirror after bulk add failed:', e);
+          }
+        } catch (e) {
+          console.warn('[highlights] bulk add: one highlight failed:', e);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, list.length) }, worker));
+
+    await queryClient.invalidateQueries({
+      predicate: (query) => {
+        const head = query.queryKey[0] as { _id?: string } | string | undefined;
+        const id = typeof head === 'string' ? head : head?._id;
+        return typeof id === 'string' && /highlight/i.test(id);
+      },
+    });
+    return saved;
+  };
+
+  /**
    * Update highlight color with optimistic update
    */
   const updateHighlightColor = async (
@@ -875,6 +961,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     isDeletingHighlight: deleteMutation.isPending,
     isHighlighted,
     addHighlight,
+    addHighlights,
     updateHighlightColor,
     deleteHighlight,
     refetchHighlights,

@@ -7,7 +7,8 @@
  * efficiently (once from the provider, not per-consumer).
  */
 
-import { renderHook } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook } from '@testing-library/react-native';
 import type React from 'react';
 import { BibleInteractionProvider, useBibleInteraction } from '@/contexts/BibleInteractionContext';
 
@@ -18,8 +19,13 @@ jest.mock('@/components/bible/VerseMateTooltip', () => ({
 jest.mock('@/components/bible/AutoHighlightTooltip', () => ({
   AutoHighlightTooltip: () => null,
 }));
+// The sheet's props, so a test can pick a colour the way the sheet does.
+const mockSheetProps: { current: Record<string, any> | null } = { current: null };
 jest.mock('@/components/bible/HighlightSelectionSheet', () => ({
-  HighlightSelectionSheet: () => null,
+  HighlightSelectionSheet: (props: Record<string, any>) => {
+    mockSheetProps.current = props;
+    return null;
+  },
 }));
 jest.mock('@/components/bible/HighlightEditMenu', () => ({
   HighlightEditMenu: () => null,
@@ -62,10 +68,13 @@ jest.mock('@/contexts/ToastContext', () => ({
 }));
 
 describe('BibleInteractionContext', () => {
+  const queryClient = new QueryClient();
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <BibleInteractionProvider bookId={1} chapterNumber={1} bookName="Genesis">
-      {children}
-    </BibleInteractionProvider>
+    <QueryClientProvider client={queryClient}>
+      <BibleInteractionProvider bookId={1} chapterNumber={1} bookName="Genesis">
+        {children}
+      </BibleInteractionProvider>
+    </QueryClientProvider>
   );
 
   beforeEach(() => {
@@ -116,12 +125,14 @@ describe('BibleInteractionContext', () => {
     }
 
     render(
-      <BibleInteractionProvider bookId={1} chapterNumber={1} bookName="Genesis">
-        <View>
-          <Consumer />
-          <Consumer />
-        </View>
-      </BibleInteractionProvider>
+      <QueryClientProvider client={queryClient}>
+        <BibleInteractionProvider bookId={1} chapterNumber={1} bookName="Genesis">
+          <View>
+            <Consumer />
+            <Consumer />
+          </View>
+        </BibleInteractionProvider>
+      </QueryClientProvider>
     );
 
     // useHighlights is called once from the provider, not per-consumer.
@@ -139,5 +150,49 @@ describe('BibleInteractionContext', () => {
     }).toThrow('useBibleInteraction must be used within a BibleInteractionProvider');
 
     consoleSpy.mockRestore();
+  });
+  describe('a colour from the highlight sheet', () => {
+    const words = { start: 5, end: 5, startChar: 4, endChar: 9 };
+
+    function openSheetAndPick(color: string, scope: string) {
+      const addHighlight = jest.fn().mockResolvedValue(undefined);
+      mockUseHighlights.mockReturnValue({
+        chapterHighlights: [],
+        addHighlight,
+        updateHighlightColor: jest.fn(),
+        deleteHighlight: jest.fn(),
+      });
+      const { result } = renderHook(() => useBibleInteraction(), { wrapper });
+      act(() => result.current.openHighlightSelection(words, 'light'));
+      return { addHighlight, pick: () => mockSheetProps.current?.onColorSelect(color, scope) };
+    }
+
+    it('highlights exactly the selected words for "Selection"', async () => {
+      const { addHighlight, pick } = openSheetAndPick('green', 'selection');
+      await act(async () => {
+        await pick();
+      });
+      expect(addHighlight).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startVerse: 5,
+          endVerse: 5,
+          startChar: 4,
+          endChar: 9,
+          color: 'green',
+          selectedText: 'light',
+        })
+      );
+    });
+
+    it('highlights the whole verse, no character range, for "Whole verse"', async () => {
+      const { addHighlight, pick } = openSheetAndPick('blue', 'verse');
+      await act(async () => {
+        await pick();
+      });
+      const params = addHighlight.mock.calls[0][0];
+      expect(params).toMatchObject({ startVerse: 5, endVerse: 5, color: 'blue' });
+      expect(params.startChar).toBeUndefined();
+      expect(params.endChar).toBeUndefined();
+    });
   });
 });

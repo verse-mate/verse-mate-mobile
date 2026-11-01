@@ -23,11 +23,14 @@
 
 import { type AlignedToken, type LexEntry, lookupLemma } from '@versemate/lexicon';
 import { getRedLetterVerses } from '@versemate/red-letter';
+import * as Clipboard from 'expo-clipboard';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
+  Platform,
+  Share,
   StyleSheet,
   Text,
   type TextLayoutEventData,
@@ -46,6 +49,7 @@ import { HighlightedText } from '@/components/bible/HighlightedText';
 import { createInsightMarkdownStyles as createMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
+import type { NoteVerseContext } from '@/components/bible/NotesModal';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import type { HighlightColor } from '@/constants/highlight-colors';
@@ -53,6 +57,7 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
@@ -85,6 +90,8 @@ import {
 } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
+import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+import { selectionReference, selectionShareText } from '@/utils/sharing/selection-share';
 
 /**
  * Lexicon underline appearance, shared with the legacy renderer's constants in
@@ -151,8 +158,8 @@ interface ChapterReaderProps {
    * Receives `null` for verse sections that no longer exist (cleanup).
    */
   onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
-  /** Callback to open notes modal */
-  onOpenNotes?: () => void;
+  /** Open the notes sheet; with a verse when the reader chose Note on a selection. */
+  onOpenNotes?: (verse?: NoteVerseContext) => void;
   /** Optional filtered highlights (overrides context highlights) */
   filteredHighlights?: Highlight[];
   /** Optional filtered auto-highlights (overrides context auto-highlights) */
@@ -375,10 +382,14 @@ export function ChapterReader({
     openHighlightSelection,
   } = useBibleInteraction();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const selectionLabels = useMemo(
     () => ({
-      highlight: t('chapter_reader.selection_highlight', 'Highlight'),
       define: t('chapter_reader.selection_define', 'Define'),
+      highlight: t('chapter_reader.selection_highlight', 'Highlight'),
+      copy: t('chapter_reader.selection_copy', 'Copy'),
+      note: t('chapter_reader.selection_note', 'Note'),
+      share: t('chapter_reader.selection_share', 'Share'),
     }),
     [t]
   );
@@ -888,6 +899,41 @@ export function ChapterReader({
     );
   };
 
+  /** Copy from the selection menu: the words in quotes with their reference, as Verse Insight copies. */
+  const handleCopySelection = async (selection: VerseSelection) => {
+    const reference = selectionReference(chapter.bookName, chapter.chapterNumber, selection);
+    await Clipboard.setStringAsync(
+      selectionShareText({ text: selection.text, reference, version: bibleVersion })
+    );
+    showToast(t('chapter_reader.copied', 'Copied'));
+  };
+
+  /**
+   * Share from the selection menu. The chapter's link rides along: it is what gives iOS's share sheet
+   * VerseMate's icon. iOS takes the link as its own item (in the message too, it would appear
+   * twice); Android has no `url` field, so there it goes in the message.
+   */
+  const handleShareSelection = async (selection: VerseSelection) => {
+    const reference = selectionReference(chapter.bookName, chapter.chapterNumber, selection);
+    let url: string | undefined;
+    try {
+      url = generateChapterShareUrl(chapter.bookId, chapter.chapterNumber);
+    } catch {
+      // No web URL configured (a local build): share the words alone.
+    }
+    const text = { text: selection.text, reference, version: bibleVersion };
+    await Share.share(
+      Platform.OS === 'ios'
+        ? { message: selectionShareText(text), url }
+        : { message: selectionShareText({ ...text, url }), title: reference }
+    );
+  };
+
+  /** Note from the selection menu: the notes sheet, writing a note on the verse it starts in. */
+  const handleNoteSelection = (selection: VerseSelection) => {
+    onOpenNotes?.({ verseNumber: selection.startVerse, quote: selection.text });
+  };
+
   /**
    * Handle tap on auto-highlighted text
    */
@@ -1090,6 +1136,9 @@ export function ChapterReader({
                         onAutoHighlightPress={handleAutoHighlightPress}
                         onHighlightTap={handleHighlightTap}
                         onHighlightSelection={handleHighlightSelection}
+                        onCopySelection={handleCopySelection}
+                        onNoteSelection={onOpenNotes ? handleNoteSelection : undefined}
+                        onShareSelection={handleShareSelection}
                         onLexiconWordPress={handleLexiconWordPress}
                         onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
                         onVerseTap={handleVerseTap}

@@ -111,6 +111,7 @@ describe('ChapterHighlightsScreen', () => {
       isDeletingHighlight: false,
       isHighlighted: jest.fn(),
       addHighlight: jest.fn(),
+      addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
     });
@@ -185,6 +186,7 @@ describe('ChapterHighlightsScreen', () => {
       isDeletingHighlight: false,
       isHighlighted: jest.fn(),
       addHighlight: jest.fn(),
+      addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
     });
@@ -210,6 +212,7 @@ describe('ChapterHighlightsScreen', () => {
       isDeletingHighlight: false,
       isHighlighted: jest.fn(),
       addHighlight: jest.fn(),
+      addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
     });

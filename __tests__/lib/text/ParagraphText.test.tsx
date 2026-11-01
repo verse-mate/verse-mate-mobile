@@ -243,14 +243,49 @@ describe('ParagraphText selection menu', () => {
 
   it('offers Highlight and Define only when each has a label and a handler', () => {
     renderParagraph({ onHighlightSelection: jest.fn(), selectionLabels: LABELS });
+    // Andy's order (2026-11-01): Define first.
     expect(capturedSelectionActions).toEqual([
-      { id: 'highlight', label: 'Highlight' },
       { id: 'define', label: 'Define' },
+      { id: 'highlight', label: 'Highlight' },
     ]);
 
     renderParagraph({ onLexiconWordPress: undefined, selectionLabels: LABELS });
     expect(capturedSelectionActions).toEqual([]);
     expect(capturedSelectionAction).toBeUndefined();
+  });
+
+  it('offers Define, Highlight, Copy, Note, Share in that order, and hands each the selection', () => {
+    const handlers = {
+      onHighlightSelection: jest.fn(),
+      onCopySelection: jest.fn(),
+      onNoteSelection: jest.fn(),
+      onShareSelection: jest.fn(),
+    };
+    renderParagraph({
+      ...handlers,
+      selectionLabels: { ...LABELS, copy: 'Copy', note: 'Note', share: 'Share' },
+    });
+    expect(capturedSelectionActions?.map((a) => a.id)).toEqual([
+      'define',
+      'highlight',
+      'copy',
+      'note',
+      'share',
+    ]);
+
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const start = compiled.text.indexOf('God');
+    const end = start + 'God'.length;
+    for (const [id, handler] of [
+      ['copy', handlers.onCopySelection],
+      ['note', handlers.onNoteSelection],
+      ['share', handlers.onShareSelection],
+    ] as const) {
+      getSelectionAction()({ id, start, end });
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ startVerse: 1, endVerse: 1, text: 'God' })
+      );
+    }
   });
 
   it('turns Highlight into verse and character offsets, numbers left out', () => {

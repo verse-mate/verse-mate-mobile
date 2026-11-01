@@ -120,6 +120,11 @@ export function defineChoicesFor(
   return meaningful.length > 0 ? meaningful : all;
 }
 
+type SelectionActionId = 'define' | 'highlight' | 'copy' | 'note' | 'share';
+
+/** Localised labels for the selection menu, by action. */
+export type SelectionLabels = Partial<Record<SelectionActionId, string>>;
+
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Verses to render, in reading order. */
   verses: ParagraphInput['verses'];
@@ -151,11 +156,15 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
    * it, Define shows the word the selection starts in, as for a single word.
    */
   onDefineSelection?: (choices: DefineChoice[]) => void;
+  /** Copy, Note and Share from the selection menu, each with what the reader selected. */
+  onCopySelection?: (selection: VerseSelection) => void;
+  onNoteSelection?: (selection: VerseSelection) => void;
+  onShareSelection?: (selection: VerseSelection) => void;
   /**
    * Localised menu labels for the selection actions. An action is offered only when its label and
-   * its handler are both given.
+   * its handler are both given. Supplying Copy replaces the platform's own.
    */
-  selectionLabels?: { highlight?: string; define?: string };
+  selectionLabels?: SelectionLabels;
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
   /**
@@ -217,6 +226,9 @@ export function ParagraphText(props: ParagraphTextProps) {
     onWordPress,
     onHighlightSelection,
     onDefineSelection,
+    onCopySelection,
+    onNoteSelection,
+    onShareSelection,
     selectionLabels,
     onTextLayout,
     onSelectionChange,
@@ -408,16 +420,30 @@ export function ParagraphText(props: ParagraphTextProps) {
   );
 
   const canDefine = !!(onWordPress || onLexiconWordPress);
+  // Andy's order (2026-11-01): Define, Highlight, Copy, Note, Share, in one row. The platform folds
+  // what does not fit behind its arrow rather than wrapping to a second row.
   const selectionActions = useMemo(() => {
+    const offered: [SelectionActionId, boolean][] = [
+      ['define', canDefine],
+      ['highlight', !!onHighlightSelection],
+      ['copy', !!onCopySelection],
+      ['note', !!onNoteSelection],
+      ['share', !!onShareSelection],
+    ];
     const actions: { id: string; label: string }[] = [];
-    if (onHighlightSelection && selectionLabels?.highlight) {
-      actions.push({ id: 'highlight', label: selectionLabels.highlight });
-    }
-    if (canDefine && selectionLabels?.define) {
-      actions.push({ id: 'define', label: selectionLabels.define });
+    for (const [id, handled] of offered) {
+      const label = selectionLabels?.[id];
+      if (handled && label) actions.push({ id, label });
     }
     return actions;
-  }, [onHighlightSelection, canDefine, selectionLabels?.highlight, selectionLabels?.define]);
+  }, [
+    canDefine,
+    onHighlightSelection,
+    onCopySelection,
+    onNoteSelection,
+    onShareSelection,
+    selectionLabels,
+  ]);
 
   /**
    * Highlight / Define from the selection menu.
@@ -428,9 +454,16 @@ export function ParagraphText(props: ParagraphTextProps) {
    */
   const handleSelectionAction = useCallback(
     ({ id, start, end }: TextSelectionActionEvent) => {
-      if (id === 'highlight') {
+      const verseHandlers: Record<string, ((selection: VerseSelection) => void) | undefined> = {
+        highlight: onHighlightSelection,
+        copy: onCopySelection,
+        note: onNoteSelection,
+        share: onShareSelection,
+      };
+      const verseHandler = verseHandlers[id];
+      if (verseHandler) {
         const selection = verseSelectionFromOffsets(compiled, start, end);
-        if (selection) onHighlightSelection?.(selection);
+        if (selection) verseHandler(selection);
         return;
       }
       if (id !== 'define') return;
@@ -463,7 +496,16 @@ export function ParagraphText(props: ParagraphTextProps) {
       if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
       onWordPress?.({ word, verseNumber });
     },
-    [compiled, onHighlightSelection, onDefineSelection, onLexiconWordPress, onWordPress]
+    [
+      compiled,
+      onHighlightSelection,
+      onCopySelection,
+      onNoteSelection,
+      onShareSelection,
+      onDefineSelection,
+      onLexiconWordPress,
+      onWordPress,
+    ]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph

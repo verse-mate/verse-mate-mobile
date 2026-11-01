@@ -46,7 +46,7 @@ import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
-import { NotesModal } from '@/components/bible/NotesModal';
+import { NotesModal, type NoteVerseContext } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
@@ -629,6 +629,7 @@ export function ChapterPage({
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [noteVerse, setNoteVerse] = useState<NoteVerseContext | null>(null);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -1538,7 +1539,7 @@ export function ChapterPage({
   /**
    * Note Handlers
    */
-  const handleOpenNotes = () => {
+  const handleOpenNotes = (verse?: NoteVerseContext) => {
     // Check if user is authenticated before opening notes modal
     if (!isAuthenticated) {
       // Redirect to login if not authenticated
@@ -1546,6 +1547,8 @@ export function ChapterPage({
       return;
     }
 
+    // From the notes button: a chapter note. From a selection's Note: a note on that verse.
+    setNoteVerse(verse ?? null);
     setNotesModalVisible(true);
   };
 
@@ -2054,6 +2057,7 @@ export function ChapterPage({
         bookId={bookId}
         chapterNumber={chapterNumber}
         bookName={displayChapter?.bookName || ''}
+        verse={noteVerse}
         onClose={() => setNotesModalVisible(false)}
       />
 
