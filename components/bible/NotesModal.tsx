@@ -31,6 +31,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -121,7 +122,7 @@ export function NotesModal({
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [showNoteOptions, setShowNoteOptions] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const textInputRef = useRef<TextInput>(null);
+  const textInputRef = useRef<TextInputInstance>(null);
 
   // Animation state for swipe-to-dismiss
   const slideAnim = useRef(new Animated.Value(0)).current;

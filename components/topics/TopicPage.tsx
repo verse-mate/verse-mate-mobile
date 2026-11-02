@@ -19,7 +19,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Animated, {
   Easing,
@@ -361,7 +368,7 @@ export function TopicPage({
   // Reset scroll state when topic changes. Separate refs per inner tab
   // matches Bible's pattern and keeps each tab's scroll position
   // independent across switches.
-  const bibleScrollRef = useRef<ScrollView>(null);
+  const bibleScrollRef = useRef<ScrollViewInstance>(null);
   // All three Insight tabs are FlatLists now — use scrollToOffset.
   const summaryScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);
   const bylineScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);

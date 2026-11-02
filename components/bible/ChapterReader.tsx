@@ -28,15 +28,15 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type LayoutChangeEvent,
-  type NativeSyntheticEvent,
   Platform,
   Share,
   StyleSheet,
   Text,
-  type TextLayoutEventData,
+  type TextLayoutEvent,
   type TextStyle,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from 'react-native';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import {
@@ -158,7 +158,7 @@ interface ChapterReaderProps {
    *
    * Receives `null` for verse sections that no longer exist (cleanup).
    */
-  onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
+  onByLineSectionRegister?: (verseNumber: number, node: ViewInstance | null) => void;
   /** Open the notes sheet; with a verse when the reader chose Note on a selection. */
   onOpenNotes?: (verse?: NoteVerseContext) => void;
   /** Optional filtered highlights (overrides context highlights) */
@@ -1037,7 +1037,7 @@ export function ChapterReader({
   /**
    * Handle text layout event to capture line positions
    */
-  const handleTextLayout = (groupKey: string, event: NativeSyntheticEvent<TextLayoutEventData>) => {
+  const handleTextLayout = (groupKey: string, event: TextLayoutEvent) => {
     const { lines } = event.nativeEvent;
     let charOffset = 0;
     const lineInfo = lines.map((line) => {

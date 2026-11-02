@@ -10,7 +10,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import {
+  type LayoutChangeEvent,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewInstance,
+} from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getSplitViewSpecs } from '@/theme/tokens';
 import { BREAKPOINTS, calculatePanelWidths } from '@/utils/device-detection';
@@ -47,7 +53,7 @@ export function SplitView({
   const [containerWidth, setContainerWidth] = useState(0);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const dividerRef = useRef<View>(null);
+  const dividerRef = useRef<ViewInstance>(null);
   const dragStartXRef = useRef(0);
   const dragStartLeftWidthRef = useRef(0);
   const [dragLeftWidth, setDragLeftWidth] = useState<number | null>(null);

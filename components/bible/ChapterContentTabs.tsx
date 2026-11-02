@@ -19,7 +19,7 @@
 
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
@@ -168,7 +168,7 @@ export function ChapterContentTabs({
   // Used to keep the row at least full-width when tabs fit, and to centre the
   // active tab when the row overflows and scrolls.
   const [trackWidth, setTrackWidth] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   /**
    * Handle tab press

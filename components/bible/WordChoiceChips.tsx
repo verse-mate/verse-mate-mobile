@@ -24,6 +24,7 @@ import {
   type NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   View,
@@ -69,7 +70,7 @@ export function WordChoiceChips({
   testID = 'word-choice-chips',
 }: WordChoiceChipsProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const [viewport, setViewport] = useState(0);
   const [content, setContent] = useState(0);
   const [offset, setOffset] = useState(0);

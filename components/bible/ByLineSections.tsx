@@ -15,7 +15,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { type ComponentProps, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -124,7 +124,7 @@ export function ByLineSection({
   onToggle: () => void;
   markdownStyles: MarkdownStyle;
   /** For the verse-jump button, which measures the section to scroll to it. */
-  sectionRef?: (node: View | null) => void;
+  sectionRef?: (node: ViewInstance | null) => void;
   testID?: string;
 }) {
   const { colors } = useTheme();

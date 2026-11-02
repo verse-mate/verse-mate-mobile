@@ -22,6 +22,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   View,
@@ -182,10 +183,10 @@ export function BibleExplanationsPanel({
   const touchStartY = useRef(0);
 
   // Separate scroll refs per tab to maintain independent scroll positions
-  const summaryScrollRef = useRef<ScrollView>(null);
-  const byLineScrollRef = useRef<ScrollView>(null);
-  const studyScrollRef = useRef<ScrollView>(null);
-  const visualsScrollRef = useRef<ScrollView>(null);
+  const summaryScrollRef = useRef<ScrollViewInstance>(null);
+  const byLineScrollRef = useRef<ScrollViewInstance>(null);
+  const studyScrollRef = useRef<ScrollViewInstance>(null);
+  const visualsScrollRef = useRef<ScrollViewInstance>(null);
 
   // Quick-verse-jump: refs to each rendered By Line verse-section View.
   // Populated when byline content is split into per-verse sections below.

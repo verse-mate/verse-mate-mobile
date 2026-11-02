@@ -20,7 +20,15 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  findNodeHandle,
+  Platform,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -158,9 +166,9 @@ function TabContent({
   onTouchEnd?: (event: GestureResponderEvent) => void;
   filteredHighlights?: Highlight[];
   filteredAutoHighlights?: AutoHighlight[];
-  scrollRef?: React.RefObject<ScrollView | null>;
+  scrollRef?: React.RefObject<ScrollViewInstance | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
-  onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
+  onByLineSectionRegister?: (verseNumber: number, node: ViewInstance | null) => void;
   /** Threaded through to ChapterReader — see ChapterReaderProps. */
   bibleVersion?: string;
   bibleLanguage?: string;
@@ -612,9 +620,9 @@ export function ChapterPage({
   // Track Bible view scroll fraction (0-1) for syncing to explanation tabs
   const bibleScrollFractionRef = useRef(0);
   // Refs for explanation tab ScrollViews to sync scroll position
-  const byLineScrollRef = useRef<ScrollView>(null);
-  const summaryScrollRef = useRef<ScrollView>(null);
-  const studyScrollRef = useRef<ScrollView>(null);
+  const byLineScrollRef = useRef<ScrollViewInstance>(null);
+  const summaryScrollRef = useRef<ScrollViewInstance>(null);
+  const studyScrollRef = useRef<ScrollViewInstance>(null);
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
   // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
@@ -1614,13 +1622,16 @@ export function ChapterPage({
     byLineSectionRefs.current = {};
   }, [bookId, chapterNumber]);
 
-  const handleByLineSectionRegister = useCallback((verseNumber: number, node: View | null) => {
-    if (node === null) {
-      delete byLineSectionRefs.current[verseNumber];
-      return;
-    }
-    byLineSectionRefs.current[verseNumber] = node;
-  }, []);
+  const handleByLineSectionRegister = useCallback(
+    (verseNumber: number, node: ViewInstance | null) => {
+      if (node === null) {
+        delete byLineSectionRefs.current[verseNumber];
+        return;
+      }
+      byLineSectionRefs.current[verseNumber] = node;
+    },
+    []
+  );
 
   const handleByLineVerseJump = useCallback((verseNumber: number) => {
     const node = byLineSectionRefs.current[verseNumber];

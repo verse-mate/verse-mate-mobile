@@ -12,6 +12,11 @@ module.exports = {
     // tsconfig maps msw/node to its type file for tsc (see tsconfig.json), and jest-expo applies
     // tsconfig paths too; Jest needs msw's Node build. Listed here, this wins.
     '^msw/node$': '<rootDir>/node_modules/msw/lib/node/index.js',
+    // RN 0.88's renderer shims import `react-native/react-private-interface`, which exists only
+    // as a package.json `exports` alias. The preset's `^react-native($|/.*)` mapper turns it into
+    // a file path that is not there, so 115 suites failed to load; point it at the real file.
+    '^react-native/react-private-interface$':
+      '<rootDir>/node_modules/react-native/src/react-private-interface.js',
   },
 
   // Test file patterns

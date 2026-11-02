@@ -44,7 +44,7 @@ describe('ShareButton — chapter copy (feat-humanize-share)', () => {
     jest.clearAllMocks();
     shareSpy = jest
       .spyOn(Share, 'share')
-      .mockResolvedValue({ action: Share.sharedAction, activityType: null });
+      .mockResolvedValue({ action: Share.sharedAction, activityType: undefined });
   });
 
   afterEach(() => {

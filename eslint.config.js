@@ -44,6 +44,14 @@ module.exports = defineConfig([
     },
   },
 
+  // tsc already checks namespace members in TypeScript, and import/namespace
+  // cannot follow expo-notifications 58's compiled enums: it reported
+  // Notifications.AndroidImportance and IosAuthorizationStatus as missing.
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: { 'import/namespace': 'off' },
+  },
+
   // i18n: forbid raw English strings in user-facing UI (D-016 part 3).
   // Warn (not error) until the chapter-reader and remaining modal/component
   // screens are codemodded — escalate to error once coverage is complete.

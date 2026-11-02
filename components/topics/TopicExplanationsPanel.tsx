@@ -18,7 +18,15 @@ import * as Haptics from 'expo-haptics';
 import { t } from 'i18next';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
@@ -151,7 +159,7 @@ export function TopicExplanationsPanel({
   const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
 
   // Word definitions are OWNED BY THE SCREEN, not by this panel — see `onWordDefine` on the props type for
   // why (an RN <Modal> cannot present from inside a PagerView page on iOS).

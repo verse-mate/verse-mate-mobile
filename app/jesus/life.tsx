@@ -15,7 +15,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SectionList, type SectionListScrollParams, StyleSheet, Text, View } from 'react-native';
+import { type ScrollToLocationParamsType, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
@@ -66,7 +66,7 @@ export default function JesusLifeScreen() {
    * is on screen. Sections are not measured up front, so a far one can fail
    * the first scroll; `onScrollToIndexFailed` below jumps near it and retries.
    */
-  const target = useMemo<SectionListScrollParams | null>(() => {
+  const target = useMemo<ScrollToLocationParamsType | null>(() => {
     const sectionIndex = period ? sections.findIndex((s) => s.slug === period) : -1;
     return sectionIndex > 0
       ? { sectionIndex, itemIndex: 0, viewPosition: 0, animated: false }

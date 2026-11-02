@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Dimensions } from 'react-native';
+import { Dimensions, type ScaledSize } from 'react-native';
 import { type DeviceInfoContextType, useDeviceInfoContext } from '@/contexts/DeviceInfoContext';
 
 /**
@@ -54,9 +54,12 @@ export function useOrientation(): { isLandscape: boolean; isPortrait: boolean } 
   });
 
   useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      setIsLandscape(window.width > window.height);
-    });
+    const subscription = Dimensions.addEventListener(
+      'change',
+      ({ window }: { window: ScaledSize }) => {
+        setIsLandscape(window.width > window.height);
+      }
+    );
 
     return () => subscription?.remove();
   }, []);
