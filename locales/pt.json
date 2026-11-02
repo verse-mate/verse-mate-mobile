@@ -295,7 +295,9 @@
       "questions": "Perguntas que faz aqui",
       "scopedTo": "Limitado a {{range}} do estudo deste capítulo",
       "wholeChapter": "O estudo deste capítulo",
-      "chapterContext": "Contexto do capítulo"
+      "chapterContext": "Contexto do capítulo",
+      "accountPicker": "Estude cada relato",
+      "noStudyForAccount": "O estudo de {{account}} ainda não foi gerado."
     },
     "entry": {
       "missing": "Essa entrada não existe.",

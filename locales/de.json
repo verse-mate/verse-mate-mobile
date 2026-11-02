@@ -295,7 +295,9 @@
       "questions": "Fragen, die Er hier stellt",
       "scopedTo": "Auf {{range}} der Studie dieses Kapitels beschränkt",
       "wholeChapter": "Die Studie dieses Kapitels",
-      "chapterContext": "Kapitelkontext"
+      "chapterContext": "Kapitelkontext",
+      "accountPicker": "Jeden Bericht studieren",
+      "noStudyForAccount": "Die Studie zu {{account}} wurde noch nicht erstellt."
     },
     "entry": {
       "missing": "Diesen Eintrag gibt es nicht.",

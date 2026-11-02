@@ -7,7 +7,7 @@
  * preferred language). The other Jesus tab tests mock useStudy to return null,
  * so the narrowing was never rendered at all; this one gives it a real study.
  */
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { translateFallback as mockTranslate } from '@/__tests__/mocks/i18n';
 import { JesusTabBodies } from '@/components/jesus/JesusTabBodies';
 import type { JesusEventDetail } from '@/types/jesus';
@@ -107,4 +107,57 @@ it('flags the steps it could not scope as chapter context', () => {
   expect(props.chapterContext?.label).toBe('Chapter context');
   // ...while the keyword step is narrowed to the event's verses.
   expect(props.study.steps[1].inventory?.map((r) => r.word)).toEqual(['temple']);
+});
+
+const TEMPTATION = {
+  event: { slug: 'event-temptation', title: 'The temptation' },
+  passages: [
+    {
+      book_id: 40,
+      book_name: 'Matthew',
+      chapter: 4,
+      display: 'Matthew 4:1-11',
+      is_primary: true,
+      verse_start: 1,
+      verse_end: 11,
+    },
+    {
+      book_id: 41,
+      book_name: 'Mark',
+      chapter: 1,
+      display: 'Mark 1:12-13',
+      is_primary: false,
+      verse_start: 12,
+      verse_end: 13,
+    },
+    {
+      book_id: 42,
+      book_name: 'Luke',
+      chapter: 4,
+      display: 'Luke 4:1-13',
+      is_primary: false,
+      verse_start: 1,
+      verse_end: 13,
+    },
+  ],
+  words: [],
+} as unknown as JesusEventDetail;
+
+it('studies every Gospel account, not only the primary one', () => {
+  render(<JesusTabBodies tab="study" detail={TEMPTATION} />);
+  // One chip per account, the primary account's study first.
+  expect(screen.getByTestId('jesus-study-account-Matthew 4:1-11')).toBeTruthy();
+  expect(screen.getByTestId('jesus-study-account-Mark 1:12-13')).toBeTruthy();
+  expect(screen.getByTestId('jesus-study-account-Luke 4:1-13')).toBeTruthy();
+  expect(mockStudyArgs).toHaveBeenLastCalledWith(40, 4, 'de-DE');
+
+  fireEvent.press(screen.getByTestId('jesus-study-account-Mark 1:12-13'));
+  expect(mockStudyArgs).toHaveBeenLastCalledWith(41, 1, 'de-DE');
+  const props = mockPanel.mock.calls.at(-1)?.[0] as { bookId: number; chapter: number };
+  expect([props.bookId, props.chapter]).toEqual([41, 1]);
+});
+
+it('shows no picker for an event told once', () => {
+  render(<JesusTabBodies tab="study" detail={DETAIL} />);
+  expect(screen.queryByTestId('jesus-study-accounts')).toBeNull();
 });
