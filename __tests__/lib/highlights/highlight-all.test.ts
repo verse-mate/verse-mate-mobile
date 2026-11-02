@@ -4,6 +4,7 @@ import {
   HIGHLIGHT_ALL_RUN_GAP_MS,
   highlightAllRun,
   highlightAllRunIds,
+  highlightedPhraseAt,
   phraseHighlightsInBook,
   type SavedHighlightLike,
 } from '@/lib/highlights/highlight-all';
@@ -205,5 +206,42 @@ describe('highlightAllRunIds', () => {
     for (const h of highlights) {
       expect(ids.has(h.highlight_id)).toBe(highlightAllRun(highlights, h) !== null);
     }
+  });
+});
+
+describe('highlightedPhraseAt', () => {
+  // "Son of Man" highlighted at characters 10-20 of Matthew 8:20.
+  const placed = (id: number, overrides: Partial<SavedHighlightLike> = {}) => ({
+    ...saved(id, {
+      book_id: 40,
+      start_char: 10,
+      end_char: 20,
+      selected_text: 'Son of Man',
+      ...overrides,
+    }),
+    chapter_number: 8,
+    start_verse: 20,
+    end_verse: 20,
+  });
+  const at = { bookId: 40, chapterNumber: 8, verse: 20 };
+
+  it('gives the highlighted words when the selection sits inside them', () => {
+    expect(highlightedPhraseAt([placed(1)], { ...at, startChar: 10, endChar: 16 })).toBe(
+      'Son of Man'
+    );
+  });
+
+  it('is null when the selection is elsewhere in the verse, or in another place', () => {
+    expect(highlightedPhraseAt([placed(1)], { ...at, startChar: 30, endChar: 34 })).toBeNull();
+    expect(
+      highlightedPhraseAt([placed(1)], { ...at, verse: 21, startChar: 10, endChar: 16 })
+    ).toBeNull();
+    expect(
+      highlightedPhraseAt([placed(1, { start_char: null, end_char: null, selected_text: null })], {
+        ...at,
+        startChar: 10,
+        endChar: 16,
+      })
+    ).toBeNull();
   });
 });
