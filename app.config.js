@@ -155,6 +155,9 @@ const config = {
     'expo-image',
     'expo-secure-store',
     'expo-sharing',
+    // SDK 56: also asked for by `expo install --fix`.
+    'expo-asset',
+    'expo-status-bar',
     // GH-281: push notifications. The plugin adds the iOS push entitlement
     // (aps-environment) and Android POST_NOTIFICATIONS wiring at prebuild.
     [

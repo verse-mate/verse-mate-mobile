@@ -11,7 +11,7 @@
  */
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';

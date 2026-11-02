@@ -6,7 +6,7 @@
  * different headers again — which is what happened: the event had the reader
  * bar and every page leading to it had a light back-arrow bar with no menu.
  */
-import { StackActions } from '@react-navigation/native';
+import { StackActions } from 'expo-router/react-navigation';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
