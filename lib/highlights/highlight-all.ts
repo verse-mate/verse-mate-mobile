@@ -189,3 +189,42 @@ export function highlightAllRun<T extends SavedHighlightLike>(
   }
   return run.length >= 2 && run.some((r) => r.highlight_id === target.highlight_id) ? run : null;
 }
+
+/**
+ * Every highlight that belongs to a "Highlight all" run (see highlightAllRun), as a set of ids:
+ * the study layer the highlights list leaves out, so one pass over "I am" in John doesn't fill
+ * it with chapters.
+ */
+export function highlightAllRunIds(highlights: readonly SavedHighlightLike[]): Set<number> {
+  const groups = new Map<string, { id: number; at: number }[]>();
+  for (const h of highlights) {
+    const words = wordsOf(h);
+    if (!words) continue;
+    const at = Date.parse(h.created_at);
+    if (!Number.isFinite(at)) continue;
+    const key = `${h.book_id}|${h.color}|${words}`;
+    const list = groups.get(key) ?? [];
+    list.push({ id: h.highlight_id, at });
+    groups.set(key, list);
+  }
+  const ids = new Set<number>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.at - b.at);
+    let run: number[] = [];
+    let lastAt = Number.NEGATIVE_INFINITY;
+    const flush = () => {
+      if (run.length >= 2) for (const id of run) ids.add(id);
+    };
+    for (const { id, at } of list) {
+      if (at - lastAt > HIGHLIGHT_ALL_RUN_GAP_MS) {
+        flush();
+        run = [];
+      }
+      run.push(id);
+      lastAt = at;
+    }
+    flush();
+  }
+  return ids;
+}
