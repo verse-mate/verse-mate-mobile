@@ -9,6 +9,9 @@ module.exports = {
   // Module name mapper for path aliases
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // tsconfig maps msw/node to its type file for tsc (see tsconfig.json), and jest-expo applies
+    // tsconfig paths too; Jest needs msw's Node build. Listed here, this wins.
+    '^msw/node$': '<rootDir>/node_modules/msw/lib/node/index.js',
   },
 
   // Test file patterns
