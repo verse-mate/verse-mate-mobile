@@ -22,6 +22,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReservedRegionsProvider } from 'react-native-reserved-regions';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -608,71 +609,75 @@ function RootLayoutInner() {
  * - Splash screen management
  */
 export default function RootLayout() {
+  // ReservedRegionsProvider reports the fold of an open foldable (iPhone Duo) in window points;
+  // DeviceInfoContext splits the reader on it.
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <I18nProvider>
-          <AppPostHogProvider>
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <CustomThemeProvider>
-                  <DeviceInfoProvider>
-                    <OfflineProvider>
-                      <ToastProvider>
-                        <AudioPlayerProvider
-                          engine={audioEngine}
-                          // These analytics events are keyed on an
-                          // explanation id, which scripture narration (Bible
-                          // Brain) does not have. Emitting them only for
-                          // explanation tracks keeps the existing funnels
-                          // clean; scripture playback needs its own events
-                          // before it can be reported.
-                          onPlaybackStarted={(track, args) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackStarted({
-                              explanationId: track.explanation_id,
-                              explanationType: track.explanation_type,
-                              bookId: track.book_id,
-                              chapterNumber: track.chapter_number,
-                              voice: track.voice,
-                              languageCode: track.language_code,
-                              isResume: args.isResume,
-                              resumePositionSeconds: args.resumePositionSeconds,
-                              ttsProvider: track.tts_provider,
-                            });
-                          }}
-                          onPlaybackPaused={(track, positionSeconds, reason) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackPaused({
-                              explanationId: track.explanation_id,
-                              positionSeconds,
-                              durationSeconds: track.duration_seconds,
-                              reason,
-                            });
-                          }}
-                          onPlaybackCompleted={(track) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackCompleted({
-                              explanationId: track.explanation_id,
-                              durationSeconds: track.duration_seconds,
-                              completedBy: 'natural',
-                            });
-                          }}
-                        >
-                          <BottomBarInsetProvider>
-                            <RootLayoutInner />
-                            <MobileAudioPlayerRoot />
-                          </BottomBarInsetProvider>
-                        </AudioPlayerProvider>
-                      </ToastProvider>
-                    </OfflineProvider>
-                  </DeviceInfoProvider>
-                </CustomThemeProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-          </AppPostHogProvider>
-        </I18nProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <ReservedRegionsProvider style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <I18nProvider>
+            <AppPostHogProvider>
+              <QueryClientProvider client={queryClient}>
+                <AuthProvider>
+                  <CustomThemeProvider>
+                    <DeviceInfoProvider>
+                      <OfflineProvider>
+                        <ToastProvider>
+                          <AudioPlayerProvider
+                            engine={audioEngine}
+                            // These analytics events are keyed on an
+                            // explanation id, which scripture narration (Bible
+                            // Brain) does not have. Emitting them only for
+                            // explanation tracks keeps the existing funnels
+                            // clean; scripture playback needs its own events
+                            // before it can be reported.
+                            onPlaybackStarted={(track, args) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackStarted({
+                                explanationId: track.explanation_id,
+                                explanationType: track.explanation_type,
+                                bookId: track.book_id,
+                                chapterNumber: track.chapter_number,
+                                voice: track.voice,
+                                languageCode: track.language_code,
+                                isResume: args.isResume,
+                                resumePositionSeconds: args.resumePositionSeconds,
+                                ttsProvider: track.tts_provider,
+                              });
+                            }}
+                            onPlaybackPaused={(track, positionSeconds, reason) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackPaused({
+                                explanationId: track.explanation_id,
+                                positionSeconds,
+                                durationSeconds: track.duration_seconds,
+                                reason,
+                              });
+                            }}
+                            onPlaybackCompleted={(track) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackCompleted({
+                                explanationId: track.explanation_id,
+                                durationSeconds: track.duration_seconds,
+                                completedBy: 'natural',
+                              });
+                            }}
+                          >
+                            <BottomBarInsetProvider>
+                              <RootLayoutInner />
+                              <MobileAudioPlayerRoot />
+                            </BottomBarInsetProvider>
+                          </AudioPlayerProvider>
+                        </ToastProvider>
+                      </OfflineProvider>
+                    </DeviceInfoProvider>
+                  </CustomThemeProvider>
+                </AuthProvider>
+              </QueryClientProvider>
+            </AppPostHogProvider>
+          </I18nProvider>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </ReservedRegionsProvider>
   );
 }

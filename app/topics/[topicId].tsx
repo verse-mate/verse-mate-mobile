@@ -103,7 +103,7 @@ export default function TopicDetailScreen() {
   const isLoggedIn = user !== null;
 
   // Device info for split view detection
-  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode, foldLocked } =
     useDeviceInfo();
 
   // Extract topicId from route params
@@ -567,6 +567,7 @@ export default function TopicDetailScreen() {
         <SplitView
           splitRatio={splitRatio}
           onSplitRatioChange={setSplitRatio}
+          lockedToFold={foldLocked}
           viewMode={splitViewMode}
           onViewModeChange={setSplitViewMode}
           edgeTabsVisible={fabVisible}

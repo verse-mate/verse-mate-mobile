@@ -1,5 +1,6 @@
 import '@testing-library/jest-native/extend-expect';
 import i18next from 'i18next';
+import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
@@ -28,6 +29,14 @@ if (!i18next.isInitialized) {
 // implementation it documents for tests.
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 
+// The fold probe is a native view; jest has no display, so it reports no regions.
+jest.mock('react-native-reserved-regions', () => ({
+  ReservedRegionsProvider: ({ children }: { children: ReactNode }) => children,
+  ReservedRegionsGate: ({ children }: { children: ReactNode }) => children,
+  useReservedRegions: () => [],
+  useReservedRegionsReady: () => true,
+}));
+
 // Mock toast context — no-op showToast/hideToast so hooks calling useToast() in
 // tests don't blow up on the "must be within ToastProvider" guard.
 jest.mock('@/contexts/ToastContext', () => ({
@@ -35,7 +44,7 @@ jest.mock('@/contexts/ToastContext', () => ({
     showToast: jest.fn(),
     hideToast: jest.fn(),
   }),
-  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  ToastProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 // Mock offline context to avoid SQLite initialization in tests
@@ -71,7 +80,7 @@ jest.mock('@/contexts/OfflineContext', () => ({
     deleteLanguage: jest.fn(),
     syncUserData: jest.fn(),
   }),
-  OfflineProvider: ({ children }: { children: React.ReactNode }) => children,
+  OfflineProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 // Mock react-native-webview — its native module (RNCWebViewModule) isn't

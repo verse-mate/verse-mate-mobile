@@ -9,6 +9,7 @@
 
 import * as Device from 'expo-device';
 import { Dimensions, Platform } from 'react-native';
+import type { ReservedRegion } from 'react-native-reserved-regions';
 
 /**
  * Device information structure
@@ -183,3 +184,50 @@ export const DEFAULT_SPLIT_RATIO = 0.536;
  * Storage key for persisting split ratio preference
  */
 export const SPLIT_RATIO_STORAGE_KEY = 'versemate:split-ratio';
+
+/**
+ * The fold of a foldable's open display, in window points.
+ *
+ * Only a vertical division counts: on iPhone Duo held open in landscape the fold
+ * runs top to bottom and splits the screen into two halves, which is where the
+ * split view's divider belongs. A horizontal fold (open in portrait) would put
+ * one panel above the other, which the split view does not do.
+ */
+export interface DisplayFold {
+  /** Left edge of the fold, relative to the window. */
+  x: number;
+  /** Width of the fold band (0 when the hinge is a line). */
+  width: number;
+}
+
+export function findVerticalFold(regions: readonly ReservedRegion[]): DisplayFold | null {
+  const fold = regions.find(
+    (region) => region.kind === 'division' && region.frame.height > region.frame.width
+  );
+  return fold ? { x: fold.frame.x, width: fold.frame.width } : null;
+}
+
+/**
+ * The split ratio that puts the divider on the fold.
+ *
+ * SplitView sizes its panels against the width inside the horizontal safe-area
+ * insets (the Duo's side rail is one), so the fold's centre is measured from the
+ * left inset and divided by that inner width. Returns null when the fold would
+ * leave either panel under its minimum width; the normal ratio applies then.
+ */
+export function foldSplitRatio(
+  fold: DisplayFold,
+  windowWidth: number,
+  insets: { left: number; right: number }
+): number | null {
+  const innerWidth = windowWidth - insets.left - insets.right;
+  const leftWidth = fold.x + fold.width / 2 - insets.left;
+  if (
+    innerWidth <= 0 ||
+    leftWidth < BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH ||
+    innerWidth - leftWidth < BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH
+  ) {
+    return null;
+  }
+  return leftWidth / innerWidth;
+}

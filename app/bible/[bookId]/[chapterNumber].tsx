@@ -197,7 +197,7 @@ export default function ChapterScreen() {
   const styles = createStyles(colors, mode);
 
   // Device info for split view detection
-  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode, foldLocked } =
     useDeviceInfo();
 
   // Bible version for analytics
@@ -898,6 +898,7 @@ export default function ChapterScreen() {
             <SplitView
               splitRatio={splitRatio}
               onSplitRatioChange={setSplitRatio}
+              lockedToFold={foldLocked}
               viewMode={splitViewMode}
               onViewModeChange={setSplitViewMode}
               edgeTabsVisible={fabVisible}

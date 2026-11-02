@@ -63,6 +63,13 @@ export interface SplitViewProps {
   /** Whether edge tabs should be visible (fades in/out based on user interaction) */
   edgeTabsVisible?: boolean;
 
+  /**
+   * The divider is pinned to a foldable's fold (`splitRatio` is the fold's).
+   * Dragging to an edge still switches to one full-width panel; a drag that
+   * ends anywhere else springs back to the fold instead of resizing.
+   */
+  lockedToFold?: boolean;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -81,6 +88,7 @@ export function SplitView({
   viewMode = 'split',
   onViewModeChange,
   edgeTabsVisible = true,
+  lockedToFold = false,
   testID = 'split-view',
 }: SplitViewProps) {
   const { mode, colors } = useTheme();
@@ -478,6 +486,11 @@ export function SplitView({
               runOnJS(onViewModeChange)('left-full');
               runOnJS(triggerSuccessHaptic)();
             }
+            // On a fold the panels are the two halves of the display: back to the fold.
+            else if (lockedToFold) {
+              dividerTranslation.value = withSpring(0, { damping: 15, stiffness: 200, mass: 0.5 });
+              runOnJS(triggerMediumHaptic)();
+            }
             // 2. Limit Snaps (Commit exact limit)
             else if (currentSnap === 'limit-left' || currentSnap === 'limit-right') {
               let targetWidth = 0;
@@ -528,6 +541,7 @@ export function SplitView({
     [
       onSplitRatioChange,
       onViewModeChange,
+      lockedToFold,
       containerWidth,
       containerX,
       committedSplitPosition,
@@ -653,9 +667,11 @@ export function SplitView({
   }, [edgeTabsVisible, edgeTabsOpacity]);
 
   const handleDividerDoubleTap = useCallback(() => {
+    // On a fold the divider has no other resting place to reset to.
+    if (lockedToFold) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSplitRatioChange(specs.defaultSplitRatio);
-  }, [onSplitRatioChange, specs.defaultSplitRatio]);
+  }, [lockedToFold, onSplitRatioChange, specs.defaultSplitRatio]);
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID={testID}>

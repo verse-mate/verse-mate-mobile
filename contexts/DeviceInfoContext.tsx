@@ -8,9 +8,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
+import { useReservedRegions } from 'react-native-reserved-regions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   DEFAULT_SPLIT_RATIO,
   type DeviceInfo,
+  findVerticalFold,
+  foldSplitRatio,
   getDeviceInfo,
   SPLIT_RATIO_STORAGE_KEY,
   shouldUseSplitView,
@@ -29,8 +33,13 @@ export const SPLIT_VIEW_MODE_STORAGE_KEY = 'versemate:split-view-mode';
 export interface DeviceInfoContextType extends DeviceInfo {
   /** Whether split view layout should be used */
   useSplitView: boolean;
-  /** Current split ratio (0-1, left panel proportion) */
+  /** Current split ratio (0-1, left panel proportion); on an open foldable, the fold's */
   splitRatio: number;
+  /**
+   * The divider sits on a foldable's fold (iPhone Duo open in landscape): split
+   * view is on whatever the width, and the divider is not resizable.
+   */
+  foldLocked: boolean;
   /** Update split ratio (persists to AsyncStorage) */
   setSplitRatio: (ratio: number) => void;
   /** Current view mode */
@@ -59,6 +68,13 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
   const [splitRatio, setSplitRatioState] = useState(cachedSplitRatio ?? DEFAULT_SPLIT_RATIO);
   const [splitViewMode, setSplitViewModeState] = useState<SplitViewMode>(cachedSplitViewMode ?? 'split');
   const [isLoaded, setIsLoaded] = useState(isCacheLoaded);
+
+  // An open foldable splits along its fold even below the split-view width:
+  // iPhone Duo open in landscape is about 950pt wide, its halves about 470pt.
+  const reservedRegions = useReservedRegions();
+  const insets = useSafeAreaInsets();
+  const fold = findVerticalFold(reservedRegions);
+  const foldRatio = fold ? foldSplitRatio(fold, deviceInfo.screenWidth, insets) : null;
 
   // Load persisted state on mount
   useEffect(() => {
@@ -131,8 +147,9 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
 
   const value = {
     ...deviceInfo,
-    useSplitView,
-    splitRatio,
+    useSplitView: useSplitView || foldRatio !== null,
+    splitRatio: foldRatio ?? splitRatio,
+    foldLocked: foldRatio !== null,
     setSplitRatio,
     splitViewMode,
     setSplitViewMode,
