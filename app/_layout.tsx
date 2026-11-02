@@ -20,9 +20,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus, Platform } from 'react-native';
+import { AppState, type AppStateStatus, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ReservedRegionsProvider } from 'react-native-reserved-regions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -85,6 +86,7 @@ setupClientInterceptors();
  */
 function RootLayoutInner() {
   const { mode, colors, isLoading: themeLoading } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
   const hasInitialized = useRef(false);
@@ -497,93 +499,105 @@ function RootLayoutInner() {
   return (
     <AppErrorBoundary>
       <ThemeProvider value={navigationTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="bible/[bookId]/[chapterNumber]"
-            options={{
-              headerShown: false,
-              animation: 'none', // Disable route animations - PagerView handles swipe animations
-            }}
-          />
-          <Stack.Screen
-            name="topics/[topicId]"
-            options={{
-              headerShown: false,
-              animation: 'none',
-            }}
-          />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen
-            name="auth"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="bookmarks"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="highlights"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="notes"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="help"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-              animation: 'fade',
-            }}
-          />
-          <Stack.Screen
-            name="manage-downloads"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="names-of-god"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="jesus"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="e2e-auth"
-            options={{
-              headerShown: false,
-              animation: 'none',
-            }}
-          />
-        </Stack>
+        {/* Every screen keeps clear of the side safe-area insets: iPhone Duo's system rail (84pt,
+            folded and open) and the notch on a landscape iPhone. Applied once here, so screens and
+            SplitView size against the inset width. */}
+        <View
+          style={{
+            flex: 1,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            backgroundColor: colors.background,
+          }}
+        >
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="bible/[bookId]/[chapterNumber]"
+              options={{
+                headerShown: false,
+                animation: 'none', // Disable route animations - PagerView handles swipe animations
+              }}
+            />
+            <Stack.Screen
+              name="topics/[topicId]"
+              options={{
+                headerShown: false,
+                animation: 'none',
+              }}
+            />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen
+              name="auth"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="bookmarks"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="highlights"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="notes"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="help"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="onboarding"
+              options={{
+                headerShown: false,
+                animation: 'fade',
+              }}
+            />
+            <Stack.Screen
+              name="manage-downloads"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="names-of-god"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="jesus"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="e2e-auth"
+              options={{
+                headerShown: false,
+                animation: 'none',
+              }}
+            />
+          </Stack>
+        </View>
         <StatusBar style="auto" />
         {upgradeState.mustUpgrade && !upgradeState.dismissed && (
           <UpgradePromptScreen
