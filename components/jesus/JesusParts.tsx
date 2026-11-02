@@ -189,13 +189,15 @@ function createStyles(colors: Colors) {
       marginLeft: spacing.sm,
     },
     badgeProbable: { backgroundColor: colors.backgroundSecondary },
-    badgeDisputed: { backgroundColor: colors.warning },
+    // Same quiet chip as "probable": the word carries the meaning. The warning
+    // orange was the only decorative use of a status colour in the app.
+    badgeDisputed: { backgroundColor: colors.backgroundSecondary },
     badgeText: {
       fontSize: fontSizes.caption,
       color: colors.textSecondary,
       textTransform: 'lowercase',
     },
-    badgeTextDisputed: { color: colors.white },
+    badgeTextDisputed: { color: colors.textSecondary },
     headingRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -204,14 +206,16 @@ function createStyles(colors: Colors) {
       paddingTop: spacing.xl,
       paddingBottom: spacing.sm,
     },
+    // The app's list label ("RECENTS", "130 NAMES"): small grey caps. Gold caps
+    // belong to the Study tab.
     heading: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: fontSizes.caption,
       fontWeight: fontWeights.semibold,
-      color: colors.gold,
-      letterSpacing: 1,
+      color: colors.textSecondary,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
     },
-    headingCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
+    headingCount: { fontSize: fontSizes.caption, color: colors.textTertiary },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -231,25 +235,26 @@ function createStyles(colors: Colors) {
       color: colors.textPrimary,
     },
     rowSummary: { fontSize: fontSizes.bodySmall, color: colors.textSecondary },
+    // A divider row — the book selector's Jesus tab and the Names of God list —
+    // with the same title / summary sizes as EventRow.
     navCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      marginHorizontal: spacing.lg,
-      marginBottom: spacing.sm,
-      borderRadius: radii.md,
-      backgroundColor: colors.backgroundSecondary,
+      gap: spacing.md,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
     },
-    navCardEmphasis: { borderWidth: 1, borderColor: colors.gold },
+    // The lead row keeps its gold icon; gold is an accent, never a container.
+    navCardEmphasis: {},
     navIcon: { width: 24, alignItems: 'center' },
     navTitle: {
       fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
+      fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
-    navBlurb: { fontSize: fontSizes.bodySmall, color: colors.textTertiary, marginTop: 2 },
+    navBlurb: { fontSize: fontSizes.bodySmall, color: colors.textSecondary, marginTop: 2 },
     navCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
     pill: {
       flexDirection: 'row',

@@ -19,9 +19,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { JesusChrome } from '@/components/jesus/JesusChrome';
 import type { JesusEventView } from '@/components/jesus/JesusEventHeader';
+import { JesusInsightPane } from '@/components/jesus/JesusInsightPane';
+import { JesusInsightTabs } from '@/components/jesus/JesusInsightTabs';
 import {
   EventRow,
   JesusPill,
@@ -30,11 +33,13 @@ import {
   SectionHeading,
 } from '@/components/jesus/JesusParts';
 import { JesusPassageBlock } from '@/components/jesus/JesusPassageBlock';
-import { JESUS_TABS, type JesusTab, JesusTabBodies } from '@/components/jesus/JesusTabBodies';
+import { type JesusTab, JesusTabBodies } from '@/components/jesus/JesusTabBodies';
+import { SplitView } from '@/components/ui/SplitView';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEvent } from '@/hooks/jesus';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventPassage } from '@/types/jesus';
 
@@ -49,7 +54,13 @@ export default function JesusEventScreen() {
 
   const { bibleVersion } = useBibleVersion();
   const [view, setView] = useState<JesusEventView>('bible');
+  // Split-capable tablets (landscape iPad) lay the event out the way the reader
+  // and a topic are laid out there: scripture left, insight right.
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+    useDeviceInfo();
   const [tab, setTab] = useState<JesusTab>('summary');
+  // Split view only: the menu moves to the insight pane (JesusChrome owns it otherwise).
+  const [menuOpen, setMenuOpen] = useState(false);
   /**
    * Verse Insight, shown WITHOUT leaving the event.
    *
@@ -154,6 +165,65 @@ export default function JesusEventScreen() {
     </>
   );
 
+  // Verse Insight, in place — see the `insight` state above.
+  const tooltip = insight ? (
+    <VerseMateTooltip
+      visible
+      verseNumber={insight.verse}
+      highlightGroup={null}
+      bookId={insight.passage.book_id}
+      chapterNumber={insight.passage.chapter}
+      bookName={insight.passage.book_name}
+      verseText={insight.text}
+      source="verse_number"
+      isLoggedIn={Boolean(auth?.user)}
+      onClose={() => setInsight(null)}
+    />
+  ) : null;
+
+  if (useSplitView && phase !== 'offline' && phase !== 'loading' && data) {
+    return (
+      <View style={styles.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SplitView
+          splitRatio={splitRatio}
+          onSplitRatioChange={setSplitRatio}
+          viewMode={splitViewMode}
+          onViewModeChange={setSplitViewMode}
+          leftContent={
+            <View style={styles.screen}>
+              {/* No Bible / Insight toggle: both are on screen. The menu is on the
+                  insight pane, as in the reader and topics. */}
+              <JesusChrome
+                title={data.event.title}
+                subtitle={bibleVersion ?? undefined}
+                backTestID="jesus-event-back"
+                showMenu={false}
+              />
+              <ScrollView
+                contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
+                testID="jesus-event-body"
+              >
+                {body}
+              </ScrollView>
+            </View>
+          }
+          rightContent={
+            <JesusInsightPane
+              title={data.event.title}
+              detail={data}
+              tab={tab}
+              onTabChange={setTab}
+              onMenuPress={() => setMenuOpen(true)}
+            />
+          }
+        />
+        {tooltip}
+        <HamburgerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -170,32 +240,7 @@ export default function JesusEventScreen() {
       {/* The pills name the insight views only, so they belong to that side of
           the toggle — the reader hides them on its Bible view for the same
           reason. */}
-      {view === 'insight' ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabStrip}
-          contentContainerStyle={styles.tabStripContent}
-          testID="jesus-event-tabs"
-        >
-          <View style={styles.tabTrack}>
-            {JESUS_TABS.map((entry) => (
-              <Pressable
-                key={entry.id}
-                onPress={() => setTab(entry.id)}
-                style={[styles.tab, tab === entry.id && styles.tabActive]}
-                testID={`jesus-event-tab-${entry.id}`}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === entry.id }}
-              >
-                <Text style={[styles.tabText, tab === entry.id && styles.tabTextActive]}>
-                  {t(`jesus.tab.${entry.id}`, entry.label)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
-      ) : null}
+      {view === 'insight' ? <JesusInsightTabs active={tab} onSelect={setTab} /> : null}
 
       {phase === 'offline' ? (
         <JesusPlaceholder
@@ -224,21 +269,7 @@ export default function JesusEventScreen() {
         </ScrollView>
       )}
 
-      {/* Verse Insight, in place — see the `insight` state above. */}
-      {insight ? (
-        <VerseMateTooltip
-          visible
-          verseNumber={insight.verse}
-          highlightGroup={null}
-          bookId={insight.passage.book_id}
-          chapterNumber={insight.passage.chapter}
-          bookName={insight.passage.book_name}
-          verseText={insight.text}
-          source="verse_number"
-          isLoggedIn={Boolean(auth?.user)}
-          onClose={() => setInsight(null)}
-        />
-      ) : null}
+      {tooltip}
     </View>
   );
 }
@@ -259,7 +290,8 @@ function createStyles(colors: Colors) {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xs,
       fontSize: fontSizes.displayMedium,
-      fontWeight: fontWeights.medium,
+      // The reader's chapter title: 32 / bold.
+      fontWeight: fontWeights.bold,
       color: colors.textPrimary,
     },
     summary: {
@@ -276,50 +308,5 @@ function createStyles(colors: Colors) {
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
     },
-    /*
-     * Pills on a track, matching the testament row and the Bible|Insight
-     * toggle. This was an underline strip, which is a convention the app uses
-     * nowhere else — the tester flagged it as "missing consistent pill
-     * approach". The container still carries an explicit height: a horizontal
-     * ScrollView sizes to content and measures a couple of points short of the
-     * font's descenders, which clipped "Summary" to "Summarv".
-     */
-    tabStrip: {
-      flexGrow: 0,
-      height: 52,
-      paddingHorizontal: spacing.lg,
-    },
-    // Centred, not left-hugging: the track is narrower than the screen, so
-    // flex-start parked it against the left edge under a centred title.
-    // "And let's center these."
-    tabStripContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-    },
-    tabTrack: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      padding: 4,
-      borderRadius: 100,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    tab: {
-      paddingHorizontal: spacing.lg,
-      borderRadius: 100,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 28,
-      backgroundColor: 'transparent',
-    },
-    tabActive: { backgroundColor: colors.gold },
-    tabText: {
-      fontSize: 14,
-      lineHeight: Math.round(14 * 1.4),
-      color: colors.textPrimary,
-    },
-    tabTextActive: { color: colors.black, fontWeight: fontWeights.semibold },
   });
 }

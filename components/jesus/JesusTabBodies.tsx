@@ -77,7 +77,7 @@ function useTabStyles() {
 
 export const JESUS_TABS = [
   { id: 'summary', label: 'Summary' },
-  { id: 'byline', label: 'By-Line' },
+  { id: 'byline', label: 'By Line' },
   { id: 'study', label: 'Study' },
   { id: 'compare', label: 'Compare' },
 ] as const;
@@ -605,11 +605,12 @@ function createStyles(colors: Colors, scale: number) {
       marginBottom: spacing.sm,
     },
     confidenceRow: { flexDirection: 'row', marginTop: spacing.sm },
+    // A ruled section per gospel, the By Line tab's shape — the insight pane
+    // sets its rows apart with hairlines, not boxes.
     accountCard: {
-      marginTop: spacing.sm,
-      padding: spacing.md,
-      borderRadius: radii.md,
-      backgroundColor: colors.backgroundSecondary,
+      paddingVertical: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider,
     },
     accountName: {
       fontSize: size(fontSizes.body),
