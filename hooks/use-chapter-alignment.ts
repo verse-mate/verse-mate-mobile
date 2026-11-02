@@ -27,8 +27,8 @@ import { type ChapterAlignment, loadAlignmentFor } from '@versemate/lexicon';
 import { useEffect, useState } from 'react';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { perfAdd, perfSpan } from '@/lib/perf';
-import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
+import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 
 const ENGLISH_VERSION_KEYS = new Set(['NASB1995', 'KJV']);
 

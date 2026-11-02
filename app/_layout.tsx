@@ -51,6 +51,7 @@ import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { resolveJesusDeepLink } from '@/lib/jesus/deep-link';
 import { installPerfSession, perfSpan } from '@/lib/perf';
 import { queryClient } from '@/lib/query-client';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import {
@@ -58,7 +59,6 @@ import {
   parseChapterShareUrl,
 } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
-import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { ONBOARDING_KEY } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position

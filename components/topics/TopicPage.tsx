@@ -36,10 +36,10 @@ import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { Markdown } from '@/lib/markdown/Markdown';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
-import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 
 /**
  * Convert a number to Unicode superscript characters

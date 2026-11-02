@@ -20,14 +20,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import {
-  findNodeHandle,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -69,6 +62,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useStableList } from '@/lib/perf/use-stable-list';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -78,7 +72,6 @@ import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
-import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
