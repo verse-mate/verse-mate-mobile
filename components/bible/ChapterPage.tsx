@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   findNodeHandle,
-  InteractionManager,
   Platform,
   ScrollView,
   StyleSheet,
@@ -79,6 +78,7 @@ import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { SEARCH_MARK_HIGHLIGHT_ID } from '@/utils/bible/searchMark';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -774,7 +774,7 @@ export function ChapterPage({
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
   // becomes a style flip (instant) instead of a 500-700ms first-mount
-  // hit. The mount is scheduled via InteractionManager.runAfterInteractions
+  // hit. The mount is scheduled via runWhenIdle
   // so it doesn't run during the chapter-swipe animation.
   //
   // NOT sticky any more. It used to stay true for the ChapterPage's lifetime on
@@ -839,7 +839,7 @@ export function ChapterPage({
       setBufferContentReady(true);
       return;
     }
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setBufferContentReady(true);
     });
     return () => {
@@ -885,7 +885,7 @@ export function ChapterPage({
     // delay. The toggleProgress-driven visibility flip below only works
     // when the Insight subtree is mounted, so we want this to flip as
     // early as possible.
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setInsightPrewarmed(true);
     });
     return () => {
@@ -1197,7 +1197,7 @@ export function ChapterPage({
     // it chained all remaining tabs into consecutive frames — measured as a single 228-view burst
     // rather than the intended one-at-a-time. See PREWARM_TAB_GAP_MS.
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       timer = setTimeout(() => {
         setVisitedTabs((prev) => {
           if (prev.has(next)) return prev;

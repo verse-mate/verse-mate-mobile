@@ -20,7 +20,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus, InteractionManager, Platform } from 'react-native';
+import { AppState, type AppStateStatus, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,6 +58,7 @@ import {
   parseChapterShareUrl,
 } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { ONBOARDING_KEY } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position
@@ -469,7 +470,7 @@ function RootLayoutInner() {
         try {
           // Wait for interactions to complete before hiding splash
           await new Promise((resolve) => {
-            InteractionManager.runAfterInteractions(() => {
+            runWhenIdle(() => {
               setTimeout(resolve, 200);
             });
           });

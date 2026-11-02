@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Animated, {
   Easing,
@@ -39,6 +39,7 @@ import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 
 /**
  * Convert a number to Unicode superscript characters
@@ -349,7 +350,7 @@ export function TopicPage({
   // byline is virtualized to ~3 sections).
   useEffect(() => {
     if (insightPrewarmed) return;
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setInsightPrewarmed(true);
     });
     return () => {
