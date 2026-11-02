@@ -31,6 +31,7 @@ import {
   collectBookOccurrences,
   HIGHLIGHT_ALL_CONFIRM_ABOVE,
   highlightAllRun,
+  highlightedPhraseAt,
   phraseHighlightsInBook,
 } from '@/lib/highlights/highlight-all';
 import { bibleChapterQuery, chapterFromQueryData } from '@/src/api/hooks';
@@ -263,8 +264,21 @@ export function BibleInteractionProvider({
   /**
    * "Remove all in John": every highlight of the selected words in this book, however each was
    * made. Asks first, with the count.
+   *
+   * When the selection sits inside a word highlight ("Son of" in a highlighted "Son of Man"), the
+   * words are that highlight's: selecting part of a phrase removes the phrase.
    */
-  const removeAllInBook = async (phrase: string) => {
+  const removeAllInBook = async (selected: string, range?: VerseRange) => {
+    const phrase =
+      (range && range.start === range.end
+        ? highlightedPhraseAt(chapterHighlights, {
+            bookId,
+            chapterNumber,
+            verse: range.start,
+            startChar: range.startChar,
+            endChar: range.endChar,
+          })
+        : null) ?? selected;
     if (!isOnline) {
       showToast(t('highlights.remove_all_offline', 'Removing highlights across a book needs a connection'));
       return;
@@ -562,7 +576,9 @@ export function BibleInteractionProvider({
         actions={selectionSheetState.actions}
         bookName={bookName}
         canHighlightAll
-        onRemoveAllInBook={() => void removeAllInBook(selectionSheetState.text)}
+        onRemoveAllInBook={() =>
+          void removeAllInBook(selectionSheetState.text, selectionSheetState.range)
+        }
         onClose={() => setSelectionSheetState(prev => ({ ...prev, visible: false }))}
         onColorSelect={handleSelectionColor}
         useModal={!useSplitView}

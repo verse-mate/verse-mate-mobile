@@ -228,3 +228,39 @@ export function highlightAllRunIds(highlights: readonly SavedHighlightLike[]): S
   }
   return ids;
 }
+
+/** The fields of a saved highlight highlightedPhraseAt reads, beyond SavedHighlightLike. */
+interface PlacedHighlightLike extends SavedHighlightLike {
+  chapter_number: number;
+  start_verse: number;
+  end_verse: number;
+}
+
+/**
+ * The words of the word highlight a selection sits in, or null when it touches none: selecting
+ * "Son of" inside a highlighted "Son of Man" means "Son of Man" when removing all in the book.
+ */
+export function highlightedPhraseAt(
+  highlights: readonly PlacedHighlightLike[],
+  place: {
+    bookId: number;
+    chapterNumber: number;
+    verse: number;
+    startChar?: number;
+    endChar?: number;
+  }
+): string | null {
+  for (const h of highlights) {
+    if (h.book_id !== place.bookId || h.chapter_number !== place.chapterNumber) continue;
+    if (h.start_verse !== place.verse || h.end_verse !== place.verse) continue;
+    if (!wordsOf(h)) continue;
+    const start = h.start_char as number;
+    const end = h.end_char as number;
+    const touches =
+      place.startChar === undefined ||
+      place.endChar === undefined ||
+      (start < place.endChar && place.startChar < end);
+    if (touches) return (h.selected_text as string).trim();
+  }
+  return null;
+}
