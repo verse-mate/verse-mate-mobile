@@ -173,6 +173,11 @@ describe('highlightAllRun', () => {
     const alone = saved(1);
     expect(highlightAllRun([alone], alone)).toBeNull();
     const verse = saved(2, { start_char: null, end_char: null, selected_text: null });
-    expect(highlightAllRun([verse, saved(3, { start_char: null, end_char: null, selected_text: null })], verse)).toBeNull();
+    expect(
+      highlightAllRun(
+        [verse, saved(3, { start_char: null, end_char: null, selected_text: null })],
+        verse
+      )
+    ).toBeNull();
   });
 });
