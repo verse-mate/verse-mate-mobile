@@ -184,6 +184,12 @@ const config = {
     [
       'expo-build-properties',
       {
+        android: {
+          // Expo SDK 58's template turns R8 on for release builds; the app has never shipped
+          // minified, and R8 strips classes native modules reach by reflection, which only shows as
+          // a crash in a release build on a device. Off until that is tested on its own.
+          enableMinifyInReleaseBuilds: false,
+        },
         ios: {
           extraPods: [
             { name: 'GoogleUtilities', modular_headers: true },
