@@ -662,7 +662,7 @@ const createStyles = (
       alignItems: tooltipWidth ? 'center' : 'stretch',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     container: {

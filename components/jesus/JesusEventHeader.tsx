@@ -211,7 +211,7 @@ function createStyles(colors: Colors, headerSpecs: ReturnType<typeof getHeaderSp
     titleButton: { padding: spacing.xs, flexShrink: 1 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     ghost: { opacity: 0 },
-    centred: { ...StyleSheet.absoluteFillObject, justifyContent: 'center' },
+    centred: { ...StyleSheet.absoluteFill, justifyContent: 'center' },
     title: {
       fontSize: headerSpecs.titleFontSize,
       fontWeight: headerSpecs.titleFontWeight,

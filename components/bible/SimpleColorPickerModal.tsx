@@ -286,7 +286,7 @@ const createStyles = (
       alignItems: tooltipWidth ? 'flex-end' : 'stretch',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     container: {

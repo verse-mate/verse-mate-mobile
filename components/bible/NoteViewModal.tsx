@@ -234,7 +234,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       justifyContent: 'flex-end',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: modalSpecs.backdropColor,
     },
     modalContent: {

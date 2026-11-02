@@ -370,7 +370,7 @@ const createStyles = (
       alignItems: rightPanelWidth ? 'flex-end' : undefined, // Align to right if split view
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: modalSpecs.backdropColor,
     },
     modalContent: {

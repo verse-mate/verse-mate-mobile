@@ -452,7 +452,7 @@ export function VisualsPanel({
               height={videoPlayerHeight}
               play={false}
               webViewStyle={styles.videoWebView}
-              viewContainerStyle={StyleSheet.absoluteFillObject}
+              viewContainerStyle={StyleSheet.absoluteFill}
               onChangeState={(state: string) => {
                 if (__DEV__) {
                   console.debug('[VisualsPanel] yt state:', state);
@@ -660,15 +660,15 @@ const createStyles = (
       borderColor: colors.gray100,
     },
     videoBackdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       opacity: 0.55,
     },
     videoOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.45)',
     },
     videoOverlayContent: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       alignItems: 'center',
       justifyContent: 'center',
       padding: spacing.md,
@@ -728,7 +728,7 @@ const createStyles = (
       zIndex: 2,
     },
     videoErrorOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: '#1B1B1B',

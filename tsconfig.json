@@ -6,7 +6,10 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      // Expo's base config resolves the `react-native` export condition, which msw maps to
+      // nothing for ./node. The tests import it under Node, where it resolves; give tsc its types.
+      "msw/node": ["./node_modules/msw/lib/node/index.d.mts"]
     },
     "types": ["bun-types", "@types/jest"]
   },

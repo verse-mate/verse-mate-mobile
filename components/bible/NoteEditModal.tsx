@@ -412,7 +412,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       justifyContent: 'flex-end',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     container: {

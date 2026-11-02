@@ -450,8 +450,9 @@ function RootLayoutInner() {
       try {
         // Update background color to match theme
         await SystemUI.setBackgroundColorAsync(colors.background);
-        // Update nav bar button style (light buttons on dark theme, dark on light)
-        await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        // Nav bar follows the theme: a dark bar (light buttons) on the dark theme. setStyle names the
+        // bar, the inverse of the removed setButtonStyleAsync, which named the buttons.
+        NavigationBar.setStyle(mode === 'dark' ? 'dark' : 'light');
         // Ensure nav bar is visible (reverting hidden state)
         await NavigationBar.setVisibilityAsync('visible');
       } catch (error) {

@@ -1751,7 +1751,7 @@ const createStyles = (
       alignItems: useSplitView || isTabletPortrait ? 'center' : 'stretch',
     },
     backdropTouchable: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     container: {
       height: modalSpecs.height,

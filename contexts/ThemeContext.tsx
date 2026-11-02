@@ -187,8 +187,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       // Update root window background when theme changes
       SystemUI.setBackgroundColorAsync(colors.background);
 
-      // Update nav bar button color when theme changes
-      NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+      // Nav bar follows the theme. setStyle names the BAR ('dark' = dark bar, light buttons), the
+      // inverse of the removed setButtonStyleAsync, which named the buttons.
+      NavigationBar.setStyle(mode === 'dark' ? 'dark' : 'light');
     }
   }, [mode, colors.background, isLoading]);
 
