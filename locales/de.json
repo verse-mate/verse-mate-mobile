@@ -271,11 +271,6 @@
       "heading": "Im Leben Jesu",
       "more": "{{count}} weitere in diesem Kapitel"
     },
-    "confidence": {
-      "probable": "wahrscheinlich",
-      "disputed": "umstritten",
-      "unknown": "ungewiss"
-    },
     "offline": {
       "message": "Offline — dafür wird eine Verbindung benötigt."
     },

@@ -271,11 +271,6 @@
       "heading": "En la vida de Jesús",
       "more": "{{count}} más en este capítulo"
     },
-    "confidence": {
-      "probable": "probable",
-      "disputed": "en disputa",
-      "unknown": "incierto"
-    },
     "offline": {
       "message": "Sin conexión — esto necesita internet."
     },

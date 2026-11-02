@@ -271,11 +271,6 @@
       "heading": "Na vida de Jesus",
       "more": "mais {{count}} neste capítulo"
     },
-    "confidence": {
-      "probable": "provável",
-      "disputed": "contestado",
-      "unknown": "incerto"
-    },
     "offline": {
       "message": "Sem ligação — isto precisa de internet."
     },
