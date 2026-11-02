@@ -150,6 +150,55 @@ describe('HighlightSelectionSheet', () => {
     });
   });
 
+  it('with All in John picked, the remove row removes the words across the book', async () => {
+    const remove = jest.fn();
+    const removeAllInBook = jest.fn();
+    renderWithTheme(
+      <HighlightSelectionSheet
+        visible={true}
+        verseRange={{ start: 1, end: 1, startChar: 4, endChar: 9 }}
+        text="light"
+        bookName="John"
+        canHighlightAll
+        actions={{ remove }}
+        onRemoveAllInBook={removeAllInBook}
+        onColorSelect={mockOnColorSelect}
+        onClose={mockOnClose}
+      />
+    );
+
+    // On the selection it is the usual remove.
+    expect(screen.getByText('Remove Highlight')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('highlight-scope-book'));
+    expect(screen.getByText('Remove All in John')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('highlight-action-remove'));
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(removeAllInBook).toHaveBeenCalledTimes(1);
+    });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('offers Remove All in John even when the selection itself is not highlighted', () => {
+    renderWithTheme(
+      <HighlightSelectionSheet
+        visible={true}
+        verseRange={{ start: 1, end: 1, startChar: 4, endChar: 9 }}
+        text="light"
+        bookName="John"
+        canHighlightAll
+        onRemoveAllInBook={jest.fn()}
+        onColorSelect={mockOnColorSelect}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(screen.queryByTestId('highlight-action-remove')).toBeNull();
+    fireEvent.press(screen.getByTestId('highlight-scope-book'));
+    expect(screen.getByText('Remove All in John')).toBeTruthy();
+  });
+
   it('closes modal when backdrop is pressed', async () => {
     renderWithTheme(
       <HighlightSelectionSheet

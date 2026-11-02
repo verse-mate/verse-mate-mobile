@@ -140,6 +140,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 
@@ -197,6 +199,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 
@@ -243,6 +247,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 
@@ -272,6 +278,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 
@@ -305,6 +313,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 
@@ -337,6 +347,8 @@ describe('HighlightsScreen', () => {
         addHighlights: jest.fn(),
         updateHighlightColor: jest.fn(),
         deleteHighlight: jest.fn(),
+        deleteHighlights: jest.fn(),
+        loadAllHighlights: jest.fn(),
         refetchHighlights: jest.fn(),
       });
 

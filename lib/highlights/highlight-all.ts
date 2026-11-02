@@ -112,3 +112,80 @@ export async function collectBookOccurrences({
 
 /** More than this asks the reader first: "and" in Genesis would paint the whole book. */
 export const HIGHLIGHT_ALL_CONFIRM_ABOVE = 100;
+
+/** The fields of a saved highlight these helpers read. */
+export interface SavedHighlightLike {
+  highlight_id: number;
+  book_id: number;
+  color: string;
+  start_char: unknown;
+  end_char: unknown;
+  selected_text: unknown;
+  created_at: string;
+}
+
+/** The same words however they are cased, spaced or apostrophed, as findPhraseOccurrences matches. */
+function normalizePhrase(phrase: string): string {
+  return phrase.replace(APOSTROPHES, "'").replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+/** A highlight of some words (character offsets and their text), not of whole verses. */
+function wordsOf(h: SavedHighlightLike): string | null {
+  if (typeof h.start_char !== 'number' || typeof h.end_char !== 'number') return null;
+  return typeof h.selected_text === 'string' && h.selected_text.trim()
+    ? normalizePhrase(h.selected_text)
+    : null;
+}
+
+/**
+ * Every highlight of exactly these words in a book: what "Remove all in John" removes, whichever
+ * way each one was made.
+ */
+export function phraseHighlightsInBook<T extends SavedHighlightLike>(
+  highlights: readonly T[],
+  bookId: number,
+  phrase: string
+): T[] {
+  const words = normalizePhrase(phrase);
+  if (!words) return [];
+  return highlights.filter((h) => h.book_id === bookId && wordsOf(h) === words);
+}
+
+/** Highlight all saves a run back to back (a few at a time); a gap this long ends a run. */
+export const HIGHLIGHT_ALL_RUN_GAP_MS = 60_000;
+
+/**
+ * The "Highlight all" run a highlight belongs to, or null when it was made on its own.
+ *
+ * A saved highlight carries no mark of how it was made, so a run is recognised by what Highlight
+ * all leaves behind: highlights of the same words, in the same colour and book, saved within
+ * seconds of each other. Two or more of those in one burst is a run. Highlighting the same word
+ * by hand, in the same colour, more than once within a minute of the last is the one way to look
+ * like a run without being one.
+ */
+export function highlightAllRun<T extends SavedHighlightLike>(
+  highlights: readonly T[],
+  target: T
+): T[] | null {
+  const words = wordsOf(target);
+  if (!words) return null;
+  const same = highlights
+    .filter(
+      (h) => h.book_id === target.book_id && h.color === target.color && wordsOf(h) === words
+    )
+    .map((h) => ({ h, at: Date.parse(h.created_at) }))
+    .filter(({ at }) => Number.isFinite(at))
+    .sort((a, b) => a.at - b.at);
+
+  let run: T[] = [];
+  let lastAt = Number.NEGATIVE_INFINITY;
+  for (const { h, at } of same) {
+    if (at - lastAt > HIGHLIGHT_ALL_RUN_GAP_MS) {
+      if (run.some((r) => r.highlight_id === target.highlight_id)) break;
+      run = [];
+    }
+    run.push(h);
+    lastAt = at;
+  }
+  return run.length >= 2 && run.some((r) => r.highlight_id === target.highlight_id) ? run : null;
+}

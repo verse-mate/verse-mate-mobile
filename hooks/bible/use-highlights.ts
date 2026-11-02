@@ -142,6 +142,13 @@ export interface UseHighlightsResult {
   updateHighlightColor: (highlightId: number, color: HighlightColor) => Promise<void>;
   /** Delete highlight with optimistic update */
   deleteHighlight: (highlightId: number) => Promise<void>;
+  /**
+   * Delete many highlights, across chapters ("Remove all in John"). Online only; resolves to how
+   * many were removed.
+   */
+  deleteHighlights: (highlightIds: number[]) => Promise<number>;
+  /** Every highlight of the signed-in user, from the server (cached), for book-wide actions. */
+  loadAllHighlights: () => Promise<Highlight[]>;
   /** Manually refetch highlights from API */
   refetchHighlights: () => Promise<void>;
 }
@@ -890,6 +897,58 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   };
 
   /**
+   * Delete many highlights at once, for "Remove all in John" and removing a Highlight all run.
+   *
+   * The counterpart of addHighlights: straight to the API, a few at a time, each removed from the
+   * device copy as it goes, then every highlight query refetches once. A failed one is skipped and
+   * not counted.
+   */
+  const deleteHighlights = async (highlightIds: number[]): Promise<number> => {
+    if (!isAuthenticated || !user?.id) return 0;
+    if (!isOnline) throw new Error('Removing highlights across a book needs a connection');
+    const remove = deleteBibleHighlightByHighlightIdMutation().mutationFn;
+    if (!remove) throw new Error('Mutation function missing');
+
+    let removed = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < highlightIds.length) {
+        const highlightId = highlightIds[next++];
+        try {
+          // biome-ignore lint/suspicious/noExplicitAny: context required by type
+          await remove({ path: { highlight_id: highlightId } }, undefined as any);
+          removed++;
+          try {
+            await deleteLocalHighlight(highlightId);
+          } catch (e) {
+            console.warn('[highlights] local mirror after bulk delete failed:', e);
+          }
+        } catch (e) {
+          console.warn('[highlights] bulk delete: one highlight failed:', e);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, highlightIds.length) }, worker));
+
+    await queryClient.invalidateQueries({
+      predicate: (query) => {
+        const head = query.queryKey[0] as { _id?: string } | string | undefined;
+        const id = typeof head === 'string' ? head : head?._id;
+        return typeof id === 'string' && /highlight/i.test(id);
+      },
+    });
+    return removed;
+  };
+
+  const loadAllHighlights = async (): Promise<Highlight[]> => {
+    if (!isAuthenticated || !user?.id) return [];
+    const data = await queryClient.fetchQuery(
+      getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions)
+    );
+    return data?.highlights ?? [];
+  };
+
+  /**
    * Update highlight color with optimistic update
    */
   const updateHighlightColor = async (
@@ -962,6 +1021,8 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     isHighlighted,
     addHighlight,
     addHighlights,
+    deleteHighlights,
+    loadAllHighlights,
     updateHighlightColor,
     deleteHighlight,
     refetchHighlights,

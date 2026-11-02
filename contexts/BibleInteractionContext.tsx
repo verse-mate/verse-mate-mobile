@@ -30,6 +30,8 @@ import { useDeviceInfo } from '@/hooks/use-device-info';
 import {
   collectBookOccurrences,
   HIGHLIGHT_ALL_CONFIRM_ABOVE,
+  highlightAllRun,
+  phraseHighlightsInBook,
 } from '@/lib/highlights/highlight-all';
 import { bibleChapterQuery, chapterFromQueryData } from '@/src/api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -78,7 +80,15 @@ export function BibleInteractionProvider({
   const { t } = useTranslation();
   
   // Hooks for data
-  const { chapterHighlights, addHighlight, addHighlights, updateHighlightColor, deleteHighlight } =
+  const {
+    chapterHighlights,
+    addHighlight,
+    addHighlights,
+    updateHighlightColor,
+    deleteHighlight,
+    deleteHighlights,
+    loadAllHighlights,
+  } =
     useHighlights({
       bookId,
       chapterNumber,
@@ -184,8 +194,7 @@ export function BibleInteractionProvider({
     }
   };
 
-  const handleRemoveFromTooltip = async (group: HighlightGroup) => {
-    setVerseTooltipState(prev => ({ ...prev, visible: false }));
+  const removeGroup = async (group: HighlightGroup) => {
     try {
       await Promise.all(group.highlights.map((h) => deleteHighlight(h.highlight_id)));
       showToast('Highlight group removed');
@@ -193,6 +202,94 @@ export function BibleInteractionProvider({
       console.error('Failed to remove highlight group:', error);
       showToast('Failed to remove highlight group');
     }
+  };
+
+  /** Remove highlights across the book, then say how many went. */
+  const removeMany = async (ids: number[], phrase: string) => {
+    try {
+      const removed = await deleteHighlights(ids);
+      showToast(
+        removed === ids.length
+          ? `Removed ${removed} \u201C${phrase}\u201D in ${bookName}`
+          : `Removed ${removed} of ${ids.length} \u201C${phrase}\u201D in ${bookName}`
+      );
+    } catch (error) {
+      console.error('Failed to remove highlights:', error);
+      showToast('Failed to remove highlights');
+    }
+  };
+
+  /**
+   * Remove from Verse Insight. A highlight made by "All in John" asks whether to remove just it or
+   * the whole run; any other highlight is removed straight away, as before.
+   */
+  const handleRemoveFromTooltip = async (group: HighlightGroup) => {
+    setVerseTooltipState(prev => ({ ...prev, visible: false }));
+    let run: Highlight[] | null = null;
+    if (isOnline) {
+      try {
+        const all = await loadAllHighlights();
+        for (const h of group.highlights) {
+          const saved = all.find((a) => a.highlight_id === h.highlight_id);
+          run = saved ? highlightAllRun(all, saved) : null;
+          if (run) break;
+        }
+      } catch (error) {
+        // Without the book's highlights this cannot tell a run apart: remove what was tapped.
+        console.warn('[highlights] could not check for a Highlight all run:', error);
+      }
+    }
+    if (!run) {
+      await removeGroup(group);
+      return;
+    }
+    const runIds = run.map((h) => h.highlight_id);
+    const phrase = String(run[0].selected_text ?? '').trim();
+    Alert.alert(
+      'Remove highlight',
+      `\u201C${phrase}\u201D was highlighted in ${runIds.length} places in ${bookName} at once.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'This highlight', onPress: () => void removeGroup(group) },
+        {
+          text: `All ${runIds.length} in ${bookName}`,
+          style: 'destructive',
+          onPress: () => void removeMany(runIds, phrase),
+        },
+      ]
+    );
+  };
+
+  /**
+   * "Remove all in John": every highlight of the selected words in this book, however each was
+   * made. Asks first, with the count.
+   */
+  const removeAllInBook = async (phrase: string) => {
+    if (!isOnline) {
+      showToast(t('highlights.remove_all_offline', 'Removing highlights across a book needs a connection'));
+      return;
+    }
+    let matches: Highlight[];
+    try {
+      matches = phraseHighlightsInBook(await loadAllHighlights(), bookId, phrase);
+    } catch (error) {
+      console.error('Failed to load highlights:', error);
+      showToast('Failed to remove highlights');
+      return;
+    }
+    if (matches.length === 0) {
+      showToast(`No highlights of \u201C${phrase}\u201D in ${bookName}`);
+      return;
+    }
+    const ids = matches.map((h) => h.highlight_id);
+    Alert.alert(
+      `Remove ${ids.length} highlight${ids.length === 1 ? '' : 's'}?`,
+      `Every highlight of \u201C${phrase}\u201D in ${bookName}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove all', style: 'destructive', onPress: () => void removeMany(ids, phrase) },
+      ]
+    );
   };
 
   const handleChangeColorFromTooltip = (group: HighlightGroup) => {
@@ -465,6 +562,7 @@ export function BibleInteractionProvider({
         actions={selectionSheetState.actions}
         bookName={bookName}
         canHighlightAll
+        onRemoveAllInBook={() => void removeAllInBook(selectionSheetState.text)}
         onClose={() => setSelectionSheetState(prev => ({ ...prev, visible: false }))}
         onColorSelect={handleSelectionColor}
         useModal={!useSplitView}
