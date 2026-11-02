@@ -321,10 +321,8 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
 // ─── Study ───────────────────────────────────────────────────────────────────
 
 /**
- * The event as something to work through: who was there, where, when, and the
- * questions it raises. Assembled from the event's own fields rather than the
- * chapter's inductive study, because an event spans several chapters and the
- * chapter study would not be about it.
+ * The event as something to work through: the questions He asks in it, then
+ * the chapter's nine-step inductive study narrowed to the event's verses.
  */
 function StudyBody({ detail }: { detail: JesusEventDetail }) {
   const { t } = useTranslation();
@@ -424,6 +422,14 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
           chapter={span.chapter}
           study={narrowed.study}
           testID="jesus-study-panel"
+          chapterContext={
+            narrowed.narrowed
+              ? {
+                  steps: narrowed.chapterScopedSteps,
+                  label: t('jesus.study.chapterContext', 'Chapter context'),
+                }
+              : undefined
+          }
           header={
             <Text style={styles.studyScope} testID="jesus-study-scope">
               {narrowed.narrowed

@@ -131,6 +131,22 @@ describe('StudyPanel', () => {
     expect(screen.queryByText('Open the chapter prayerfully.')).toBeNull();
   });
 
+  it('marks only the listed steps as chapter context', async () => {
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
+
+    renderWithTheme(
+      <StudyPanel
+        bookId={59}
+        chapter={1}
+        chapterContext={{ steps: new Set([1]), label: 'Chapter context' }}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByTestId('study-panel-step-1-badge')).toBeTruthy());
+    expect(screen.getByText('Chapter context')).toBeTruthy();
+    expect(screen.queryByTestId('study-panel-step-2-badge')).toBeNull();
+  });
+
   it('ramps in every top-level card, not just the first frame batch', async () => {
     mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 

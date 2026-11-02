@@ -294,7 +294,8 @@
       "people": "Personen",
       "questions": "Fragen, die Er hier stellt",
       "scopedTo": "Auf {{range}} der Studie dieses Kapitels beschränkt",
-      "wholeChapter": "Die Studie dieses Kapitels"
+      "wholeChapter": "Die Studie dieses Kapitels",
+      "chapterContext": "Kapitelkontext"
     },
     "entry": {
       "missing": "Diesen Eintrag gibt es nicht.",

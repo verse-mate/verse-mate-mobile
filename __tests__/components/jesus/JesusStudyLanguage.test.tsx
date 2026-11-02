@@ -24,7 +24,17 @@ jest.mock('@/src/api', () => ({
       data: {
         title: 'Luke 2',
         themeOneLine: 'Today in the city of David there has been born for you a Savior.',
-        steps: [{ number: 1, kind: 'keywords', inventory: [{ word: 'temple', verses: '2:46' }] }],
+        steps: [
+          { number: 1, kind: 'prose', title: 'Begin with prayer', body: 'Pray.' },
+          {
+            number: 3,
+            kind: 'keywords',
+            inventory: [
+              { word: 'manger', verses: '2:7' },
+              { word: 'temple', verses: '2:46' },
+            ],
+          },
+        ],
         interpretation: {
           movements: [
             { range: '2:1-7', title: 'The birth' },
@@ -84,4 +94,17 @@ it("titles the narrowed study with the event's passage, not the chapter's theme 
   ).study;
   expect(study.title).toBe('Luke 2:41-52');
   expect(study.themeOneLine).toBeFalsy();
+});
+
+it('flags the steps it could not scope as chapter context', () => {
+  render(<JesusTabBodies tab="study" detail={DETAIL} />);
+  const props = mockPanel.mock.calls.at(-1)?.[0] as {
+    study: { steps: { number: number; inventory?: { word: string }[] }[] };
+    chapterContext?: { steps: Set<number>; label: string };
+  };
+  // The prose step can't be scoped, so it is shown whole and labelled...
+  expect([...(props.chapterContext?.steps ?? [])]).toEqual([1]);
+  expect(props.chapterContext?.label).toBe('Chapter context');
+  // ...while the keyword step is narrowed to the event's verses.
+  expect(props.study.steps[1].inventory?.map((r) => r.word)).toEqual(['temple']);
 });
