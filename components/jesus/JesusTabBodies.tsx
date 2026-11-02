@@ -23,7 +23,6 @@ import {
 import { createInsightMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
-  ConfidenceBadge,
   JesusPill,
   JesusPlaceholder,
   queryPhase,
@@ -532,11 +531,6 @@ function CompareBody({ detail }: { detail: JesusEventDetail }) {
       <Text style={styles.tabTitle}>
         {t('jesus.event.compareOf', 'Compare: {{title}}', { title: detail.event.title })}
       </Text>
-      {compare.data.parallel_confidence ? (
-        <View style={styles.confidenceRow}>
-          <ConfidenceBadge value={compare.data.parallel_confidence} />
-        </View>
-      ) : null}
 
       {/* Rendered like Summary's overview. It used to be a bare <Text> under
           `prose` — a margin-only container style — so it got React Native's
@@ -685,7 +679,6 @@ function createStyles(colors: Colors, scale: number) {
       color: colors.textTertiary,
       marginBottom: spacing.sm,
     },
-    confidenceRow: { flexDirection: 'row', marginTop: spacing.sm },
     accountCard: {
       marginTop: spacing.sm,
       padding: spacing.md,

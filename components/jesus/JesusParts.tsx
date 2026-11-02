@@ -10,11 +10,10 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
-import type { JesusConfidence, JesusEventCard } from '@/types/jesus';
+import type { JesusEventCard } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -75,34 +74,6 @@ export function JesusPlaceholder({
   );
 }
 
-/**
- * How firmly an event is fixed in the chronology.
- *
- * Shown rather than hidden because the value is now assessed per event rather
- * than defaulted — a "disputed" badge tells the reader the Gospels place it
- * differently, which is information, not a disclaimer.
- */
-export function ConfidenceBadge({ value }: { value: JesusConfidence | string }) {
-  const { colors } = useTheme();
-  const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  if (value === 'high') return null; // the default expectation; no badge needed
-  const disputed = value === 'disputed';
-  return (
-    <View
-      style={[styles.badge, disputed ? styles.badgeDisputed : styles.badgeProbable]}
-      testID={`confidence-${value}`}
-    >
-      {/* The API's enum is English; the badge is reader-facing, so it is
-          translated rather than printed raw. An unrecognised value falls back
-          to "uncertain" instead of leaking the wire format onto the screen. */}
-      <Text style={[styles.badgeText, disputed && styles.badgeTextDisputed]}>
-        {t(`jesus.confidence.${value}`, t('jesus.confidence.unknown', 'uncertain'))}
-      </Text>
-    </View>
-  );
-}
-
 /** Section heading with an optional count, used down every screen. */
 export function SectionHeading({
   title,
@@ -152,7 +123,6 @@ export function EventRow({
           <Text style={styles.rowTitle} numberOfLines={2}>
             {event.title}
           </Text>
-          <ConfidenceBadge value={event.chronology_confidence} />
         </View>
         {event.summary ? (
           <Text style={styles.rowSummary} numberOfLines={2}>
@@ -182,20 +152,6 @@ function createStyles(colors: Colors) {
       fontSize: fontSizes.body,
       textAlign: 'center',
     },
-    badge: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
-      borderRadius: radii.sm,
-      marginLeft: spacing.sm,
-    },
-    badgeProbable: { backgroundColor: colors.backgroundSecondary },
-    badgeDisputed: { backgroundColor: colors.warning },
-    badgeText: {
-      fontSize: fontSizes.caption,
-      color: colors.textSecondary,
-      textTransform: 'lowercase',
-    },
-    badgeTextDisputed: { color: colors.white },
     headingRow: {
       flexDirection: 'row',
       alignItems: 'center',
