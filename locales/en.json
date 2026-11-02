@@ -305,6 +305,31 @@
     },
     "compare": {
       "sharedBy": "Told by"
+    },
+    "sermons": {
+      "title": "Sermons",
+      "intro": "His longest teachings. Open an account to read the whole sermon in the Bible.",
+      "hubBlurb": "The Sermon on the Mount and His other great teachings",
+      "nazarethName": "The sermon at Nazareth",
+      "nazarethBlurb": "He reads Isaiah in His hometown synagogue and announces it fulfilled.",
+      "mountName": "The Sermon on the Mount",
+      "mountBlurb": "The Beatitudes, the Lord’s Prayer, and a righteousness deeper than the law.",
+      "plainName": "The Sermon on the Plain",
+      "plainBlurb": "Blessings and woes, love for enemies, and the two builders.",
+      "twelveName": "Sending out the Twelve",
+      "twelveBlurb": "How to go, what to expect, and whom to fear.",
+      "parablesName": "Parables of the kingdom",
+      "parablesBlurb": "The sower, the weeds, the mustard seed, and the hidden treasure.",
+      "breadName": "The Bread of Life",
+      "breadBlurb": "After feeding the five thousand, He calls Himself the bread from heaven.",
+      "togetherName": "Life together",
+      "togetherBlurb": "True greatness, the lost sheep, and forgiving seventy times seven.",
+      "woesName": "Woes on the scribes and Pharisees",
+      "woesBlurb": "Seven woes on religion that loads others and lightens itself.",
+      "olivetName": "The Olivet Discourse",
+      "olivetBlurb": "The temple’s fall, the end of the age, and the call to stay awake.",
+      "upperRoomName": "The Upper Room Discourse",
+      "upperRoomBlurb": "His farewell: the vine, the promised Spirit, and His prayer for His own."
     }
   },
   "navigation": {

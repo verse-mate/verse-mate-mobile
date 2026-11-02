@@ -7,7 +7,7 @@
  * they open for a book.
  *
  * Two modes, mirroring `BookSelector`:
- *  - idle: browse rows — Follow His Life, then every kind, then every study,
+ *  - idle: browse rows — Follow His Life, Sermons, then every kind, then every study,
  *    each with its count — ending in "Open the Jesus tab →" for the hub.
  *  - searching: facets, not events, because someone typing "born again" wants
  *    the saying rather than the scene that contains it. That is the entries
@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEntriesOverview, useJesusEntrySearch } from '@/hooks/jesus';
+import { SERMONS } from '@/lib/jesus/sermons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
@@ -50,6 +51,15 @@ export function JesusNavTab({ query, onNavigate }: { query: string; onNavigate: 
         count: lifeCount,
         to: '/jesus/life',
         testID: 'jesus-tab-follow-his-life',
+      },
+      // Curated in the app (lib/jesus/sermons) rather than served as a kind:
+      // the corpus has no sermon grouping, and this is where a whole sermon
+      // is read.
+      {
+        label: t('jesus.sermons.title', 'Sermons'),
+        count: SERMONS.length,
+        to: '/jesus/sermons',
+        testID: 'jesus-tab-sermons',
       },
       ...(data.sections ?? []).flatMap((section) =>
         (section.kinds ?? []).map((kind) => ({

@@ -305,6 +305,31 @@
     },
     "compare": {
       "sharedBy": "Contado por"
+    },
+    "sermons": {
+      "title": "Sermones",
+      "intro": "Sus enseñanzas más extensas. Abre un relato para leer el sermón completo en la Biblia.",
+      "hubBlurb": "El Sermón del Monte y sus otras grandes enseñanzas",
+      "nazarethName": "El sermón en Nazaret",
+      "nazarethBlurb": "Lee a Isaías en la sinagoga de su pueblo y anuncia que se ha cumplido.",
+      "mountName": "El Sermón del Monte",
+      "mountBlurb": "Las Bienaventuranzas, el Padre Nuestro y una justicia más profunda que la ley.",
+      "plainName": "El Sermón de la llanura",
+      "plainBlurb": "Bendiciones y ayes, el amor a los enemigos y los dos constructores.",
+      "twelveName": "El envío de los Doce",
+      "twelveBlurb": "Cómo ir, qué esperar y a quién temer.",
+      "parablesName": "Las parábolas del reino",
+      "parablesBlurb": "El sembrador, la cizaña, la semilla de mostaza y el tesoro escondido.",
+      "breadName": "El pan de vida",
+      "breadBlurb": "Tras alimentar a los cinco mil, se llama a sí mismo el pan del cielo.",
+      "togetherName": "La vida en comunidad",
+      "togetherBlurb": "La verdadera grandeza, la oveja perdida y perdonar setenta veces siete.",
+      "woesName": "Ayes sobre escribas y fariseos",
+      "woesBlurb": "Siete ayes contra una religión que carga a otros y se alivia a sí misma.",
+      "olivetName": "El discurso del monte de los Olivos",
+      "olivetBlurb": "La caída del templo, el fin de la era y el llamado a velar.",
+      "upperRoomName": "El discurso del aposento alto",
+      "upperRoomBlurb": "Su despedida: la vid, el Espíritu prometido y su oración por los suyos."
     }
   },
   "navigation": {
