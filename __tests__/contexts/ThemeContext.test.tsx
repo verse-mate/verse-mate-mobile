@@ -32,8 +32,13 @@ jest.mock('expo-system-ui', () => ({
   setBackgroundColorAsync: jest.fn(),
 }));
 jest.mock('suncalc');
+// ThemeContext reaches expo-localization through the PostHog provider; since SDK 58 it needs more of
+// react-native (NativeModules, Image.resolveAssetSource) than this file's react-native mock has.
+jest.mock('expo-localization', () => ({
+  getLocales: () => [{ languageTag: 'en-US', languageCode: 'en' }],
+  getCalendars: () => [],
+}));
 jest.mock('react-native', () => ({
-  // expo-constants (via expo-localization) reads NativeModules at import since SDK 58.
   NativeModules: {},
   useColorScheme: jest.fn(),
   Platform: {

@@ -29,10 +29,14 @@ if (!i18next.isInitialized) {
 // implementation it documents for tests.
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 
-// Reanimated 4.7's native entry (which jest-expo resolves) registers a CSS event handler at import,
-// and its JS fallback throws on that under jest, so every suite importing Reanimated failed to run.
-// Its own jest mock is the documented replacement.
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+// Reanimated 4.7's native initializer (the entry jest-expo resolves) always registers a CSS event
+// handler, and JSReanimated (what runs under jest) throws on that, so every suite importing
+// Reanimated failed to run. Its own mock imports the same index and fails the same way. Stub just
+// that call; the rest of Reanimated is the real JS implementation the tests used on SDK 57.
+jest.mock('react-native-reanimated/src/css/native/proxy', () => ({
+  ...jest.requireActual('react-native-reanimated/src/css/native/proxy'),
+  setCSSEventHandler: () => {},
+}));
 
 // jest-expo 58 mocks the `react-native/asset-registry` entry point, but RN 0.88's AssetRegistry
 // (what expo-asset and expo-font read) is the private module behind it, so the mock never applied
