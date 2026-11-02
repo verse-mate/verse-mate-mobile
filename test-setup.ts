@@ -31,6 +31,8 @@ jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock
 
 // The fold probe is a native view; jest has no display, so it reports no regions.
 jest.mock('react-native-reserved-regions', () => ({
+  // __esModule keeps `import * as` on this object, so a test can jest.spyOn a hook.
+  __esModule: true,
   ReservedRegionsProvider: ({ children }: { children: ReactNode }) => children,
   ReservedRegionsGate: ({ children }: { children: ReactNode }) => children,
   useReservedRegions: () => [],

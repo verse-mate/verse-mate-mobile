@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 import { useReservedRegions } from 'react-native-reserved-regions';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import {
   DEFAULT_SPLIT_RATIO,
   type DeviceInfo,
@@ -72,7 +72,9 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
   // An open foldable splits along its fold even below the split-view width:
   // iPhone Duo open in landscape is about 950pt wide, its halves about 470pt.
   const reservedRegions = useReservedRegions();
-  const insets = useSafeAreaInsets();
+  // The context, not useSafeAreaInsets(): that throws outside a SafeAreaProvider, and this provider
+  // also renders in tests without one. Expo Router supplies the provider in the app.
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
   const fold = findVerticalFold(reservedRegions);
   const foldRatio = fold ? foldSplitRatio(fold, deviceInfo.screenWidth, insets) : null;
 

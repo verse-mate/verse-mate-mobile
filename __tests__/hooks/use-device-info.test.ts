@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import React from 'react';
+import * as ReservedRegions from 'react-native-reserved-regions';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { useDeviceInfo, useOrientation } from '@/hooks/use-device-info';
 import { DEFAULT_SPLIT_RATIO, SPLIT_RATIO_STORAGE_KEY } from '@/utils/device-detection';
@@ -18,6 +19,12 @@ jest.unmock('@/hooks/use-device-info');
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
+}));
+
+// react-native is mocked wholesale below, which safe-area-context cannot load against;
+// DeviceInfoProvider only reads its insets context (no provider here = zero insets).
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaInsetsContext: require('react').createContext(null),
 }));
 
 // Mock Dimensions
@@ -154,6 +161,51 @@ describe('useDeviceInfo', () => {
     });
 
     expect(mockAddEventListener).toHaveBeenCalled();
+  });
+});
+
+describe('useDeviceInfo on an open foldable', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAddEventListener.mockReturnValue({ remove: jest.fn() });
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('splits on a vertical fold below the split-view width, with the divider on the fold', async () => {
+    // iPhone Duo open in landscape: narrower than the 1024pt split threshold.
+    mockDimensionsGet.mockReturnValue({ width: 951, height: 669 });
+    jest.spyOn(ReservedRegions, 'useReservedRegions').mockReturnValue([
+      {
+        kind: 'division',
+        frame: { x: 470, y: 0, width: 10, height: 669 },
+        occludesContent: false,
+      },
+    ]);
+
+    const { result } = renderHook(() => useDeviceInfo(), {
+      wrapper: ({ children }) => React.createElement(DeviceInfoProvider, null, children),
+    });
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    expect(result.current.useSplitView).toBe(true);
+    expect(result.current.foldLocked).toBe(true);
+    expect(result.current.splitRatio).toBeCloseTo(475 / 951, 6);
+  });
+
+  it('keeps the phone layout on the same width without a fold', async () => {
+    mockDimensionsGet.mockReturnValue({ width: 951, height: 669 });
+
+    const { result } = renderHook(() => useDeviceInfo(), {
+      wrapper: ({ children }) => React.createElement(DeviceInfoProvider, null, children),
+    });
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    expect(result.current.useSplitView).toBe(false);
+    expect(result.current.foldLocked).toBe(false);
   });
 });
 
