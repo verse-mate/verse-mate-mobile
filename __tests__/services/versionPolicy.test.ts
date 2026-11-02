@@ -94,6 +94,18 @@ describe('checkVersionPolicy', () => {
     });
   });
 
+  it('names its platform, so the backend can follow that store', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeResponse({ minVersion: '1.0.0', version: '1.0.0', releaseNotes: '' })
+    );
+
+    await checkVersionPolicy('1.0.0');
+
+    const request = fetchSpy.mock.calls[0][0] as Request | string;
+    const url = typeof request === 'string' ? request : request.url;
+    expect(url).toContain('/api/version-policy?platform=ios');
+  });
+
   describe('fail-open on errors', () => {
     it('returns mustUpgrade: false on network error', async () => {
       fetchSpy.mockRejectedValueOnce(new TypeError('Network request failed'));
