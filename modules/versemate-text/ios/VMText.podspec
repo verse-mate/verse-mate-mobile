@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   DESC
   s.author         = 'VerseMate'
   s.homepage       = 'https://versemate.org'
-  s.platforms      = { :ios => '15.1', :tvos => '15.1' }
+  s.platforms      = { :ios => '16.4', :tvos => '16.4' }
   s.source         = { git: '' }
   s.static_framework = true
 

@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.author         = package['author']
   s.homepage       = 'https://github.com/versemate/verse-mate-mobile'
   s.platforms      = {
-    :ios => '15.1'
+    :ios => '16.4'
   }
   s.swift_version  = '5.9'
   s.source         = { git: 'https://github.com/versemate/verse-mate-mobile.git' }
