@@ -114,6 +114,8 @@ describe('ChapterHighlightsScreen', () => {
       addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
+      deleteHighlights: jest.fn(),
+      loadAllHighlights: jest.fn(),
     });
   });
 
@@ -189,6 +191,8 @@ describe('ChapterHighlightsScreen', () => {
       addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
+      deleteHighlights: jest.fn(),
+      loadAllHighlights: jest.fn(),
     });
     mockUseLocalSearchParams.mockReturnValue({
       bookId: '1',
@@ -215,6 +219,8 @@ describe('ChapterHighlightsScreen', () => {
       addHighlights: jest.fn(),
       updateHighlightColor: jest.fn(),
       deleteHighlight: jest.fn(),
+      deleteHighlights: jest.fn(),
+      loadAllHighlights: jest.fn(),
     });
     mockUseLocalSearchParams.mockReturnValue({
       bookId: '1',

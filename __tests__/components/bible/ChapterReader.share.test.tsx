@@ -131,6 +131,8 @@ describe('ChapterReader Share Functionality (removed)', () => {
       addHighlights: jest.fn().mockResolvedValue(0),
       updateHighlightColor: jest.fn().mockResolvedValue(undefined),
       deleteHighlight: jest.fn().mockResolvedValue(undefined),
+      deleteHighlights: jest.fn().mockResolvedValue(0),
+      loadAllHighlights: jest.fn().mockResolvedValue([]),
       refetchHighlights: jest.fn(),
       isFetchingHighlights: false,
       isAddingHighlight: false,
