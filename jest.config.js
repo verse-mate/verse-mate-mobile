@@ -6,6 +6,9 @@ module.exports = {
     customExportConditions: ['node', 'require'],
   },
 
+  // Reanimated's and Worklets' jest resolvers over React Native's (see the file).
+  resolver: '<rootDir>/jest-resolver.js',
+
   // Module name mapper for path aliases
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

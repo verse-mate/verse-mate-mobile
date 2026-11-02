@@ -23,36 +23,6 @@ if (!i18next.isInitialized) {
   });
 }
 
-// Worklets 0.10 resolves to its .native files under jest-expo and installs the
-// native module at import, which jest does not have, so every suite importing
-// Reanimated crashed (`loadUnpackers` of undefined). Its shipped mock is the JS
-// implementation it documents for tests.
-jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
-
-// Reanimated 4.7's native initializer (the entry jest-expo resolves) always registers a CSS event
-// handler, and JSReanimated (what runs under jest) throws on that, so every suite importing
-// Reanimated failed to run; its own mock imports the same index and fails the same way. The proxy
-// only forwards CSS animations to the native module, which jest does not have: no-op all of it.
-// (No requireActual here: loading the real proxy loads Reanimated's index, which is what throws.)
-jest.mock('react-native-reanimated/src/css/native/proxy', () => {
-  const noop = () => {};
-  return {
-    __esModule: true,
-    setViewStyle: noop,
-    setCSSEventHandler: noop,
-    markNodeAsRemovable: noop,
-    unmarkNodeAsRemovable: noop,
-    registerCSSKeyframes: noop,
-    unregisterCSSKeyframes: noop,
-    applyCSSAnimations: noop,
-    unregisterCSSAnimations: noop,
-    runCSSTransition: noop,
-    unregisterCSSTransition: noop,
-    registerPseudoStyles: noop,
-    unregisterPseudoStyles: noop,
-  };
-});
-
 // jest-expo 58 mocks the `react-native/asset-registry` entry point, but RN 0.88's AssetRegistry
 // (what expo-asset and expo-font read) is the private module behind it, so the mock never applied
 // and every icon font threw `Module "1" is missing from the asset registry`. Mock that module with

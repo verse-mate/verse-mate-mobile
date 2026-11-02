@@ -36,9 +36,10 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+// Self-contained, not jest.requireActual: the real gesture handler 3 hands Worklets' UI runtime to
+// its native module on a microtask once Reanimated is loaded, and under jest Worklets' web build
+// throws on that ("getUIRuntimeHolder is not supported on web") after the tests have passed.
 jest.mock('react-native-gesture-handler', () => {
-  const actualGH = jest.requireActual('react-native-gesture-handler');
-
   const createMockGesture = () => ({
     minDuration: jest.fn().mockReturnThis(),
     onStart: jest.fn().mockReturnThis(),
@@ -51,11 +52,10 @@ jest.mock('react-native-gesture-handler', () => {
   });
 
   return {
-    ...actualGH,
     Gesture: {
-      ...actualGH.Gesture,
       LongPress: createMockGesture,
       Pan: createMockGesture,
+      Simultaneous: (...gestures: unknown[]) => ({ gestures }),
     },
     GestureDetector: ({ children }: any) => children,
   };
