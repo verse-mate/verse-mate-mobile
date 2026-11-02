@@ -22,6 +22,12 @@ if (!i18next.isInitialized) {
   });
 }
 
+// Worklets 0.10 resolves to its .native files under jest-expo and installs the
+// native module at import, which jest does not have, so every suite importing
+// Reanimated crashed (`loadUnpackers` of undefined). Its shipped mock is the JS
+// implementation it documents for tests.
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
+
 // Mock toast context — no-op showToast/hideToast so hooks calling useToast() in
 // tests don't blow up on the "must be within ToastProvider" guard.
 jest.mock('@/contexts/ToastContext', () => ({

@@ -12,11 +12,13 @@
 import { ExtensionStorage } from '@bacons/apple-targets';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import SharedGroupPreferences from 'react-native-shared-group-preferences';
 
 import { widgetStrings } from '@/widgets/widget-strings';
 
 const APP_GROUP = 'group.org.versemate.app';
+// Writes plain strings to UserDefaults(suiteName: APP_GROUP), which is what the
+// widget's `string(forKey:)` reads.
+const groupStorage = new ExtensionStorage(APP_GROUP);
 const VERSION_KEY = 'preferred_bible_version';
 // Personalization id (the logged-in user's own id). The Android widget reads
 // it from AsyncStorage (shared JS sandbox); the iOS widget reads it from the
@@ -59,11 +61,7 @@ function reloadIosWidget(): void {
 export async function syncWidgetStrings(languageCode: string | null): Promise<void> {
   if (Platform.OS !== 'ios') return;
   try {
-    await SharedGroupPreferences.setItem(
-      STRINGS_GROUP_KEY,
-      JSON.stringify(widgetStrings(languageCode)),
-      APP_GROUP
-    );
+    groupStorage.set(STRINGS_GROUP_KEY, JSON.stringify(widgetStrings(languageCode)));
     reloadIosWidget();
   } catch (error) {
     if (__DEV__) console.warn('[widget] failed to sync strings:', error);
@@ -74,7 +72,7 @@ export async function syncWidgetBibleVersion(version: string): Promise<void> {
   // iOS-only: Android's widget reads AsyncStorage in its own JS task handler.
   if (Platform.OS !== 'ios') return;
   try {
-    await SharedGroupPreferences.setItem(VERSION_KEY, version, APP_GROUP);
+    groupStorage.set(VERSION_KEY, version);
     reloadIosWidget();
   } catch (error) {
     if (__DEV__) {
@@ -100,8 +98,8 @@ export async function syncWidgetUserId(userId: string | null): Promise<void> {
       await AsyncStorage.removeItem(USER_ID_ASYNC_KEY);
     }
     if (Platform.OS === 'ios') {
-      // No delete API — store empty string to represent "no user".
-      await SharedGroupPreferences.setItem(USER_ID_GROUP_KEY, userId ?? '', APP_GROUP);
+      // Empty string = "no user" (the widget treats it as absent).
+      groupStorage.set(USER_ID_GROUP_KEY, userId ?? '');
       reloadIosWidget();
     }
   } catch (error) {
