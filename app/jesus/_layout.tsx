@@ -17,7 +17,7 @@ import { Stack } from 'expo-router';
  * underneath, there is always a Jesus page to return to — see useJesusBack.
  */
 export const unstable_settings = {
-  initialRouteName: 'index',
+  anchor: 'index',
 };
 
 export default function JesusLayout() {
