@@ -45,7 +45,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run type checking
-        run: bun tsc --noEmit
+        run: bun run type-check
 
       - name: Run linting
         run: bun run lint
