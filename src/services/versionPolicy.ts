@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { lt as semverLt } from 'semver';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { client } from '@/src/api/generated/client.gen';
@@ -31,6 +32,10 @@ async function fetchVersionPolicy(): Promise<VersionPolicyResponse> {
   try {
     const { data, error } = await client.get<{ 200: VersionPolicyResponse }, unknown, false>({
       url: '/api/version-policy',
+      // The backend raises minVersion to the version live on this platform's store, so the
+      // update prompt appears once a new release can be downloaded here. Builds without this
+      // parameter are told apart by their User-Agent.
+      query: { platform: Platform.OS },
       signal: controller.signal,
     });
     if (error || !data) throw new Error('Version policy fetch failed');
