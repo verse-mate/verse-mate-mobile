@@ -12,7 +12,7 @@
  * passage order — rather than from a second request.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import {
@@ -24,6 +24,7 @@ import { createInsightMarkdownStyles } from '@/components/bible/insightMarkdownS
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
   ConfidenceBadge,
+  JesusPill,
   JesusPlaceholder,
   queryPhase,
   uniqueGospels,
@@ -321,42 +322,35 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
 // ─── Study ───────────────────────────────────────────────────────────────────
 
 /**
- * The event as something to work through: who was there, where, when, and the
- * questions it raises. Assembled from the event's own fields rather than the
- * chapter's inductive study, because an event spans several chapters and the
- * chapter study would not be about it.
+ * The event as something to work through: the questions He asks in it, then
+ * the chapter's nine-step inductive study narrowed to the event's verses.
  */
 function StudyBody({ detail }: { detail: JesusEventDetail }) {
   const { t } = useTranslation();
   const { styles } = useTabStyles();
   const { event } = detail;
 
-  /**
-   * The chapter's inductive study, narrowed to this event's verses.
+  /*
+   * One study per Gospel account, picked with a chip row.
    *
-   * Reported as "Study structure of Jesus feature didn't make app version":
-   * this tab rendered a five-row metadata table where web renders the nine-step
-   * Precept study scoped to the pericope. There is no event-scoped study
-   * content and there does not need to be — the study tags almost everything
-   * with a verse reference, and an event knows the verses it covers, so
-   * keeping only what touches them turns the Luke 2 study into a study of
-   * Luke 2:41-52. Same helper web uses, ported verbatim.
+   * Reported as "the study material only reflecting 1 of the several gospels
+   * that cite this story": the temptation is Matthew 4:1-11, Mark 1:12-13 and
+   * Luke 4:1-13, but this tab only ever narrowed the PRIMARY passage's chapter
+   * study, so it was a study of Matthew 4 alone — while the scripture above
+   * and the By-Line tab both carry every account. Each account is its own
+   * chapter and its own study, so each is narrowed to its own verses.
    *
-   * The PRIMARY passage decides the span: an event told by three Gospels has
-   * three chapter studies, and the one being read is the one to narrow.
+   * A picker rather than stacking them: each is a full nine-step study, and
+   * three of them end to end would bury the second and third accounts.
    */
-  const primary = useMemo(() => {
-    const passages = detail.passages ?? [];
-    return passages.find((p) => p.is_primary) ?? passages[0] ?? null;
-  }, [detail.passages]);
-  const span = useMemo(() => eventVerseSpan(primary), [primary]);
-  // In the reader's language, as StudyPanel asks for it.
-  const language = usePreferredLanguage();
-  const { data: chapterStudy } = useStudy(span?.bookId ?? 0, span?.chapter ?? 0, language);
-  const narrowed = useMemo(
-    () => (chapterStudy && span ? narrowStudyToEvent(chapterStudy, span) : null),
-    [chapterStudy, span]
+  const passages = detail.passages ?? [];
+  const primaryIndex = Math.max(
+    0,
+    passages.findIndex((p) => p.is_primary)
   );
+  const [selected, setSelected] = useState<number | null>(null);
+  const activeIndex = selected != null && selected < passages.length ? selected : primaryIndex;
+  const active = passages[activeIndex] ?? null;
 
   /*
    * No Where / When / Period / Accounts / People table.
@@ -399,30 +393,111 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
         </>
       ) : null}
 
-      {/*
-        The chapter's study, scoped to this event. Rendered through the app's
-        OWN StudyPanel rather than a Jesus-specific copy, so the nine-step
-        spine, the card chrome and the frame-ramp behaviour are the same ones
-        the reader's Study tab uses and cannot drift from them.
-      */}
-      {narrowed && span ? (
-        <StudyPanel
-          bookId={span.bookId}
-          chapter={span.chapter}
-          study={narrowed.study}
-          testID="jesus-study-panel"
-          header={
-            <Text style={styles.studyScope} testID="jesus-study-scope">
-              {narrowed.narrowed
-                ? t('jesus.study.scopedTo', 'Scoped to {{range}} of this chapter’s study', {
-                    range: spanRangeLabel(span),
-                  })
-                : t('jesus.study.wholeChapter', 'This chapter’s study')}
-            </Text>
-          }
-        />
+      {passages.length > 1 ? (
+        <>
+          <Text style={styles.sectionLabel}>
+            {t('jesus.study.accountPicker', 'Study each account')}
+          </Text>
+          <View style={styles.accountPicker} testID="jesus-study-accounts">
+            {passages.map((passage, index) => (
+              <JesusPill
+                key={`${passage.display}-${index}`}
+                label={passage.display}
+                active={index === activeIndex}
+                onPress={() => setSelected(index)}
+                testID={`jesus-study-account-${passage.display}`}
+              />
+            ))}
+          </View>
+        </>
       ) : null}
+
+      {active ? <StudyAccount key={`${active.display}-${activeIndex}`} passage={active} /> : null}
     </View>
+  );
+}
+
+/**
+ * One account's chapter study, narrowed to that account's verses.
+ *
+ * Its own component for the same reason BylineAccount is: each account is a
+ * different chapter and so a different fetch, and hooks cannot run in a loop.
+ */
+function StudyAccount({ passage }: { passage: JesusEventPassage }) {
+  const { t } = useTranslation();
+  const { styles } = useTabStyles();
+
+  /*
+   * There is no event-scoped study content and there does not need to be —
+   * the study tags almost everything with a verse reference, and an event
+   * knows the verses it covers, so keeping only what touches them turns the
+   * Luke 2 study into a study of Luke 2:41-52. Same helper web uses.
+   */
+  const span = useMemo(() => eventVerseSpan(passage), [passage]);
+  // In the reader's language, as StudyPanel asks for it.
+  const language = usePreferredLanguage();
+  const query = useStudy(span?.bookId ?? 0, span?.chapter ?? 0, language);
+  const chapterStudy = query.data;
+  const narrowed = useMemo(() => {
+    if (!chapterStudy || !span) return null;
+    const result = narrowStudyToEvent(chapterStudy, span);
+    if (!result.narrowed) return result;
+    /*
+     * The narrowed study keeps the CHAPTER's header: "Inductive Study of
+     * Luke 2" over Luke 2's theme line, which is 2:11 ("Today in the city of
+     * David…"). Under "The boy in the temple" that read as wrong content, a
+     * verse thirty verses before the event. Web titles this study with the
+     * passage ("Inductive Study of Luke 2:41-52") and shows no chapter theme,
+     * so do the same here.
+     */
+    return {
+      ...result,
+      study: { ...result.study, title: span.display, themeOneLine: '' },
+    };
+  }, [chapterStudy, span]);
+
+  if (!span) return null;
+  if (!narrowed) {
+    if (query.isPending) return <JesusPlaceholder loading testID="jesus-study-loading" />;
+    // Named, not omitted — the same reasoning as an empty By-Line account.
+    return (
+      <Text style={styles.bylineNote} testID={`jesus-study-empty-${passage.display}`}>
+        {t('jesus.study.noStudyForAccount', 'The study of {{account}} hasn’t been generated yet.', {
+          account: passage.display,
+        })}
+      </Text>
+    );
+  }
+
+  /*
+   * Rendered through the app's OWN StudyPanel rather than a Jesus-specific
+   * copy, so the nine-step spine, the card chrome and the frame-ramp
+   * behaviour are the same ones the reader's Study tab uses.
+   */
+  return (
+    <StudyPanel
+      bookId={span.bookId}
+      chapter={span.chapter}
+      study={narrowed.study}
+      testID="jesus-study-panel"
+      chapterContext={
+        narrowed.narrowed
+          ? {
+              steps: narrowed.chapterScopedSteps,
+              label: t('jesus.study.chapterContext', 'Chapter context'),
+            }
+          : undefined
+      }
+      header={
+        <Text style={styles.studyScope} testID="jesus-study-scope">
+          {narrowed.narrowed
+            ? t('jesus.study.scopedTo', 'Scoped to {{range}} of this chapter’s study', {
+                range: spanRangeLabel(span),
+              })
+            : t('jesus.study.wholeChapter', 'This chapter’s study')}
+        </Text>
+      }
+    />
   );
 }
 
@@ -598,6 +673,12 @@ function createStyles(colors: Colors, scale: number) {
       paddingBottom: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.divider,
+    },
+    accountPicker: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
     },
     studyScope: {
       fontSize: size(fontSizes.caption),

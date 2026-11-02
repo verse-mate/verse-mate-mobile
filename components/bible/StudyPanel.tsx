@@ -61,6 +61,15 @@ export interface StudyPanelProps {
   study?: InductiveStudy | null;
   /** Rendered above the first card — e.g. "Luke 2:41-52" scope note. */
   header?: React.ReactNode;
+  /**
+   * Observation steps shown WHOLE because nothing in them could be scoped to
+   * the caller's verses (the prayer step, untagged prose, the five W's). The
+   * Jesus event screen passes these so each such card carries a "Chapter
+   * context" pill — without it a narrowed study shows e.g. Luke 2's shepherds
+   * under "The boy in the temple" with nothing saying why. Web marks the same
+   * cards (JesusStudyBody's ChapterContextBadge).
+   */
+  chapterContext?: { steps: ReadonlySet<number>; label: string };
 }
 
 type Colors = ReturnType<typeof getColors>;
@@ -102,6 +111,7 @@ export function StudyPanel({
   testID = 'study-panel',
   study: studyOverride,
   header,
+  chapterContext,
 }: StudyPanelProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -336,6 +346,7 @@ export function StudyPanel({
             colors={colors}
             styles={styles}
             markdownStyles={markdownStyles}
+            badge={chapterContext?.steps.has(step.number) ? chapterContext.label : undefined}
             testID={`${testID}-step-${step.number}`}
           />
         ) : null
@@ -447,10 +458,21 @@ interface StepCardProps {
   colors: Colors;
   styles: Styles;
   markdownStyles: MarkdownStyles;
+  /** Small pill under the heading — "Chapter context" on a narrowed study. */
+  badge?: string;
   testID: string;
 }
 
-function StepCard({ step, isOpen, toggle, colors, styles, markdownStyles, testID }: StepCardProps) {
+function StepCard({
+  step,
+  isOpen,
+  toggle,
+  colors,
+  styles,
+  markdownStyles,
+  badge,
+  testID,
+}: StepCardProps) {
   const id = `step-${step.number}`;
   const open = isOpen(id);
   return (
@@ -460,6 +482,7 @@ function StepCard({ step, isOpen, toggle, colors, styles, markdownStyles, testID
       heading={step.title}
       subheading={step.summary}
       stepNumber={step.number}
+      badge={badge}
       colors={colors}
       styles={styles}
       testID={testID}
@@ -838,6 +861,7 @@ interface CardProps {
   stepNumber?: number;
   /** Verse-range pill rendered to the left of the heading (interpretation movements). */
   subPill?: string;
+  badge?: string;
   colors: Colors;
   styles: Styles;
   testID: string;
@@ -851,6 +875,7 @@ function Card({
   subheading,
   stepNumber,
   subPill,
+  badge,
   colors,
   styles,
   testID,
@@ -889,6 +914,11 @@ function Card({
               </Text>
             </View>
             {subheading ? <Text style={styles.cardSubheading}>{subheading}</Text> : null}
+            {badge ? (
+              <View style={styles.badge} testID={`${testID}-badge`}>
+                <Text style={styles.badgeText}>{badge}</Text>
+              </View>
+            ) : null}
           </View>
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
@@ -1196,6 +1226,22 @@ const createStyles = (colors: Colors) =>
       marginTop: spacing.xs,
       paddingLeft: 36, // align under step title (28px circle + ~8px gap)
       lineHeight: fontSizes.bodySmall * lineHeights.body,
+    },
+    badge: {
+      alignSelf: 'flex-start',
+      marginTop: spacing.xs,
+      marginLeft: 36, // align under step title, like cardSubheading
+      paddingHorizontal: 7,
+      paddingVertical: 1,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.textSecondary,
+    },
+    badgeText: {
+      fontSize: 11,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: colors.textSecondary,
     },
     cardBody: {
       paddingBottom: spacing.md,

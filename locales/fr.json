@@ -294,7 +294,10 @@
       "people": "Personnes",
       "questions": "Questions qu’Il pose ici",
       "scopedTo": "Limité à {{range}} de l’étude de ce chapitre",
-      "wholeChapter": "L’étude de ce chapitre"
+      "wholeChapter": "L’étude de ce chapitre",
+      "chapterContext": "Contexte du chapitre",
+      "accountPicker": "Étudier chaque récit",
+      "noStudyForAccount": "L’étude de {{account}} n’a pas encore été générée."
     },
     "entry": {
       "missing": "Cette entrée n’existe pas.",
