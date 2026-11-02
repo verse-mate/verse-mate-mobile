@@ -29,6 +29,35 @@ if (!i18next.isInitialized) {
 // implementation it documents for tests.
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 
+// Reanimated 4.7's native entry (which jest-expo resolves) registers a CSS event handler at import,
+// and its JS fallback throws on that under jest, so every suite importing Reanimated failed to run.
+// Its own jest mock is the documented replacement.
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+
+// jest-expo 58 mocks the `react-native/asset-registry` entry point, but RN 0.88's AssetRegistry
+// (what expo-asset and expo-font read) is the private module behind it, so the mock never applied
+// and every icon font threw `Module "1" is missing from the asset registry`. Mock that module with
+// the same stub jest-expo uses; every asset require is `1` under jest-expo's transformer.
+jest.mock('react-native/src/private/assets/AssetRegistry', () => {
+  const asset = {
+    fileSystemLocation: '/full/path/to/directory',
+    httpServerLocation: '/assets/full/path/to/directory',
+    scales: [1],
+    fileHashes: ['md5'],
+    name: 'name',
+    exists: true,
+    type: 'type',
+    hash: 'md5',
+    uri: 'uri',
+    width: 1,
+    height: 1,
+  };
+  return {
+    __esModule: true,
+    AssetRegistry: { registerAsset: jest.fn(() => 1), getAssetByID: jest.fn(() => asset) },
+  };
+});
+
 // The fold probe is a native view; jest has no display, so it reports no regions.
 jest.mock('react-native-reserved-regions', () => ({
   // __esModule keeps `import * as` on this object, so a test can jest.spyOn a hook.
