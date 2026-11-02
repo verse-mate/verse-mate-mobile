@@ -24,7 +24,7 @@
         "@versemate/studies": "github:verse-mate/verse-mate-studies#b91fa3ca9bbdaf0ccf27d290ebba2b7ff68f593f",
         "@versemate/visuals": "github:verse-mate/verse-mate-visuals#6e8a427",
         "axios": "^1.12.2",
-        "expo": "^55.0.0",
+        "expo": "~55.0.32",
         "expo-apple-authentication": "~55.0.17",
         "expo-application": "~55.0.19",
         "expo-asset": "~55.0.20",
