@@ -558,6 +558,24 @@ export interface VerseSelection {
   text: string;
 }
 
+/** A letter, digit or in-word apostrophe ("Lord's"): what a word is made of. */
+const WORD_CHAR = /[\p{L}\p{N}'\u2019]/u;
+
+/**
+ * Widen a selection to whole words: an end that falls inside a word moves out to that word's edge.
+ *
+ * Andy (2026-11-02): a highlight should never cut a word ("He was in the wor|ld"); the smallest
+ * thing to act on is a word. Native selection handles can stop mid-word when dragged, so the
+ * offsets are snapped here, before Highlight / Copy / Note / Share see them.
+ */
+export function snapToWords(text: string, start: number, end: number): [number, number] {
+  let from = Math.max(0, start);
+  let to = Math.min(text.length, end);
+  while (from > 0 && WORD_CHAR.test(text[from - 1]) && WORD_CHAR.test(text[from] ?? '')) from--;
+  while (to < text.length && WORD_CHAR.test(text[to - 1] ?? '') && WORD_CHAR.test(text[to])) to++;
+  return [from, to];
+}
+
 /**
  * Map a native selection (compiled offsets, end exclusive) to verses and verse-text offsets.
  *

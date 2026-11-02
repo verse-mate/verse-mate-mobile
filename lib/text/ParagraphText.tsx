@@ -36,6 +36,7 @@ import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
 import {
   compileParagraph,
+  snapToWords,
   type VerseSelection,
   verseAtOffset,
   verseNumberNearOffset,
@@ -120,6 +121,11 @@ export function defineChoicesFor(
   return meaningful.length > 0 ? meaningful : all;
 }
 
+type SelectionActionId = 'define' | 'highlight' | 'copy' | 'note' | 'share';
+
+/** Localised labels for the selection menu, by action. */
+export type SelectionLabels = Partial<Record<SelectionActionId, string>>;
+
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Verses to render, in reading order. */
   verses: ParagraphInput['verses'];
@@ -151,11 +157,15 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
    * it, Define shows the word the selection starts in, as for a single word.
    */
   onDefineSelection?: (choices: DefineChoice[]) => void;
+  /** Copy, Note and Share from the selection menu, each with what the reader selected. */
+  onCopySelection?: (selection: VerseSelection) => void;
+  onNoteSelection?: (selection: VerseSelection) => void;
+  onShareSelection?: (selection: VerseSelection) => void;
   /**
    * Localised menu labels for the selection actions. An action is offered only when its label and
-   * its handler are both given.
+   * its handler are both given. Supplying Copy replaces the platform's own.
    */
-  selectionLabels?: { highlight?: string; define?: string };
+  selectionLabels?: SelectionLabels;
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
   /**
@@ -217,6 +227,9 @@ export function ParagraphText(props: ParagraphTextProps) {
     onWordPress,
     onHighlightSelection,
     onDefineSelection,
+    onCopySelection,
+    onNoteSelection,
+    onShareSelection,
     selectionLabels,
     onTextLayout,
     onSelectionChange,
@@ -352,10 +365,43 @@ export function ParagraphText(props: ParagraphTextProps) {
     return index === -1 ? null : index;
   }, []);
 
+  /**
+   * The user highlight under a tap, if any: the topmost one covering the offset.
+   *
+   * A tap anywhere inside a highlight is a tap on that highlight, whatever else sits there. Lexicon
+   * words keep an (invisible) tap target that is layered above highlights, and a word next to a
+   * verse number is claimed by the number; both used to open Verse Insight as an unhighlighted
+   * verse, so parts of a highlighted verse offered "Save as my highlight" while others offered
+   * "Remove" (Sebastian, 2026-11-01).
+   */
+  const highlightIdAt = useCallback(
+    (offset: number): number | null => {
+      if (!onHighlightTap) return null;
+      // Beside the NEXT verse's number, the number wins (the heuristic below): that tap meant the
+      // next verse, even if it touched the end of a highlighted one.
+      const nearNumber = verseNumberNearOffset(compiled, offset, lineOf);
+      if (nearNumber !== null && nearNumber !== verseAtOffset(compiled, offset)) return null;
+      for (let i = compiled.ranges.length - 1; i >= 0; i--) {
+        const target = compiled.targets[i];
+        const range = compiled.ranges[i];
+        if (target?.kind === 'highlight' && offset >= range.start && offset < range.end) {
+          return target.highlightId;
+        }
+      }
+      return null;
+    },
+    [compiled, lineOf, onHighlightTap]
+  );
+
   const handleRangeTap = useCallback(
     (index: number, charOffset: number) => {
       const target = compiled.targets[index];
       if (!target) return;
+      const underHighlight = highlightIdAt(charOffset);
+      if (underHighlight !== null && target.kind !== 'verseNumber') {
+        onHighlightTap?.(underHighlight);
+        return;
+      }
       // A finger that lands just beside a verse number meant the number, even when the word it
       // touched has a target of its own. The first word after a number very often does (a lexicon
       // word, a highlight), and with the underlines gone nothing shows which — so letting the word
@@ -384,7 +430,7 @@ export function ParagraphText(props: ParagraphTextProps) {
           break;
       }
     },
-    [compiled, lineOf, onVerseTap, onHighlightTap, onAutoHighlightPress]
+    [compiled, lineOf, highlightIdAt, onVerseTap, onHighlightTap, onAutoHighlightPress]
   );
 
   /**
@@ -396,6 +442,11 @@ export function ParagraphText(props: ParagraphTextProps) {
   const handlePress = useCallback(
     (event: TextPressEvent) => {
       if (!onVerseTap) return;
+      const underHighlight = highlightIdAt(event.charOffset);
+      if (underHighlight !== null) {
+        onHighlightTap?.(underHighlight);
+        return;
+      }
       const nearNumber = verseNumberNearOffset(compiled, event.charOffset, lineOf);
       if (nearNumber !== null) {
         onVerseTap(nearNumber, 'number');
@@ -404,20 +455,36 @@ export function ParagraphText(props: ParagraphTextProps) {
       const verseNumber = verseAtOffset(compiled, event.charOffset);
       if (verseNumber !== null) onVerseTap(verseNumber, 'text');
     },
-    [compiled, lineOf, onVerseTap]
+    [compiled, lineOf, highlightIdAt, onVerseTap, onHighlightTap]
   );
 
   const canDefine = !!(onWordPress || onLexiconWordPress);
+  // Andy's order (2026-11-01): Define, Highlight, Copy, Note, Share, in one row. The platform folds
+  // what does not fit behind its arrow rather than wrapping to a second row.
   const selectionActions = useMemo(() => {
-    const actions: { id: string; label: string }[] = [];
-    if (onHighlightSelection && selectionLabels?.highlight) {
-      actions.push({ id: 'highlight', label: selectionLabels.highlight });
-    }
-    if (canDefine && selectionLabels?.define) {
-      actions.push({ id: 'define', label: selectionLabels.define });
+    const offered: [SelectionActionId, boolean][] = [
+      ['define', canDefine],
+      ['highlight', !!onHighlightSelection],
+      ['copy', !!onCopySelection],
+      ['note', !!onNoteSelection],
+      ['share', !!onShareSelection],
+    ];
+    // Note and Share sit behind the arrow: it opens only what the row does not show (Andy).
+    const behindArrow = new Set<SelectionActionId>(['note', 'share']);
+    const actions: { id: string; label: string; more?: boolean }[] = [];
+    for (const [id, handled] of offered) {
+      const label = selectionLabels?.[id];
+      if (handled && label) actions.push({ id, label, ...(behindArrow.has(id) ? { more: true } : {}) });
     }
     return actions;
-  }, [onHighlightSelection, canDefine, selectionLabels?.highlight, selectionLabels?.define]);
+  }, [
+    canDefine,
+    onHighlightSelection,
+    onCopySelection,
+    onNoteSelection,
+    onShareSelection,
+    selectionLabels,
+  ]);
 
   /**
    * Highlight / Define from the selection menu.
@@ -428,9 +495,17 @@ export function ParagraphText(props: ParagraphTextProps) {
    */
   const handleSelectionAction = useCallback(
     ({ id, start, end }: TextSelectionActionEvent) => {
-      if (id === 'highlight') {
-        const selection = verseSelectionFromOffsets(compiled, start, end);
-        if (selection) onHighlightSelection?.(selection);
+      const verseHandlers: Record<string, ((selection: VerseSelection) => void) | undefined> = {
+        highlight: onHighlightSelection,
+        copy: onCopySelection,
+        note: onNoteSelection,
+        share: onShareSelection,
+      };
+      const verseHandler = verseHandlers[id];
+      if (verseHandler) {
+        const [from, to] = snapToWords(compiled.text, start, end);
+        const selection = verseSelectionFromOffsets(compiled, from, to);
+        if (selection) verseHandler(selection);
         return;
       }
       if (id !== 'define') return;
@@ -463,7 +538,16 @@ export function ParagraphText(props: ParagraphTextProps) {
       if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
       onWordPress?.({ word, verseNumber });
     },
-    [compiled, onHighlightSelection, onDefineSelection, onLexiconWordPress, onWordPress]
+    [
+      compiled,
+      onHighlightSelection,
+      onCopySelection,
+      onNoteSelection,
+      onShareSelection,
+      onDefineSelection,
+      onLexiconWordPress,
+      onWordPress,
+    ]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph

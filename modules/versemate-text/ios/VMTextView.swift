@@ -42,7 +42,7 @@ final class VMTextView: ExpoView {
   /// `0 as CGFloat` is not noise — `CGSize(width: 0, …)` selects the `Int` overload, and
   /// `.greatestFiniteMagnitude` does not exist on `Int`, which fails as
   /// "ambiguous use of 'greatestFiniteMagnitude'".
-  private let textKit: (view: UITextView, storage: NSTextStorage) = {
+  private let textKit: (view: VMMenuTextView, storage: NSTextStorage) = {
     let storage = NSTextStorage()
     let layoutManager = NSLayoutManager()
     // Lay the WHOLE block out, always. This is the switch that was cutting the text.
@@ -64,10 +64,10 @@ final class VMTextView: ExpoView {
     let container = NSTextContainer(size: CGSize(width: 0 as CGFloat, height: .greatestFiniteMagnitude))
     container.widthTracksTextView = true
     layoutManager.addTextContainer(container)
-    return (UITextView(frame: .zero, textContainer: container), storage)
+    return (VMMenuTextView(frame: .zero, textContainer: container), storage)
   }()
 
-  private var textView: UITextView { textKit.view }
+  private var textView: VMMenuTextView { textKit.view }
 
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
@@ -101,16 +101,23 @@ final class VMTextView: ExpoView {
   /// verse, and act on it from the menu (Highlight, Define). UITextView already does the hold, the
   /// drag, the handles and the loupe; this only adds entries to the menu it shows.
   private var selectionActions: [(id: String, label: String)] = []
+  /// Ids of the actions that sit behind the menu's "more" arrow (a submenu) instead of in its row.
+  private var moreActionIds: Set<String> = []
 
-  /// Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx).
+  /// Decode `id~label|id~label~more` (see `encodeSelectionActions` in VMText.tsx).
   func setSelectionActions(_ encoded: String?) {
+    var more = Set<String>()
     selectionActions = (encoded ?? "")
       .split(separator: "|", omittingEmptySubsequences: true)
       .compactMap { chunk in
-        let parts = chunk.split(separator: "~", maxSplits: 1, omittingEmptySubsequences: false)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        let parts = chunk.split(separator: "~", omittingEmptySubsequences: false)
+        guard parts.count >= 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        if parts.count > 2, parts[2] == "more" { more.insert(String(parts[0])) }
         return (String(parts[0]), String(parts[1]))
       }
+    moreActionIds = more
+    textView.trimsSystemMenu = !selectionActions.isEmpty
+    textView.keepsSystemCopy = !selectionActions.contains { $0.id == "copy" }
   }
 
   /// iOS 15's menu validates the app's items up the responder chain to here (see the extension below).
@@ -167,6 +174,10 @@ final class VMTextView: ExpoView {
     // over them with its own opaque background.
     textView.isOpaque = false
     textView.delegate = self
+    // Scripture is read, not rewritten: no Writing Tools entry in the menu or floating button.
+    if #available(iOS 18.0, *) {
+      textView.writingToolsBehavior = .none
+    }
     // Taps are ours; selection gestures stay the text view's. A tap recogniser added to the text view
     // would fight its own; adding it to the container and forwarding the point avoids that.
     textView.isUserInteractionEnabled = true
@@ -405,6 +416,8 @@ final class VMTextView: ExpoView {
     layoutManager.ensureLayout(for: container)
     let nsText = spec.text as NSString
 
+    drawHighlights(in: context, layoutManager: layoutManager, container: container, text: nsText)
+
     for range in spec.ranges {
       guard let style = range.underlineStyle, !style.isEmpty else { continue }
       let start = min(max(range.start, 0), nsText.length)
@@ -469,6 +482,68 @@ final class VMTextView: ExpoView {
     guard allGlyphs.length > 0 else { return }
     layoutManager.drawBackground(forGlyphRange: allGlyphs, at: .zero)
     layoutManager.drawGlyphs(forGlyphRange: allGlyphs, at: .zero)
+  }
+
+  /**
+   Paint every range's background as a rounded rectangle per line, hugging the glyphs.
+
+   Vertically it runs from the font's ascender to its descender around the line's baseline, plus a
+   hair of padding, instead of over the whole line fragment: with an exact line height TextKit puts the
+   extra leading above the text, so a fragment-sized box sat high and cut the descenders off. Each line
+   a range wraps onto gets its own rounded piece, like a highlighter pass per line.
+   */
+  private func drawHighlights(
+    in context: CGContext,
+    layoutManager: NSLayoutManager,
+    container: NSTextContainer,
+    text nsText: NSString
+  ) {
+    let storage = textView.textStorage
+    let fallbackFont = vmFont(family: spec.fontFamily, size: spec.fontSizePt, bold: false, italic: false)
+    let viewWidth = bounds.width
+    for range in spec.ranges {
+      guard let color = range.backgroundColor else { continue }
+      let start = min(max(range.start, 0), nsText.length)
+      let end = min(max(range.end, start), nsText.length)
+      if end <= start { continue }
+      let glyphRange = layoutManager.glyphRange(
+        forCharacterRange: NSRange(location: start, length: end - start), actualCharacterRange: nil
+      )
+      context.saveGState()
+      context.setFillColor(color.cgColor)
+      layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphs, _ in
+        var piece = NSIntersectionRange(glyphRange, lineGlyphs)
+        guard piece.length > 0 else { return }
+        // A trailing space at a wrap is part of the range but not something to paint.
+        while piece.length > 0 {
+          let last = layoutManager.characterIndexForGlyph(at: NSMaxRange(piece) - 1)
+          guard last < nsText.length,
+                let scalar = UnicodeScalar(nsText.character(at: last)),
+                CharacterSet.whitespaces.contains(scalar) else { break }
+          piece.length -= 1
+        }
+        guard piece.length > 0 else { return }
+        let charIndex = layoutManager.characterIndexForGlyph(at: piece.location)
+        let font = (storage.attribute(.font, at: charIndex, effectiveRange: nil) as? UIFont)
+          ?? fallbackFont
+        let baseline = lineRect.minY + layoutManager.location(forGlyphAt: piece.location).y
+        let bounds = layoutManager.boundingRect(forGlyphRange: piece, in: container)
+        // Kept inside the view: a highlight starting a line would otherwise lose its left corner to
+        // the view's edge, since the padding reaches past x = 0.
+        var rect = vmHighlightRect(
+          minX: bounds.minX, maxX: bounds.maxX, baseline: baseline,
+          ascender: font.ascender, descender: font.descender, fontSize: font.pointSize
+        )
+        let left = max(rect.minX, 0)
+        let right = min(rect.maxX, viewWidth)
+        rect.origin.x = left
+        rect.size.width = max(right - left, 0)
+        let radius = vmHighlightCornerRadius(for: rect, fontSize: font.pointSize)
+        context.addPath(UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath)
+        context.fillPath()
+      }
+      context.restoreGState()
+    }
   }
 
   // MARK: - Interaction
@@ -573,7 +648,12 @@ extension VMTextView: UITextViewDelegate {
     }
   }
 
-  /// iOS 16+: the app's items first, then everything the system suggests (Copy, Look Up, Share…).
+  /// iOS 16+: the app's items and nothing of the system's, except Copy when the app has none.
+  ///
+  /// Andy asked for the rest to go (2026-11-01): Writing Tools, Look Up, Translate, Search Web and
+  /// Share… crowded the app's items, and Share… sent bare text, so the share sheet showed a generic
+  /// text icon instead of VerseMate's. The reader supplies its own Copy and Share (with the verse
+  /// reference and a link), so there the menu is exactly the app's list, in its order.
   ///
   /// `range` is the selection the menu is for, captured when the menu opens, so the action reports
   /// exactly what the reader saw selected even if the selection moves afterwards.
@@ -584,25 +664,73 @@ extension VMTextView: UITextViewDelegate {
     suggestedActions: [UIMenuElement]
   ) -> UIMenu? {
     guard !selectionActions.isEmpty, range.length > 0 else { return nil }
-    let custom = selectionActions.map { action in
-      UIAction(title: action.label) { [weak self] _ in
-        self?.dispatchSelectionAction(id: action.id, range: range)
+    let action: ((id: String, label: String)) -> UIAction = { item in
+      UIAction(title: item.label) { [weak self] _ in
+        self?.dispatchSelectionAction(id: item.id, range: range)
       }
     }
-    return UIMenu(children: custom + suggestedActions)
+    let row = selectionActions.filter { !moreActionIds.contains($0.id) }.map(action)
+    let behindArrow = selectionActions.filter { moreActionIds.contains($0.id) }.map(action)
+    // The arrow is a submenu of only the rest, so opening it shows Note and Share — not iOS's own
+    // overflow, which re-lists every item (Andy, 2026-11-02).
+    let more: [UIMenuElement] = behindArrow.isEmpty
+      ? []
+      : [UIMenu(title: "", image: UIImage(systemName: "chevron.forward"), children: behindArrow)]
+    let appCopies = selectionActions.contains { $0.id == Self.appCopyActionId }
+    return UIMenu(children: row + (appCopies ? [] : Self.copyOnly(suggestedActions)) + more)
+  }
+
+  /// An app action with this id replaces the system's Copy.
+  private static let appCopyActionId = "copy"
+
+  /// The system's Copy command (localized, with its icon), wherever it sits in the suggested menu tree.
+  @available(iOS 16.0, *)
+  private static func copyOnly(_ elements: [UIMenuElement]) -> [UIMenuElement] {
+    elements.compactMap { element in
+      if let command = element as? UICommand {
+        return command.action == #selector(UIResponderStandardEditActions.copy(_:)) ? command : nil
+      }
+      if let menu = element as? UIMenu {
+        let kept = copyOnly(menu.children)
+        return kept.isEmpty ? nil : menu.replacingChildren(kept)
+      }
+      return nil
+    }
   }
 }
 
 // MARK: - Selection menu before iOS 16
 
+/// The reader's text view. Only exists for iOS 15's menu, which lists every action the first responder
+/// says it can perform: with the app's items present, the text view's own (Look Up, Share…, Select All)
+/// are refused, leaving the app's items and Copy. iOS 16+ trims the menu in `editMenuForTextIn`.
+final class VMMenuTextView: UITextView {
+  var trimsSystemMenu = false
+  /// False when the app supplies its own Copy, which then replaces the system's.
+  var keepsSystemCopy = true
+
+  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+    if #unavailable(iOS 16.0), trimsSystemMenu,
+      !(keepsSystemCopy && action == #selector(UIResponderStandardEditActions.copy(_:))),
+      // The app's items are implemented on VMTextView, not here: those still go up the chain.
+      responds(to: action)
+    {
+      return false
+    }
+    return super.canPerformAction(action, withSender: sender)
+  }
+}
+
 /// iOS 15 has no `editMenuForTextIn`; its menu is `UIMenuController`, which takes items with fixed
-/// selectors. Three slots cover the app's actions (it uses two). The text view is first responder,
+/// selectors. Five slots cover the app's actions (the reader uses all five). The text view is first responder,
 /// so UIKit validates and sends these up the responder chain to this view, its superview.
 extension VMTextView {
   private static let legacySelectors: [Selector] = [
     #selector(VMTextView.vmSelectionAction0),
     #selector(VMTextView.vmSelectionAction1),
     #selector(VMTextView.vmSelectionAction2),
+    #selector(VMTextView.vmSelectionAction3),
+    #selector(VMTextView.vmSelectionAction4),
   ]
 
   fileprivate func canPerformLegacyAction(_ action: Selector) -> Bool? {
@@ -620,6 +748,8 @@ extension VMTextView {
   @objc fileprivate func vmSelectionAction0() { performLegacySelectionAction(0) }
   @objc fileprivate func vmSelectionAction1() { performLegacySelectionAction(1) }
   @objc fileprivate func vmSelectionAction2() { performLegacySelectionAction(2) }
+  @objc fileprivate func vmSelectionAction3() { performLegacySelectionAction(3) }
+  @objc fileprivate func vmSelectionAction4() { performLegacySelectionAction(4) }
 
   private func performLegacySelectionAction(_ slot: Int) {
     guard slot < selectionActions.count else { return }

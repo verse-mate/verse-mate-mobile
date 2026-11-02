@@ -57,6 +57,13 @@ import type { Note } from '@/types/notes';
 /**
  * Props for NotesModal component
  */
+/** The verse a new note is on, when the reader chose Note on a selection. */
+export interface NoteVerseContext {
+  verseNumber: number;
+  /** The selected words, shown above the box so the reader sees what the note is about. */
+  quote?: string;
+}
+
 export interface NotesModalProps {
   /** Whether modal is visible */
   visible: boolean;
@@ -68,6 +75,8 @@ export interface NotesModalProps {
   bookName: string;
   /** Callback when modal is closed */
   onClose: () => void;
+  /** Write the new note on this verse instead of the whole chapter. */
+  verse?: NoteVerseContext | null;
 }
 
 /**
@@ -75,7 +84,14 @@ export interface NotesModalProps {
  *
  * Displays modal for managing chapter notes with add form and existing notes list.
  */
-export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }: NotesModalProps) {
+export function NotesModal({
+  visible,
+  bookId,
+  chapterNumber,
+  bookName,
+  onClose,
+  verse,
+}: NotesModalProps) {
   const { colors, mode } = useTheme();
   const styles = createStyles(colors, mode);
   const { addNote, isAddingNote, deleteNote } = useNotes();
@@ -214,7 +230,7 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
 
     try {
       const noteContent = newNoteContent.trim();
-      const addedNote = await addNote(bookId, chapterNumber, noteContent);
+      const addedNote = await addNote(bookId, chapterNumber, noteContent, verse?.verseNumber);
 
       // Clear textarea after successful addition
       setNewNoteContent('');
@@ -327,7 +343,14 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
             >
               {/* Add New Note Section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Add New Note</Text>
+                <Text style={styles.sectionTitle}>
+                  {verse ? `Note on verse ${verse.verseNumber}` : 'Add New Note'}
+                </Text>
+                {verse?.quote ? (
+                  <Text style={styles.verseQuote} numberOfLines={3} testID="note-verse-quote">
+                    {`\u201C${verse.quote}\u201D`}
+                  </Text>
+                ) : null}
 
                 <TextInput
                   ref={textInputRef}
@@ -387,7 +410,12 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                   <View style={{ gap: 12 }}>
                     {recentNotes.map((note) => (
                       <View key={note.note_id} style={styles.noteCard}>
-                        <Text style={styles.noteContent}>{note.content}</Text>
+                        <View style={styles.noteBody}>
+                          {typeof note.verse_number === 'number' ? (
+                            <Text style={styles.noteVerse}>{`Verse ${note.verse_number}`}</Text>
+                          ) : null}
+                          <Text style={styles.noteContent}>{note.content}</Text>
+                        </View>
                         <Pressable
                           onPress={() => handleNoteMenuPress(note)}
                           style={styles.noteMenuButton}
@@ -506,6 +534,15 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },
+    verseQuote: {
+      fontSize: fontSizes.bodySmall,
+      fontStyle: 'italic',
+      color: colors.textSecondary,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.gold,
+      paddingLeft: spacing.sm,
+      marginBottom: spacing.md,
+    },
     textarea: {
       borderWidth: 1,
       borderColor: colors.border,
@@ -577,8 +614,16 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       alignItems: 'flex-start',
       gap: spacing.sm,
     },
-    noteContent: {
+    noteBody: {
       flex: 1,
+    },
+    noteVerse: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.gold,
+      marginBottom: 2,
+    },
+    noteContent: {
       fontSize: fontSizes.body,
       color: colors.textPrimary,
       lineHeight: fontSizes.body * 1.5,

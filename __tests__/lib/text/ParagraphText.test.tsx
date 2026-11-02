@@ -136,6 +136,30 @@ describe('ParagraphText tap routing', () => {
     expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
   });
 
+  it('gives a tap on a lexicon word inside a highlight to the highlight', () => {
+    // The lexicon word's tap target is layered above the highlight's. Routing it to the verse
+    // opened Verse Insight as unhighlighted ("Save as my highlight") on a highlighted verse.
+    const alignment = alignmentFor({ G1: 'beginning' });
+    const highlights = [highlight({ highlight_id: 42 })];
+    const input = { verses: VERSES, alignment, highlights, theme: THEME };
+    const compiled = compileParagraph(input);
+    const tree = renderParagraph({ alignment, highlights });
+
+    getRangeTap(tree)(indexOfTag('lexicon:', input), compiled.text.indexOf('beginning') + 3);
+    expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('gives a plain press inside a highlight to the highlight', () => {
+    const highlights = [highlight({ highlight_id: 42 })];
+    const compiled = compileParagraph({ verses: VERSES, highlights, theme: THEME });
+    const tree = renderParagraph({ highlights });
+
+    getPress(tree)({ charOffset: compiled.text.indexOf('beginning') + 3, x: 0, y: 0 });
+    expect(tree.handlers.onHighlightTap).toHaveBeenCalledWith(42);
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
   it('routes an auto-highlight range tap with the whole object', () => {
     const autoHighlights = [autoHighlight()];
     const tree = renderParagraph({ autoHighlights });
@@ -243,14 +267,54 @@ describe('ParagraphText selection menu', () => {
 
   it('offers Highlight and Define only when each has a label and a handler', () => {
     renderParagraph({ onHighlightSelection: jest.fn(), selectionLabels: LABELS });
+    // Andy's order (2026-11-01): Define first.
     expect(capturedSelectionActions).toEqual([
-      { id: 'highlight', label: 'Highlight' },
       { id: 'define', label: 'Define' },
+      { id: 'highlight', label: 'Highlight' },
     ]);
 
     renderParagraph({ onLexiconWordPress: undefined, selectionLabels: LABELS });
     expect(capturedSelectionActions).toEqual([]);
     expect(capturedSelectionAction).toBeUndefined();
+  });
+
+  it('offers Define, Highlight, Copy, Note, Share in that order, and hands each the selection', () => {
+    const handlers = {
+      onHighlightSelection: jest.fn(),
+      onCopySelection: jest.fn(),
+      onNoteSelection: jest.fn(),
+      onShareSelection: jest.fn(),
+    };
+    renderParagraph({
+      ...handlers,
+      selectionLabels: { ...LABELS, copy: 'Copy', note: 'Note', share: 'Share' },
+    });
+    expect(capturedSelectionActions?.map((a) => a.id)).toEqual([
+      'define',
+      'highlight',
+      'copy',
+      'note',
+      'share',
+    ]);
+    // Andy: the arrow opens only what the row does not already show.
+    expect(capturedSelectionActions?.filter((a) => a.more).map((a) => a.id)).toEqual([
+      'note',
+      'share',
+    ]);
+
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const start = compiled.text.indexOf('God');
+    const end = start + 'God'.length;
+    for (const [id, handler] of [
+      ['copy', handlers.onCopySelection],
+      ['note', handlers.onNoteSelection],
+      ['share', handlers.onShareSelection],
+    ] as const) {
+      getSelectionAction()({ id, start, end });
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ startVerse: 1, endVerse: 1, text: 'God' })
+      );
+    }
   });
 
   it('turns Highlight into verse and character offsets, numbers left out', () => {
@@ -350,7 +414,7 @@ describe('ParagraphText selection menu', () => {
 
 let capturedRangeTap: ((index: number, charOffset: number) => void) | undefined;
 let capturedPress: ((event: { charOffset: number; x: number; y: number }) => void) | undefined;
-let capturedSelectionActions: { id: string; label: string }[] | undefined;
+let capturedSelectionActions: { id: string; label: string; more?: boolean }[] | undefined;
 let capturedSelectionAction:
   | ((event: { id: string; start: number; end: number }) => void)
   | undefined;

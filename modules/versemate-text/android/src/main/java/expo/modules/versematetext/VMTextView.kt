@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
+import android.graphics.RectF
 import android.text.Layout
 import android.text.TextPaint
 import android.util.TypedValue
@@ -77,20 +78,25 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
    * the handles and the floating menu; this only adds entries to that menu.
    */
   private var selectionActions: List<Pair<String, String>> = emptyList()
+  /** Ids that go in the toolbar's overflow menu rather than its row (Note, Share: Andy, 2026-11-02). */
+  private var moreActionIds: Set<String> = emptySet()
 
   /** Decode `id~label|id~label` (see `encodeSelectionActions` in VMText.tsx). */
   fun setSelectionActions(encoded: String?) {
+    val more = mutableSetOf<String>()
     selectionActions = (encoded ?: "")
       .split('|')
       .filter { it.isNotEmpty() }
       .mapNotNull { chunk ->
-        val parts = chunk.split('~', limit = 2)
-        if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+        val parts = chunk.split('~')
+        if (parts.size >= 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) {
+          if (parts.size > 2 && parts[2] == "more") more.add(parts[0])
           parts[0] to parts[1]
         } else {
           null
         }
       }
+    moreActionIds = more
   }
 
   /**
@@ -171,6 +177,15 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       style = Paint.Style.STROKE
     }
 
+    private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+    }
+
+    /** Scratch paint for a range's font metrics (its size can differ from the base). */
+    private val metricsPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+
+    private val highlightRect = RectF()
+
     /** Last reported layout signature, so identical geometry is not re-emitted. */
     private var lastLayoutKey: String? = null
 
@@ -236,11 +251,16 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private val selectionMenuCallback = object : ActionMode.Callback {
       override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         addSelectionActions(menu)
+        trimSystemItems(menu)
         return true
       }
 
-      override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean =
-        addSelectionActions(menu)
+      override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+        val added = addSelectionActions(menu)
+        // Prepare runs again when the platform adds its assist items (Call, Map…) late.
+        val trimmed = trimSystemItems(menu)
+        return added || trimmed
+      }
 
       override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
         val action = selectionActions.getOrNull(item.itemId - SELECTION_MENU_ID_BASE) ?: return false
@@ -257,13 +277,42 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       override fun onDestroyActionMode(mode: ActionMode) {}
     }
 
+    /**
+     * Keep the app's items, plus the platform's Copy when the app has no "copy" of its own; drop
+     * Share, Select all, Web search, Translate and the other text-processing apps. Andy asked for
+     * that on iOS (2026-11-01) and both platforms match. Only when the app supplies items: elsewhere
+     * the platform menu stays whole. True when the menu changed.
+     */
+    private fun trimSystemItems(menu: Menu): Boolean {
+      if (selectionActions.isEmpty()) return false
+      val appIds = selectionActions.indices.map { SELECTION_MENU_ID_BASE + it }.toSet()
+      val keepSystemCopy = selectionActions.none { it.first == "copy" }
+      var changed = false
+      while (true) {
+        // removeItem(id) drops the FIRST item with that id, and text-processing items all share
+        // id 0, so look the next victim up afresh each time rather than walking indices.
+        val victim = (0 until menu.size()).map { menu.getItem(it) }
+          .firstOrNull { it.itemId !in appIds && !(keepSystemCopy && it.itemId == android.R.id.copy) }
+          ?: break
+        menu.removeItem(victim.itemId)
+        changed = true
+      }
+      return changed
+    }
+
     /** Add any missing app items, in order, before the platform's. True when the menu changed. */
     private fun addSelectionActions(menu: Menu): Boolean {
       var changed = false
-      selectionActions.forEachIndexed { index, (_, label) ->
+      selectionActions.forEachIndexed { index, (actionId, label) ->
         val id = SELECTION_MENU_ID_BASE + index
         if (menu.findItem(id) == null) {
-          menu.add(Menu.NONE, id, index, label).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+          // Overflow items only ever open from the toolbar's "more", which then lists just them.
+          val show = if (actionId in moreActionIds) {
+            MenuItem.SHOW_AS_ACTION_NEVER
+          } else {
+            MenuItem.SHOW_AS_ACTION_IF_ROOM
+          }
+          menu.add(Menu.NONE, id, index, label).setShowAsAction(show)
           changed = true
         }
       }
@@ -348,12 +397,68 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     }
 
     override fun onDraw(canvas: Canvas) {
+      // Backgrounds go under the glyphs, so before super.onDraw paints the text.
+      layout?.let { resolved ->
+        for (range in spec.ranges) {
+          drawHighlight(canvas, resolved, range)
+        }
+      }
       super.onDraw(canvas)
       val resolved = layout ?: return
       for (range in spec.ranges) {
         drawUnderline(canvas, resolved, range)
       }
       reportLayoutIfChanged(resolved)
+    }
+
+    /**
+     * Draw one range's background as a rounded box per line, hugging the letters.
+     *
+     * Not a BackgroundColorSpan: that paints the whole line box, from line top to line bottom, so
+     * with our tall line height the colour was a flat block that sat high over the words (Andy,
+     * 2026-11-01). This box runs from the font's ascent to its descent plus a little padding,
+     * matching iOS's `vmHighlightRect` constants.
+     */
+    private fun drawHighlight(canvas: Canvas, layout: Layout, range: VMRange) {
+      val color = range.backgroundColor ?: return
+      val length = text?.length ?: 0
+      val start = range.start.coerceIn(0, length)
+      val end = range.end.coerceIn(start, length)
+      if (end <= start) return
+
+      metricsPaint.set(paint)
+      metricsPaint.textSize = paint.textSize * range.fontScale
+      val metrics = metricsPaint.fontMetrics
+      val fontSize = metricsPaint.textSize
+      val padX = fontSize * HIGHLIGHT_PAD_X_EM
+      val padY = fontSize * HIGHLIGHT_PAD_Y_EM
+      highlightPaint.color = color
+
+      val firstLine = layout.getLineForOffset(start)
+      val lastLine = layout.getLineForOffset(end)
+      for (line in firstLine..lastLine) {
+        val from = maxOf(start, layout.getLineStart(line))
+        // getLineVisibleEnd drops the trailing space at a wrap, so a box never ends in a blank.
+        val to = minOf(end, layout.getLineVisibleEnd(line))
+        if (to <= from) continue
+
+        val x1 = layout.getPrimaryHorizontal(from)
+        // At the very end of a line getPrimaryHorizontal can report the next line's start (0).
+        val x2 = if (to == layout.getLineEnd(line) && to != from) {
+          layout.getLineRight(line)
+        } else {
+          layout.getPrimaryHorizontal(to)
+        }
+        val baseline = layout.getLineBaseline(line).toFloat()
+        highlightRect.set(
+          (minOf(x1, x2) - padX).coerceAtLeast(0f),
+          baseline + metrics.ascent - padY,
+          (maxOf(x1, x2) + padX).coerceAtMost(width.toFloat()),
+          baseline + metrics.descent + padY,
+        )
+        val radius = minOf(fontSize * HIGHLIGHT_RADIUS_EM, highlightRect.height() / 2f)
+        canvas.drawRoundRect(highlightRect, radius, radius, highlightPaint)
+      }
     }
 
     /**
@@ -720,6 +825,14 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      * (g, y, p) at body sizes without the line detaching from the word.
      */
     private const val UNDERLINE_BASELINE_OFFSET_DP = 3f
+
+    /**
+     * Highlight box padding and corner radius, in ems of the highlighted text. The same values as
+     * iOS's `vmHighlightPadXEm` / `vmHighlightPadYEm` / `vmHighlightCornerRadius`: keep them in step.
+     */
+    private const val HIGHLIGHT_PAD_X_EM = 0.12f
+    private const val HIGHLIGHT_PAD_Y_EM = 0.04f
+    private const val HIGHLIGHT_RADIUS_EM = 0.25f
 
     /**
      * The view that currently holds a text selection, if any.

@@ -260,9 +260,10 @@ extension VMTextSpec {
       if end <= start { continue }
       let nsRange = NSRange(location: start, length: end - start)
 
-      if let background = range.backgroundColor {
-        attributed.addAttribute(.backgroundColor, value: background, range: nsRange)
-      }
+      // No `.backgroundColor` attribute: TextKit paints it as a flat box over the whole line
+      // fragment, leading included, so with an exact line height it sat above the letters and cut
+      // their descenders off (Andy, 2026-11-01). VMTextView.draw(_:) paints backgrounds itself, as
+      // rounded rectangles that hug the glyphs.
       if let color = range.textColor {
         attributed.addAttribute(.foregroundColor, value: color, range: nsRange)
       }
@@ -314,4 +315,29 @@ extension VMTextSpec {
     }
     return attributed
   }
+}
+
+// MARK: - Highlight geometry (kept identical to VMTextView.kt's)
+
+/// Padding around a highlight, as a share of the font size: a little air left and right of the
+/// glyphs, a hair above the ascender and below the descender.
+let vmHighlightPadXEm: CGFloat = 0.12
+let vmHighlightPadYEm: CGFloat = 0.04
+
+/// The box one line of a highlight fills: its glyphs' horizontal extent, and the font's ascender to
+/// descender around the baseline (descender is negative, as UIFont reports it).
+func vmHighlightRect(
+  minX: CGFloat, maxX: CGFloat, baseline: CGFloat,
+  ascender: CGFloat, descender: CGFloat, fontSize: CGFloat
+) -> CGRect {
+  let padX = fontSize * vmHighlightPadXEm
+  let padY = fontSize * vmHighlightPadYEm
+  let top = baseline - ascender - padY
+  let bottom = baseline - descender + padY
+  return CGRect(x: minX - padX, y: top, width: maxX - minX + padX * 2, height: bottom - top)
+}
+
+/// Rounded, but never a pill: a quarter of the font size, at most half the box's height.
+func vmHighlightCornerRadius(for rect: CGRect, fontSize: CGFloat) -> CGFloat {
+  min(fontSize * 0.25, rect.height / 2)
 }

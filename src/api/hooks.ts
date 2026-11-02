@@ -26,7 +26,7 @@ import {
 } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
-import type { ExplanationContent } from './bible/types';
+import type { ChapterContent, ExplanationContent } from './bible/types';
 import {
   transformChapterResponse,
   transformExplanationResponse,
@@ -120,51 +120,32 @@ export const useBibleTestaments = (
 export const useBibleBooks = (options?: Options<GetBibleBooksData>) =>
   useQuery(getBibleBooksOptions(options));
 
-// Bible Chapter - wrapper for simpler API with Offline Support
-export const useBibleChapter = (
+/**
+ * Query key and fetch for one chapter: the device's copy when the book is downloaded, else the API.
+ *
+ * Shared by `useBibleChapter` and anything that loads chapters outside a component ("Highlight
+ * all" reads a whole book), so both hit the same cache entries and the same text.
+ */
+export function bibleChapterQuery(
   bookId: number,
   chapterNumber: number,
-  version?: string,
-  options?: { enabled?: boolean }
-) => {
-  const { downloadedBibleBooks, isInitialized } = useOfflineContext();
+  version: string | undefined,
+  isLocal: boolean
+) {
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
-  // Book-level granularity: only treat as local if THIS specific book is downloaded.
-  // Version-level checks masked deletions of individual books, since the version would
-  // still be listed as "downloaded" when 65/66 books remained.
-  // Default to {} for tests that mock useOfflineContext with a partial object.
-  const isLocal = (downloadedBibleBooks?.[effectiveVersion] || []).includes(bookId);
-
   // Use the generated query key so prefetch cache hits work
   const generatedOpts = getBibleBookByBookIdByChapterNumberOptions({
     path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
     query: version ? { versionKey: version } : undefined,
   });
-  console.log(
-    '[useBibleChapter] book=%d ch=%d version=%s isLocal=%s',
-    bookId,
-    chapterNumber,
-    version ?? '(undefined→NASB1995)',
-    isLocal
-  );
-
-  const query = useQuery({
+  return {
     // isLocal is appended to the key so that the SQLite path and the network
     // path use separate cache entries. Without this, a chapter loaded online
     // (API response cached under the base key with staleTime:Infinity) would
     // be served stale when the user goes offline, bypassing the SQLite read
     // and returning null because the transform chain doesn't match.
     queryKey: [...generatedOpts.queryKey, isLocal],
-    staleTime: Number.POSITIVE_INFINITY, // Bible text is immutable within a session
-    // Must be 'always' so the queryFn runs when offline. The default 'online'
-    // mode pauses queries when there is no network, which would prevent the
-    // isLocal=true path from reading SQLite and always show the offline screen.
-    networkMode: 'always',
-    // Always refetch when connectivity returns, even though staleTime: Infinity
-    // would otherwise suppress it — covers the case where the user was on the
-    // OfflineContentUnavailable screen and the previous fetch errored out.
-    refetchOnReconnect: 'always',
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }: { signal?: AbortSignal }) => {
       if (isLocal) {
         const verses = await getLocalBibleChapter(effectiveVersion, bookId, chapterNumber);
         if (!verses || verses.length === 0) return null;
@@ -205,6 +186,55 @@ export const useBibleChapter = (
 
       return response;
     },
+  };
+}
+
+/** A chapter query's data as the reader uses it: sections of verses, from either source. */
+// biome-ignore lint/suspicious/noExplicitAny: the query returns the local shape or the API's
+export function chapterFromQueryData(data: any): ChapterContent | null {
+  return data
+    ? 'sections' in data
+      ? (data as ChapterContent) // Already transformed (local path)
+      : 'book' in data
+        ? transformChapterResponse(data)
+        : null
+    : null;
+}
+
+// Bible Chapter - wrapper for simpler API with Offline Support
+export const useBibleChapter = (
+  bookId: number,
+  chapterNumber: number,
+  version?: string,
+  options?: { enabled?: boolean }
+) => {
+  const { downloadedBibleBooks, isInitialized } = useOfflineContext();
+  const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
+  // Book-level granularity: only treat as local if THIS specific book is downloaded.
+  // Version-level checks masked deletions of individual books, since the version would
+  // still be listed as "downloaded" when 65/66 books remained.
+  // Default to {} for tests that mock useOfflineContext with a partial object.
+  const isLocal = (downloadedBibleBooks?.[effectiveVersion] || []).includes(bookId);
+
+  console.log(
+    '[useBibleChapter] book=%d ch=%d version=%s isLocal=%s',
+    bookId,
+    chapterNumber,
+    version ?? '(undefined→NASB1995)',
+    isLocal
+  );
+
+  const query = useQuery({
+    ...bibleChapterQuery(bookId, chapterNumber, version, isLocal),
+    staleTime: Number.POSITIVE_INFINITY, // Bible text is immutable within a session
+    // Must be 'always' so the queryFn runs when offline. The default 'online'
+    // mode pauses queries when there is no network, which would prevent the
+    // isLocal=true path from reading SQLite and always show the offline screen.
+    networkMode: 'always',
+    // Always refetch when connectivity returns, even though staleTime: Infinity
+    // would otherwise suppress it — covers the case where the user was on the
+    // OfflineContentUnavailable screen and the previous fetch errored out.
+    refetchOnReconnect: 'always',
     // isInitialized gates the query so a cold offline open doesn't fire a
     // network fetch before SQLite is ready — which would cache an error and
     // leave the screen stuck on OfflineContentUnavailable even when the book
@@ -214,14 +244,7 @@ export const useBibleChapter = (
 
   return {
     ...query,
-    data: query.data
-      ? 'sections' in query.data
-        ? query.data // Already transformed (local path)
-        : 'book' in query.data
-          ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
-            transformChapterResponse(query.data as any)
-          : null
-      : null,
+    data: chapterFromQueryData(query.data),
   };
 };
 

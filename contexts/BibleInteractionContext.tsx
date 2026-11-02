@@ -9,16 +9,31 @@
 
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
-import { HighlightSelectionSheet, type VerseRange } from '@/components/bible/HighlightSelectionSheet';
+import {
+  type HighlightScope,
+  type HighlightSheetActions,
+  HighlightSelectionSheet,
+  type VerseRange,
+} from '@/components/bible/HighlightSelectionSheet';
 import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
+import { getBookById } from '@/constants/bible-books';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import type { VersemateTooltipSource } from '@/lib/analytics/types';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import {
+  collectBookOccurrences,
+  HIGHLIGHT_ALL_CONFIRM_ABOVE,
+} from '@/lib/highlights/highlight-all';
+import { bibleChapterQuery, chapterFromQueryData } from '@/src/api/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +52,7 @@ interface BibleInteractionContextType {
   // Interaction Triggers
   openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText: string | undefined, source: VersemateTooltipSource) => void;
   openAutoHighlightTooltip: (autoHighlight: AutoHighlight) => void;
-  openHighlightSelection: (range: VerseRange, text: string) => void;
+  openHighlightSelection: (range: VerseRange, text: string, actions?: HighlightSheetActions) => void;
   openHighlightEditMenu: (id: number, color: HighlightColor) => void;
   closeAll: () => void;
 }
@@ -63,10 +78,14 @@ export function BibleInteractionProvider({
   const { t } = useTranslation();
   
   // Hooks for data
-  const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
-    bookId,
-    chapterNumber,
-  });
+  const { chapterHighlights, addHighlight, addHighlights, updateHighlightColor, deleteHighlight } =
+    useHighlights({
+      bookId,
+      chapterNumber,
+    });
+  const queryClient = useQueryClient();
+  const { isOnline, downloadedBibleBooks } = useOfflineContext();
+  const { bibleVersion } = useBibleVersion();
   const { autoHighlights } = useAutoHighlights({
     bookId,
     chapterNumber,
@@ -90,6 +109,7 @@ export function BibleInteractionProvider({
     visible: boolean;
     range: VerseRange;
     text: string;
+    actions?: HighlightSheetActions;
   }>({ visible: false, range: { start: 0, end: 0 }, text: '' });
 
   const [editMenuState, setEditMenuState] = useState<{
@@ -124,13 +144,17 @@ export function BibleInteractionProvider({
     setAutoHighlightState({ visible: true, autoHighlight });
   };
 
-  const openHighlightSelection = (range: VerseRange, text: string) => {
+  const openHighlightSelection = (
+    range: VerseRange,
+    text: string,
+    actions?: HighlightSheetActions
+  ) => {
     // Saving needs an account; without one the sheet would accept a colour and silently drop it.
     if (!user) {
       showToast(t('highlights.sign_in_to_save', 'Sign in to save highlights'));
       return;
     }
-    setSelectionSheetState({ visible: true, range, text });
+    setSelectionSheetState({ visible: true, range, text, actions });
   };
 
   const openHighlightEditMenu = (id: number, color: HighlightColor) => {
@@ -176,6 +200,99 @@ export function BibleInteractionProvider({
     const first = group.highlights[0];
     if (first) {
         openHighlightEditMenu(first.highlight_id, first.color as HighlightColor);
+    }
+  };
+
+  /**
+   * "Highlight all": every place the selected words occur in this book, in one colour.
+   *
+   * Reads the book chapter by chapter through the reader's own chapter query (cached, and the
+   * device's copy for a downloaded book), so the offsets match the text on screen. A large count
+   * asks first.
+   */
+  const highlightAllInBook = async (phrase: string, color: HighlightColor) => {
+    if (!isOnline) {
+      showToast(t('highlights.highlight_all_offline', 'Highlight all needs a connection'));
+      return;
+    }
+    const chapterCount = getBookById(bookId)?.chapterCount ?? 0;
+    const isLocal = (downloadedBibleBooks?.[bibleVersion] ?? []).includes(bookId);
+    showToast(`Finding \u201C${phrase}\u201D in ${bookName}\u2026`);
+    const { occurrences, missingChapters } = await collectBookOccurrences({
+      phrase,
+      chapterCount,
+      loadChapter: async (chapter) => {
+        const query = bibleChapterQuery(bookId, chapter, bibleVersion, isLocal);
+        const data = await queryClient.fetchQuery({
+          ...query,
+          staleTime: Number.POSITIVE_INFINITY,
+          networkMode: 'always',
+        });
+        const content = chapterFromQueryData(data);
+        return content
+          ? content.sections.flatMap((section) =>
+              section.verses.map((verse) => ({ verseNumber: verse.verseNumber, text: verse.text }))
+            )
+          : null;
+      },
+    });
+    if (occurrences.length === 0) {
+      showToast(`\u201C${phrase}\u201D was not found in ${bookName}`);
+      return;
+    }
+    const save = async () => {
+      const saved = await addHighlights(
+        occurrences.map((o) => ({
+          bookId,
+          chapterNumber: o.chapter,
+          startVerse: o.verse,
+          endVerse: o.verse,
+          startChar: o.start,
+          endChar: o.end,
+          color,
+          selectedText: o.text,
+        }))
+      );
+      const partial = missingChapters.length > 0 ? ' (some chapters could not be read)' : '';
+      showToast(`Highlighted ${saved} of ${occurrences.length} in ${bookName}${partial}`);
+    };
+    if (occurrences.length > HIGHLIGHT_ALL_CONFIRM_ABOVE) {
+      Alert.alert(
+        `Highlight ${occurrences.length} places?`,
+        `\u201C${phrase}\u201D appears ${occurrences.length} times in ${bookName}.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Highlight all', onPress: () => void save() },
+        ]
+      );
+      return;
+    }
+    await save();
+  };
+
+  /** A colour from the highlight sheet, for the scope the reader picked there. */
+  const handleSelectionColor = async (color: HighlightColor, scope: HighlightScope) => {
+    const { range, text } = selectionSheetState;
+    setSelectionSheetState((prev) => ({ ...prev, visible: false }));
+    try {
+      if (scope === 'book') {
+        await highlightAllInBook(text, color);
+        return;
+      }
+      const wholeVerses = scope === 'verse';
+      await addHighlight({
+        bookId,
+        chapterNumber,
+        startVerse: range.start,
+        endVerse: range.end,
+        startChar: wholeVerses ? undefined : range.startChar,
+        endChar: wholeVerses ? undefined : range.endChar,
+        color,
+        selectedText: wholeVerses ? undefined : text,
+      });
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to create highlight');
     }
   };
 
@@ -277,8 +394,8 @@ export function BibleInteractionProvider({
         latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText, source),
       openAutoHighlightTooltip: (autoHighlight: AutoHighlight) =>
         latestActions.current.openAutoHighlightTooltip(autoHighlight),
-      openHighlightSelection: (range: VerseRange, text: string) =>
-        latestActions.current.openHighlightSelection(range, text),
+      openHighlightSelection: (range: VerseRange, text: string, actions?: HighlightSheetActions) =>
+        latestActions.current.openHighlightSelection(range, text, actions),
       openHighlightEditMenu: (id: number, color: HighlightColor) =>
         latestActions.current.openHighlightEditMenu(id, color),
       closeAll: () => latestActions.current.closeAll(),
@@ -344,25 +461,12 @@ export function BibleInteractionProvider({
       <HighlightSelectionSheet
         visible={selectionSheetState.visible}
         verseRange={selectionSheetState.range}
+        text={selectionSheetState.text}
+        actions={selectionSheetState.actions}
+        bookName={bookName}
+        canHighlightAll
         onClose={() => setSelectionSheetState(prev => ({ ...prev, visible: false }))}
-        onColorSelect={async (color) => {
-             try {
-                await addHighlight({
-                    bookId,
-                    chapterNumber,
-                    startVerse: selectionSheetState.range.start,
-                    endVerse: selectionSheetState.range.end,
-                    startChar: selectionSheetState.range.startChar,
-                    endChar: selectionSheetState.range.endChar,
-                    color,
-                    selectedText: selectionSheetState.text
-                });
-                setSelectionSheetState(prev => ({ ...prev, visible: false }));
-             } catch (e) {
-                 console.error(e);
-                 showToast('Failed to create highlight');
-             }
-        }}
+        onColorSelect={handleSelectionColor}
         useModal={!useSplitView}
       />
       

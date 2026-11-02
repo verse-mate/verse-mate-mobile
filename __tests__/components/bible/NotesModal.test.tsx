@@ -132,7 +132,23 @@ describe('NotesModal', () => {
     });
 
     await waitFor(() => {
-      expect(mockAddNote).toHaveBeenCalledWith(1, 1, 'New note content');
+      expect(mockAddNote).toHaveBeenCalledWith(1, 1, 'New note content', undefined);
+    });
+  });
+
+  it('writes the note on a verse when opened from a selection', async () => {
+    renderWithTheme(
+      <NotesModal {...defaultProps} verse={{ verseNumber: 5, quote: 'the Light shines' }} />
+    );
+
+    expect(screen.getByText('Note on verse 5')).toBeTruthy();
+    expect(screen.getByTestId('note-verse-quote')).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText('Write your note here...'), 'On the light');
+    await act(async () => {
+      fireEvent.press(screen.getByText('Add Note'));
+    });
+    await waitFor(() => {
+      expect(mockAddNote).toHaveBeenCalledWith(1, 1, 'On the light', 5);
     });
   });
 

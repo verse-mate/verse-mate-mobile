@@ -95,7 +95,58 @@ describe('HighlightSelectionSheet', () => {
     fireEvent.press(screen.getByTestId('color-button-green'));
 
     await waitFor(() => {
-      expect(mockOnColorSelect).toHaveBeenCalledWith('green');
+      // A whole-verse range has nothing to choose: the colour is for its verses.
+      expect(mockOnColorSelect).toHaveBeenCalledWith('green', 'verse');
+    });
+  });
+
+  it('offers the selection actions it is given, closing before acting', async () => {
+    const copy = jest.fn();
+    const note = jest.fn();
+    renderWithTheme(
+      <HighlightSelectionSheet
+        visible={true}
+        verseRange={{ start: 1, end: 1, startChar: 4, endChar: 9 }}
+        text="light"
+        actions={{ copy, note }}
+        onColorSelect={mockOnColorSelect}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(screen.queryByTestId('highlight-action-share')).toBeNull();
+    fireEvent.press(screen.getByTestId('highlight-action-note'));
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(note).toHaveBeenCalledTimes(1);
+    });
+    expect(copy).not.toHaveBeenCalled();
+  });
+
+  it('applies the colour to the chosen scope for selected words', async () => {
+    renderWithTheme(
+      <HighlightSelectionSheet
+        visible={true}
+        verseRange={{ start: 1, end: 1, startChar: 4, endChar: 9 }}
+        text="light"
+        bookName="John"
+        canHighlightAll
+        onColorSelect={mockOnColorSelect}
+        onClose={mockOnClose}
+      />
+    );
+
+    expect(screen.getByText('All in John')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('color-button-green'));
+    await waitFor(() => {
+      expect(mockOnColorSelect).toHaveBeenLastCalledWith('green', 'selection');
+    });
+
+    fireEvent.press(screen.getByTestId('highlight-scope-book'));
+    expect(screen.getByTestId('highlight-scope-hint')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('color-button-blue'));
+    await waitFor(() => {
+      expect(mockOnColorSelect).toHaveBeenLastCalledWith('blue', 'book');
     });
   });
 

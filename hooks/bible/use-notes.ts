@@ -68,6 +68,19 @@ import type {
 import type { Note } from '@/types/notes';
 
 /**
+ * The add body with the verse a note is on. The backend takes `verse_number` (it resolves the
+ * verse row itself) and returns it; the generated types predate both.
+ */
+type NoteAddBody = NonNullable<PostBibleBookNoteAddData['body']> & { verse_number?: number };
+
+/** The verse a created note is on: the server's answer, else what was sent. */
+function createdVerseNumber(note: unknown, body: NoteAddBody | undefined) {
+  const fromServer = (note as { verse_number?: unknown } | undefined)?.verse_number;
+  if (typeof fromServer === 'number') return fromServer;
+  return typeof body?.verse_number === 'number' ? body.verse_number : null;
+}
+
+/**
  * Return type for useNotes hook
  */
 export interface UseNotesResult {
@@ -82,7 +95,12 @@ export interface UseNotesResult {
   /** Whether a note is being deleted */
   isDeletingNote: boolean;
   /** Add a note with optimistic update, returns the created note */
-  addNote: (bookId: number, chapterNumber: number, content: string) => Promise<Note | null>;
+  addNote: (
+    bookId: number,
+    chapterNumber: number,
+    content: string,
+    verseNumber?: number
+  ) => Promise<Note | null>;
   /** Update a note with optimistic update */
   updateNote: (noteId: string, content: string) => Promise<void>;
   /** Delete a note with optimistic update */
@@ -185,7 +203,7 @@ export function useNotes(): UseNotesResult {
           note_id: tempId,
           book_id,
           chapter_number,
-          verse_number: null,
+          verse_number: createdVerseNumber(undefined, variables.body as NoteAddBody),
           content,
           updated_at: new Date().toISOString(),
         };
@@ -220,8 +238,7 @@ export function useNotes(): UseNotesResult {
             note_id: response.note.note_id,
             book_id: variables.body.book_id,
             chapter_number: variables.body.chapter_number,
-            verse_number:
-              typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
+            verse_number: createdVerseNumber(response.note, variables.body as NoteAddBody),
             content: response.note.content,
             updated_at: response.note.updated_at,
           });
@@ -256,7 +273,7 @@ export function useNotes(): UseNotesResult {
           chapter_number,
           book_id,
           book_name: getBookById(book_id)?.name ?? `Book ${book_id}`,
-          verse_number: null,
+          verse_number: createdVerseNumber(undefined, variables.body as NoteAddBody),
         };
 
         // If offline, we already added to local DB, so query invalidation will pick it up?
@@ -481,7 +498,8 @@ export function useNotes(): UseNotesResult {
   const addNote = async (
     bookId: number,
     chapterNumber: number,
-    content: string
+    content: string,
+    verseNumber?: number
   ): Promise<Note | null> => {
     // Check authentication
     if (!isAuthenticated || !user?.id) {
@@ -496,14 +514,14 @@ export function useNotes(): UseNotesResult {
     }
 
     // Call mutation
-    const response = await addMutation.mutateAsync({
-      body: {
-        user_id: user.id,
-        book_id: bookId,
-        chapter_number: chapterNumber,
-        content: content.trim(),
-      },
-    } as PostBibleBookNoteAddData);
+    const body: NoteAddBody = {
+      user_id: user.id,
+      book_id: bookId,
+      chapter_number: chapterNumber,
+      content: content.trim(),
+      ...(typeof verseNumber === 'number' ? { verse_number: verseNumber } : {}),
+    };
+    const response = await addMutation.mutateAsync({ body } as PostBibleBookNoteAddData);
 
     if (response?.note) {
       return {
@@ -514,7 +532,8 @@ export function useNotes(): UseNotesResult {
         book_id: bookId,
         chapter_number: chapterNumber,
         book_name: '', // Will be populated by UI context
-        verse_number: typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
+        // `verse_id` is the verse's row id, not its number: it was being shown as the verse.
+        verse_number: createdVerseNumber(response.note, body),
       };
     }
 

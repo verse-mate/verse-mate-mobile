@@ -104,6 +104,11 @@ export function NoteCard({
       testID={`note-card-${note.note_id}`}
     >
       <View style={styles.content}>
+        {typeof note.verse_number === 'number' ? (
+          <Text style={styles.verseLabel} testID={`note-card-verse-${note.note_id}`}>
+            {`Verse ${note.verse_number}`}
+          </Text>
+        ) : null}
         <Text style={styles.text} numberOfLines={isExpanded ? undefined : 3}>
           {displayContent}
         </Text>
@@ -161,6 +166,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     content: {
       flex: 1,
       marginRight: spacing.md,
+    },
+    verseLabel: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.gold,
+      marginBottom: 2,
     },
     text: {
       fontSize: fontSizes.body,
