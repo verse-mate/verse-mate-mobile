@@ -189,6 +189,11 @@ const config = {
             { name: 'GoogleUtilities', modular_headers: true },
             { name: 'RecaptchaInterop', modular_headers: true },
           ],
+          // UIKit scene life cycle: apps built with the iOS 27 SDK (Xcode 27) don't launch without
+          // it ("UIScene life cycle is required for apps built with this SDK"), and it is what lets
+          // the app resize on iPhone Duo instead of running letterboxed. Opt-in on SDK 57, the
+          // default from SDK 58.
+          enableSceneSupport: true,
         },
       },
     ],
