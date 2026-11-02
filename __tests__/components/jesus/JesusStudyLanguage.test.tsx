@@ -22,6 +22,8 @@ jest.mock('@/src/api', () => ({
     mockStudyArgs(bookId, chapter, language);
     return {
       data: {
+        title: 'Luke 2',
+        themeOneLine: 'Today in the city of David there has been born for you a Savior.',
         steps: [{ number: 1, kind: 'keywords', inventory: [{ word: 'temple', verses: '2:46' }] }],
         interpretation: {
           movements: [
@@ -73,4 +75,13 @@ it("fetches the study in the reader's language and renders it narrowed to the ev
   ).study;
   expect(study.interpretation.movements.map((m) => m.title)).toEqual(['The boy in the temple']);
   expect(screen.getByTestId('jesus-study-scope')).toBeTruthy();
+});
+
+it("titles the narrowed study with the event's passage, not the chapter's theme verse", () => {
+  render(<JesusTabBodies tab="study" detail={DETAIL} />);
+  const study = (
+    mockPanel.mock.calls.at(-1)?.[0] as { study: { title: string; themeOneLine?: string } }
+  ).study;
+  expect(study.title).toBe('Luke 2:41-52');
+  expect(study.themeOneLine).toBeFalsy();
 });

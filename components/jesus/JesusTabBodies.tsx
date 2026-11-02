@@ -353,10 +353,23 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
   // In the reader's language, as StudyPanel asks for it.
   const language = usePreferredLanguage();
   const { data: chapterStudy } = useStudy(span?.bookId ?? 0, span?.chapter ?? 0, language);
-  const narrowed = useMemo(
-    () => (chapterStudy && span ? narrowStudyToEvent(chapterStudy, span) : null),
-    [chapterStudy, span]
-  );
+  const narrowed = useMemo(() => {
+    if (!chapterStudy || !span) return null;
+    const result = narrowStudyToEvent(chapterStudy, span);
+    if (!result.narrowed) return result;
+    /*
+     * The narrowed study keeps the CHAPTER's header: "Inductive Study of
+     * Luke 2" over Luke 2's theme line, which is 2:11 ("Today in the city of
+     * David…"). Under "The boy in the temple" that read as wrong content, a
+     * verse thirty verses before the event. Web titles this study with the
+     * passage ("Inductive Study of Luke 2:41-52") and shows no chapter theme,
+     * so do the same here.
+     */
+    return {
+      ...result,
+      study: { ...result.study, title: span.display, themeOneLine: '' },
+    };
+  }, [chapterStudy, span]);
 
   /*
    * No Where / When / Period / Accounts / People table.
