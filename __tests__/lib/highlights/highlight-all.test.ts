@@ -3,6 +3,7 @@ import {
   findPhraseOccurrences,
   HIGHLIGHT_ALL_RUN_GAP_MS,
   highlightAllRun,
+  highlightAllRunIds,
   phraseHighlightsInBook,
   type SavedHighlightLike,
 } from '@/lib/highlights/highlight-all';
@@ -179,5 +180,30 @@ describe('highlightAllRun', () => {
         verse
       )
     ).toBeNull();
+  });
+});
+
+describe('highlightAllRunIds', () => {
+  it('collects every run and nothing made on its own', () => {
+    const later = HIGHLIGHT_ALL_RUN_GAP_MS + 5_000;
+    const highlights = [
+      saved(1, { atMs: 0 }),
+      saved(2, { atMs: 500 }),
+      saved(3, { atMs: later }),
+      saved(4, { atMs: later + 500 }),
+      saved(5, { atMs: 3_600_000 }), // the same words an hour later, by hand
+      saved(6, { atMs: 600, color: 'green' }), // other colour, alone
+      saved(7, { start_char: null, end_char: null, selected_text: null }),
+      saved(8, { start_char: null, end_char: null, selected_text: null }),
+    ];
+    expect([...highlightAllRunIds(highlights)].sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('agrees with highlightAllRun', () => {
+    const highlights = [saved(1, { atMs: 0 }), saved(2, { atMs: 400 }), saved(3, { atMs: 9e6 })];
+    const ids = highlightAllRunIds(highlights);
+    for (const h of highlights) {
+      expect(ids.has(h.highlight_id)).toBe(highlightAllRun(highlights, h) !== null);
+    }
   });
 });

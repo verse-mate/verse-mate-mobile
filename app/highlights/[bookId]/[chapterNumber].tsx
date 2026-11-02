@@ -9,6 +9,7 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
+import { highlightAllRunIds } from '@/lib/highlights/highlight-all';
 import { fontSizes, type getColors, spacing } from '@/theme/tokens';
 
 /**
@@ -113,10 +114,22 @@ export default function ChapterHighlightsScreen() {
 
   const { showToast } = useToast();
 
-  const { chapterHighlights, isFetchingHighlights, deleteHighlight } = useHighlights({
+  const {
+    allHighlights,
+    chapterHighlights: chapterHighlightsWithRuns,
+    isFetchingHighlights,
+    deleteHighlight,
+  } = useHighlights({
     bookId: parsedBookId,
     chapterNumber: parsedChapterNumber,
   });
+
+  // The reader's own highlights: "Highlight all" runs are left out, as on the highlights list.
+  // Runs span a book, so they are recognised from every highlight, not just this chapter's.
+  const chapterHighlights = useMemo(() => {
+    const fromHighlightAll = highlightAllRunIds(allHighlights);
+    return chapterHighlightsWithRuns.filter((h) => !fromHighlightAll.has(h.highlight_id));
+  }, [allHighlights, chapterHighlightsWithRuns]);
 
   // Memoize grouped highlights
   const groupedHighlights = useMemo(() => {

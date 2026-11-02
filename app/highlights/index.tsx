@@ -19,6 +19,7 @@ import { IconHighlight } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
+import { highlightAllRunIds } from '@/lib/highlights/highlight-all';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 /**
@@ -265,8 +266,12 @@ export default function HighlightsScreen() {
     );
   }
 
-  // Group highlights by chapter
-  const chapterGroups = groupHighlightsByChapter(allHighlights);
+  // Group highlights by chapter. "Highlight all" runs (every "I am" in John) are a study layer
+  // over the text, not the reader's own highlights, so they are left out of this list.
+  const fromHighlightAll = highlightAllRunIds(allHighlights);
+  const chapterGroups = groupHighlightsByChapter(
+    allHighlights.filter((h) => !fromHighlightAll.has(h.highlight_id))
+  );
 
   // Show empty state if no highlights exist (but still show auto-highlight settings)
   if (chapterGroups.length === 0) {
