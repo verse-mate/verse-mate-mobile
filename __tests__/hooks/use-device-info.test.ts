@@ -7,6 +7,7 @@
 // Unmock the hook for this test file to test the actual implementation
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import * as Hinge from 'expo-hinge';
 import React from 'react';
 import * as ReservedRegions from 'react-native-reserved-regions';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
@@ -194,6 +195,20 @@ describe('useDeviceInfo on an open foldable', () => {
     expect(result.current.useSplitView).toBe(true);
     expect(result.current.foldLocked).toBe(true);
     expect(result.current.splitRatio).toBeCloseTo(475 / 951, 6);
+  });
+
+  it('splits at the middle when the hinge is open flat and iOS reports no fold', async () => {
+    mockDimensionsGet.mockReturnValue({ width: 951, height: 669 });
+    jest.spyOn(Hinge, 'useHinge').mockReturnValue({ angle: 180, status: 'fullyOpen' });
+
+    const { result } = renderHook(() => useDeviceInfo(), {
+      wrapper: ({ children }) => React.createElement(DeviceInfoProvider, null, children),
+    });
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    expect(result.current.useSplitView).toBe(true);
+    expect(result.current.foldLocked).toBe(true);
+    expect(result.current.splitRatio).toBeCloseTo(0.5, 6);
   });
 
   it('keeps the phone layout on the same width without a fold', async () => {

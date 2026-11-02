@@ -231,3 +231,25 @@ export function foldSplitRatio(
   }
   return leftWidth / innerWidth;
 }
+
+/**
+ * The fold of a foldable lying fully open, where iOS reports no division.
+ *
+ * iPhone Duo reports its fold as a reserved region only while it is bent; opened flat it is one
+ * 951×669pt display, and the reader would be one phone page stretched across the hinge. The hinge
+ * is at the display's middle, so with the hinge open, the window in landscape and the app filling
+ * the display (not an iOS Split View window, whose middle is not the fold), the fold is the
+ * window's middle.
+ */
+export function flatOpenFold(
+  hinge: { status: string } | null,
+  window: { width: number; height: number },
+  screen: { width: number; height: number }
+): DisplayFold | null {
+  if (!hinge || (hinge.status !== 'fullyOpen' && hinge.status !== 'partiallyOpen')) return null;
+  if (window.width <= window.height) return null;
+  if (Math.abs(window.width - screen.width) > 1 || Math.abs(window.height - screen.height) > 1) {
+    return null;
+  }
+  return { x: window.width / 2, width: 0 };
+}

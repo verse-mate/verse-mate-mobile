@@ -47,6 +47,15 @@ jest.mock('react-native/src/private/assets/AssetRegistry', () => {
   };
 });
 
+// No hinge under jest (a test can jest.spyOn useHinge to fold one open).
+jest.mock('expo-hinge', () => ({
+  __esModule: true,
+  useHinge: () => null,
+  getHinge: () => null,
+  isAvailable: () => false,
+  addHingeListener: () => ({ remove: () => {} }),
+}));
+
 // The fold probe is a native view; jest has no display, so it reports no regions.
 jest.mock('react-native-reserved-regions', () => ({
   // __esModule keeps `import * as` on this object, so a test can jest.spyOn a hook.

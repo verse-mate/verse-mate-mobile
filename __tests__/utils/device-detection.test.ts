@@ -10,6 +10,7 @@ import {
   calculatePanelWidths,
   DEFAULT_SPLIT_RATIO,
   findVerticalFold,
+  flatOpenFold,
   foldSplitRatio,
   getDeviceInfo,
   shouldUseSplitView,
@@ -232,6 +233,32 @@ describe('device-detection', () => {
 
     it('returns null with no regions (every non-foldable)', () => {
       expect(findVerticalFold([])).toBeNull();
+    });
+  });
+
+  describe('flatOpenFold', () => {
+    const open = { status: 'fullyOpen' };
+    const duoOpen = { width: 951, height: 669 };
+
+    it('puts the fold at the middle of a full-screen landscape window with the hinge open', () => {
+      expect(flatOpenFold(open, duoOpen, duoOpen)).toEqual({ x: 475.5, width: 0 });
+      expect(flatOpenFold({ status: 'partiallyOpen' }, duoOpen, duoOpen)).toEqual({
+        x: 475.5,
+        width: 0,
+      });
+    });
+
+    it('is null without an open hinge', () => {
+      expect(flatOpenFold(null, duoOpen, duoOpen)).toBeNull();
+      expect(flatOpenFold({ status: 'closed' }, duoOpen, duoOpen)).toBeNull();
+      expect(flatOpenFold({ status: 'unknown' }, duoOpen, duoOpen)).toBeNull();
+    });
+
+    it('is null in portrait, and in an iOS Split View window, whose middle is not the fold', () => {
+      expect(
+        flatOpenFold(open, { width: 669, height: 951 }, { width: 669, height: 951 })
+      ).toBeNull();
+      expect(flatOpenFold(open, { width: 469, height: 669 }, duoOpen)).toBeNull();
     });
   });
 
