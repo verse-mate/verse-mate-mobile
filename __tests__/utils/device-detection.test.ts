@@ -205,7 +205,12 @@ describe('device-detection', () => {
   });
 
   describe('findVerticalFold', () => {
-    const frame = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
+    const frame = (x: number, y: number, width: number, height: number) => ({
+      x,
+      y,
+      width,
+      height,
+    });
 
     it('returns the vertical division (an open foldable in landscape)', () => {
       expect(
