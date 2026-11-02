@@ -33,6 +33,8 @@ jest.mock('expo-system-ui', () => ({
 }));
 jest.mock('suncalc');
 jest.mock('react-native', () => ({
+  // expo-constants (via expo-localization) reads NativeModules at import since SDK 58.
+  NativeModules: {},
   useColorScheme: jest.fn(),
   Platform: {
     OS: 'ios',

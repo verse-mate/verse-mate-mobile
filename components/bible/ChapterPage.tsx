@@ -28,6 +28,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewInstance,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -626,7 +627,7 @@ export function ChapterPage({
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
   // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
-  const byLineSectionRefs = useRef<Record<number, View | null>>({});
+  const byLineSectionRefs = useRef<Record<number, ViewInstance | null>>({});
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);

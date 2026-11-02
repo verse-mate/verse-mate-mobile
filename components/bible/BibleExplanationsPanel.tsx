@@ -26,6 +26,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
@@ -191,7 +192,7 @@ export function BibleExplanationsPanel({
   // Quick-verse-jump: refs to each rendered By Line verse-section View.
   // Populated when byline content is split into per-verse sections below.
   // Reset on chapter swap so stale nodes can't be reached.
-  const byLineSectionRefs = useRef<Record<number, View | null>>({});
+  const byLineSectionRefs = useRef<Record<number, ViewInstance | null>>({});
 
   // Reset all scroll positions only when chapter changes (not on tab switch)
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional triggers for scroll reset
