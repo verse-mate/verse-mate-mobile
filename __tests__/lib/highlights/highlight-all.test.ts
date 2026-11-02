@@ -1,4 +1,11 @@
-import { collectBookOccurrences, findPhraseOccurrences } from '@/lib/highlights/highlight-all';
+import {
+  collectBookOccurrences,
+  findPhraseOccurrences,
+  HIGHLIGHT_ALL_RUN_GAP_MS,
+  highlightAllRun,
+  phraseHighlightsInBook,
+  type SavedHighlightLike,
+} from '@/lib/highlights/highlight-all';
 
 describe('findPhraseOccurrences', () => {
   it('finds every occurrence, case-insensitively, with offsets into the text', () => {
@@ -94,5 +101,78 @@ describe('collectBookOccurrences', () => {
       },
     });
     expect(loaded).toEqual([1]);
+  });
+});
+
+const T0 = Date.parse('2026-11-01T20:00:00.000Z');
+
+function saved(
+  id: number,
+  overrides: Partial<SavedHighlightLike> & { atMs?: number } = {}
+): SavedHighlightLike {
+  const { atMs = 0, ...rest } = overrides;
+  return {
+    highlight_id: id,
+    book_id: 43,
+    color: 'yellow',
+    start_char: 0,
+    end_char: 4,
+    selected_text: 'I am',
+    created_at: new Date(T0 + atMs).toISOString(),
+    ...rest,
+  };
+}
+
+describe('phraseHighlightsInBook', () => {
+  it('finds every highlight of the words in the book, however they were cased or made', () => {
+    const highlights = [
+      saved(1),
+      saved(2, { selected_text: 'i AM', color: 'green', atMs: 86_400_000 }),
+      saved(3, { selected_text: 'I  am ' }),
+      saved(4, { book_id: 42 }), // another book
+      saved(5, { selected_text: 'I am the' }), // other words
+      saved(6, { start_char: null, end_char: null, selected_text: null }), // a whole verse
+    ];
+    expect(phraseHighlightsInBook(highlights, 43, 'I am').map((h) => h.highlight_id)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it('treats either apostrophe as the same word', () => {
+    const highlights = [saved(1, { selected_text: 'Lord\u2019s' })];
+    expect(phraseHighlightsInBook(highlights, 43, "Lord's")).toHaveLength(1);
+  });
+});
+
+describe('highlightAllRun', () => {
+  it('returns the burst of same words, colour and book that the highlight was saved in', () => {
+    const run = [saved(1, { atMs: 0 }), saved(2, { atMs: 400 }), saved(3, { atMs: 900 })];
+    const highlights = [
+      ...run,
+      saved(4, { atMs: 600, color: 'green' }), // other colour
+      saved(5, { atMs: 700, book_id: 42 }), // other book
+      saved(6, { atMs: 3_600_000 }), // the same words an hour later, by hand
+    ];
+    expect(highlightAllRun(highlights, run[1])?.map((h) => h.highlight_id)).toEqual([1, 2, 3]);
+    expect(highlightAllRun(highlights, highlights[5])).toBeNull();
+  });
+
+  it('keeps two runs of the same words apart', () => {
+    const later = HIGHLIGHT_ALL_RUN_GAP_MS + 5_000;
+    const highlights = [
+      saved(1, { atMs: 0 }),
+      saved(2, { atMs: 500 }),
+      saved(3, { atMs: later }),
+      saved(4, { atMs: later + 500 }),
+    ];
+    expect(highlightAllRun(highlights, highlights[0])?.map((h) => h.highlight_id)).toEqual([1, 2]);
+    expect(highlightAllRun(highlights, highlights[3])?.map((h) => h.highlight_id)).toEqual([3, 4]);
+  });
+
+  it('is null for a highlight made on its own, or of whole verses', () => {
+    const alone = saved(1);
+    expect(highlightAllRun([alone], alone)).toBeNull();
+    const verse = saved(2, { start_char: null, end_char: null, selected_text: null });
+    expect(highlightAllRun([verse, saved(3, { start_char: null, end_char: null, selected_text: null })], verse)).toBeNull();
   });
 });

@@ -140,6 +140,11 @@ export interface HighlightSelectionSheetProps {
   onColorSelect: (color: HighlightColor, scope: HighlightScope) => void;
   /** Copy / Share / Note for the selection; a row shows for each one given. */
   actions?: HighlightSheetActions;
+  /**
+   * With "All in John" picked, the remove row removes every highlight of the selected words in
+   * the book instead of the ones the selection touches (Andy, 2026-11-02).
+   */
+  onRemoveAllInBook?: () => void;
   /** Callback when modal is closed */
   onClose: () => void;
   /** Whether to use a system Modal (true) or a View overlay (false) */
@@ -158,6 +163,7 @@ export function HighlightSelectionSheet({
   bookName,
   canHighlightAll = false,
   actions,
+  onRemoveAllInBook,
   onColorSelect,
   onClose,
   useModal = true,
@@ -225,6 +231,15 @@ export function HighlightSelectionSheet({
       return verseRange.start === verseRange.end ? 'Whole verse' : 'Whole verses';
     return bookName ? `All in ${bookName}` : 'All in book';
   };
+
+  // "All in John" + remove = every highlight of these words in the book. It shows even when the
+  // selection itself is not highlighted: the point is the other places.
+  const removeAllInBook = activeScope === 'book' ? onRemoveAllInBook : undefined;
+  const rowActions: HighlightSheetActions | undefined = removeAllInBook
+    ? { ...actions, remove: removeAllInBook }
+    : actions;
+  const rowLabel = (key: keyof HighlightSheetActions, label: string) =>
+    key === 'remove' && removeAllInBook ? `Remove ${scopeLabel('book')}` : label;
 
   /**
    * Handle backdrop press with haptic feedback
@@ -312,10 +327,10 @@ export function HighlightSelectionSheet({
         </ScrollView>
 
         {/* At the bottom of the sheet, outside the scrolling colour area (Sebastian). */}
-        {actions ? (
+        {rowActions ? (
           <View style={styles.quickActions} testID="highlight-actions">
             {actionRows.map(({ key, label, icon, destructive }) => {
-              const action = actions[key];
+              const action = rowActions[key];
               if (!action) return null;
               const tint = destructive ? colors.error : colors.textSecondary;
               return (
@@ -327,7 +342,7 @@ export function HighlightSelectionSheet({
                 >
                   <Ionicons name={icon} size={20} color={tint} />
                   <Text style={[styles.quickActionText, destructive && { color: colors.error }]}>
-                    {label}
+                    {rowLabel(key, label)}
                   </Text>
                 </Pressable>
               );
