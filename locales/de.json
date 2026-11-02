@@ -300,6 +300,31 @@
     },
     "compare": {
       "sharedBy": "Erzählt von"
+    },
+    "sermons": {
+      "title": "Predigten",
+      "intro": "Seine längsten Reden. Öffne einen Bericht, um die ganze Predigt in der Bibel zu lesen.",
+      "hubBlurb": "Die Bergpredigt und seine anderen großen Reden",
+      "nazarethName": "Die Predigt in Nazareth",
+      "nazarethBlurb": "Er liest Jesaja in der Synagoge seiner Heimatstadt und verkündet die Erfüllung.",
+      "mountName": "Die Bergpredigt",
+      "mountBlurb": "Die Seligpreisungen, das Vaterunser und eine Gerechtigkeit, die tiefer geht als das Gesetz.",
+      "plainName": "Die Feldrede",
+      "plainBlurb": "Seligpreisungen und Weherufe, Feindesliebe und die zwei Hausbauer.",
+      "twelveName": "Die Aussendung der Zwölf",
+      "twelveBlurb": "Wie sie gehen sollen, was sie erwartet und wen sie fürchten sollen.",
+      "parablesName": "Die Gleichnisse vom Reich",
+      "parablesBlurb": "Der Sämann, das Unkraut, das Senfkorn und der verborgene Schatz.",
+      "breadName": "Das Brot des Lebens",
+      "breadBlurb": "Nach der Speisung der Fünftausend nennt er sich das Brot vom Himmel.",
+      "togetherName": "Leben in Gemeinschaft",
+      "togetherBlurb": "Wahre Größe, das verlorene Schaf und siebzigmal siebenmal vergeben.",
+      "woesName": "Weherufe über Schriftgelehrte und Pharisäer",
+      "woesBlurb": "Sieben Weherufe über eine Frömmigkeit, die andere belastet und sich selbst schont.",
+      "olivetName": "Die Endzeitrede",
+      "olivetBlurb": "Der Fall des Tempels, das Ende des Zeitalters und der Ruf zur Wachsamkeit.",
+      "upperRoomName": "Die Abschiedsreden",
+      "upperRoomBlurb": "Sein Abschied: der Weinstock, der verheißene Geist und sein Gebet für die Seinen."
     }
   },
   "navigation": {

@@ -67,6 +67,17 @@ describe('JesusNavTab', () => {
     expect(router.push).toHaveBeenCalledWith('/jesus');
   });
 
+  it('offers Sermons right after Follow His Life', () => {
+    render(<JesusNavTab query="" onNavigate={jest.fn()} />);
+    const ids = screen
+      .getAllByRole('button')
+      .map((b) => b.props.testID)
+      .filter(Boolean);
+    expect(ids.slice(0, 2)).toEqual(['jesus-tab-follow-his-life', 'jesus-tab-sermons']);
+    fireEvent.press(screen.getByTestId('jesus-tab-sermons'));
+    expect(router.push).toHaveBeenCalledWith('/jesus/sermons');
+  });
+
   it('routes a kind to its browse screen', () => {
     render(<JesusNavTab query="" onNavigate={jest.fn()} />);
     fireEvent.press(screen.getByTestId('jesus-tab-kind-teachings'));

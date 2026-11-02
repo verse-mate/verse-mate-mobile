@@ -30,6 +30,7 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusOverview, useJesusSearch } from '@/hooks/jesus';
+import { SERMONS } from '@/lib/jesus/sermons';
 import { fontSizes, type getColors, radii, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
@@ -131,6 +132,17 @@ export default function JesusHubScreen() {
                 icon={<Ionicons name="calendar-outline" size={20} color={colors.gold} />}
                 onPress={() => router.push('/jesus/life')}
                 testID="jesus-follow-his-life"
+              />
+              <JesusNavCard
+                title={t('jesus.sermons.title', 'Sermons')}
+                blurb={t(
+                  'jesus.sermons.hubBlurb',
+                  'The Sermon on the Mount and His other great teachings'
+                )}
+                count={SERMONS.length}
+                icon={<Ionicons name="book-outline" size={20} color={colors.gold} />}
+                onPress={() => router.push('/jesus/sermons')}
+                testID="jesus-sermons"
               />
             </View>
 

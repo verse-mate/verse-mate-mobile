@@ -300,6 +300,31 @@
     },
     "compare": {
       "sharedBy": "Raconté par"
+    },
+    "sermons": {
+      "title": "Sermons",
+      "intro": "Ses plus longs enseignements. Ouvrez un récit pour lire tout le sermon dans la Bible.",
+      "hubBlurb": "Le Sermon sur la montagne et ses autres grands enseignements",
+      "nazarethName": "Le sermon de Nazareth",
+      "nazarethBlurb": "Il lit Ésaïe dans la synagogue de sa ville et en annonce l’accomplissement.",
+      "mountName": "Le Sermon sur la montagne",
+      "mountBlurb": "Les Béatitudes, le Notre Père et une justice plus profonde que la loi.",
+      "plainName": "Le Sermon dans la plaine",
+      "plainBlurb": "Béatitudes et malheurs, l’amour des ennemis et les deux bâtisseurs.",
+      "twelveName": "L’envoi des Douze",
+      "twelveBlurb": "Comment partir, à quoi s’attendre et qui craindre.",
+      "parablesName": "Les paraboles du royaume",
+      "parablesBlurb": "Le semeur, l’ivraie, la graine de moutarde et le trésor caché.",
+      "breadName": "Le pain de vie",
+      "breadBlurb": "Après la multiplication des pains, il se dit le pain descendu du ciel.",
+      "togetherName": "La vie ensemble",
+      "togetherBlurb": "La vraie grandeur, la brebis perdue et pardonner soixante-dix fois sept fois.",
+      "woesName": "Malheurs aux scribes et pharisiens",
+      "woesBlurb": "Sept malheurs contre une religion qui charge les autres et s’épargne elle-même.",
+      "olivetName": "Le discours sur le mont des Oliviers",
+      "olivetBlurb": "La chute du temple, la fin des temps et l’appel à veiller.",
+      "upperRoomName": "Le discours d’adieu",
+      "upperRoomBlurb": "Ses adieux : la vigne, l’Esprit promis et sa prière pour les siens."
     }
   },
   "navigation": {

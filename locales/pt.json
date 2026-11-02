@@ -300,6 +300,31 @@
     },
     "compare": {
       "sharedBy": "Contado por"
+    },
+    "sermons": {
+      "title": "Sermões",
+      "intro": "Seus ensinamentos mais longos. Abra um relato para ler o sermão inteiro na Bíblia.",
+      "hubBlurb": "O Sermão da Montanha e Seus outros grandes ensinamentos",
+      "nazarethName": "O sermão em Nazaré",
+      "nazarethBlurb": "Ele lê Isaías na sinagoga de sua cidade e anuncia que se cumpriu.",
+      "mountName": "O Sermão da Montanha",
+      "mountBlurb": "As Bem-aventuranças, o Pai-Nosso e uma justiça mais profunda que a lei.",
+      "plainName": "O Sermão da Planície",
+      "plainBlurb": "Bênçãos e ais, o amor aos inimigos e os dois construtores.",
+      "twelveName": "O envio dos Doze",
+      "twelveBlurb": "Como ir, o que esperar e a quem temer.",
+      "parablesName": "As parábolas do reino",
+      "parablesBlurb": "O semeador, o joio, o grão de mostarda e o tesouro escondido.",
+      "breadName": "O pão da vida",
+      "breadBlurb": "Depois de alimentar os cinco mil, Ele se chama o pão do céu.",
+      "togetherName": "A vida em comunidade",
+      "togetherBlurb": "A verdadeira grandeza, a ovelha perdida e perdoar setenta vezes sete.",
+      "woesName": "Ais sobre escribas e fariseus",
+      "woesBlurb": "Sete ais contra uma religião que sobrecarrega os outros e poupa a si mesma.",
+      "olivetName": "O Sermão Profético",
+      "olivetBlurb": "A queda do templo, o fim dos tempos e o chamado a vigiar.",
+      "upperRoomName": "O discurso do cenáculo",
+      "upperRoomBlurb": "Sua despedida: a videira, o Espírito prometido e Sua oração pelos seus."
     }
   },
   "navigation": {
