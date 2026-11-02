@@ -39,11 +39,11 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       alignItems: 'center',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     backdropPressable: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     sheetContainer: {
       backgroundColor: colors.backgroundElevated,
@@ -128,7 +128,7 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       textAlign: 'center',
     },
     dialogCenterOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
       alignItems: 'center',

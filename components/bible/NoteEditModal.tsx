@@ -31,6 +31,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -105,7 +106,7 @@ export function NoteEditModal({
   // -- Editing State --
   const [content, setContent] = useState(draftContent || note.content);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const textInputRef = useRef<TextInput>(null);
+  const textInputRef = useRef<TextInputInstance>(null);
   const isSavingRef = useRef(false);
   const hasRestoredDraftRef = useRef(false);
   const prevNoteIdRef = useRef(note.note_id);
@@ -412,7 +413,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       justifyContent: 'flex-end',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     container: {

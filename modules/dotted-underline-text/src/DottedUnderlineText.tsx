@@ -74,7 +74,8 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
         // Build the per-range fallback style. `style` may be omitted now
         // (background-only range). On iOS we can still get the dotted
         // pattern; Android always renders solid (RN limitation).
-        const styleForRange: TextStyle = {};
+        // TextStyle is read-only since RN 0.88; this one is built up field by field.
+        const styleForRange: { -readonly [K in keyof TextStyle]: TextStyle[K] } = {};
         if (r.style) {
           styleForRange.textDecorationLine = 'underline';
           styleForRange.textDecorationColor = r.color ?? underlineColor;
@@ -156,7 +157,9 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
         : undefined,
     letterSpacing: typeof flat?.letterSpacing === 'number' ? flat.letterSpacing : undefined,
     lineHeight: typeof flat?.lineHeight === 'number' ? flat.lineHeight : undefined,
-    textAlign: flat?.textAlign,
+    // The native view takes physical alignments only; RN 0.88 adds start/end (LTR here).
+    textAlign:
+      flat?.textAlign === 'start' ? 'left' : flat?.textAlign === 'end' ? 'right' : flat?.textAlign,
     underlineColor: underlineColor ?? (typeof flat?.color === 'string' ? flat.color : undefined),
     underlineStyle,
     underlineThickness,

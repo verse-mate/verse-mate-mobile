@@ -197,7 +197,7 @@ export default function ChapterScreen() {
   const styles = createStyles(colors, mode);
 
   // Device info for split view detection
-  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode, foldLocked } =
     useDeviceInfo();
 
   // Bible version for analytics
@@ -898,6 +898,7 @@ export default function ChapterScreen() {
             <SplitView
               splitRatio={splitRatio}
               onSplitRatioChange={setSplitRatio}
+              lockedToFold={foldLocked}
               viewMode={splitViewMode}
               onViewModeChange={setSplitViewMode}
               edgeTabsVisible={fabVisible}
@@ -1126,8 +1127,11 @@ function ChapterHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
-  const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
-  const [insightButtonWidth, setInsightButtonWidth] = useState(0);
+  // Shared values, not state: the indicator's style reads them on the UI thread whenever they
+  // change. With React state captured by the worklet, the pill was missing (zero width) on one first
+  // launch on the folded iPhone Duo simulator, and back after a relaunch.
+  const bibleButtonWidth = useSharedValue(0);
+  const insightButtonWidth = useSharedValue(0);
 
   // Animated text colors — driven by toggleProgress, independent of
   // activeView prop reconciliation. Each button text interpolates
@@ -1150,25 +1154,27 @@ function ChapterHeader({
   // Measure individual button widths
   const handleBibleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
-    setBibleButtonWidth(width);
+    bibleButtonWidth.value = width;
   };
 
   const handleInsightLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
-    setInsightButtonWidth(width);
+    insightButtonWidth.value = width;
   };
 
   // Animated style for the indicator (runs on native thread)
   const indicatorAnimatedStyle = useAnimatedStyle(() => {
     'worklet';
-    const translateX = toggleProgress.value * Math.max(0, bibleButtonWidth + 4);
-    const width = bibleButtonWidth + toggleProgress.value * (insightButtonWidth - bibleButtonWidth);
+    const bible = bibleButtonWidth.value;
+    const insight = insightButtonWidth.value;
+    const translateX = toggleProgress.value * Math.max(0, bible + 4);
+    const width = bible + toggleProgress.value * (insight - bible);
 
     return {
       transform: [{ translateX }],
       width: Math.max(0, width),
     };
-  }, [bibleButtonWidth, insightButtonWidth]);
+  });
 
   /**
    * Safe navigation press handler to prevent double-triggering

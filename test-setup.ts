@@ -1,5 +1,6 @@
 import '@testing-library/jest-native/extend-expect';
 import i18next from 'i18next';
+import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
@@ -22,6 +23,49 @@ if (!i18next.isInitialized) {
   });
 }
 
+// jest-expo 58 mocks the `react-native/asset-registry` entry point, but RN 0.88's AssetRegistry
+// (what expo-asset and expo-font read) is the private module behind it, so the mock never applied
+// and every icon font threw `Module "1" is missing from the asset registry`. Mock that module with
+// the same stub jest-expo uses; every asset require is `1` under jest-expo's transformer.
+jest.mock('react-native/src/private/assets/AssetRegistry', () => {
+  const asset = {
+    fileSystemLocation: '/full/path/to/directory',
+    httpServerLocation: '/assets/full/path/to/directory',
+    scales: [1],
+    fileHashes: ['md5'],
+    name: 'name',
+    exists: true,
+    type: 'type',
+    hash: 'md5',
+    uri: 'uri',
+    width: 1,
+    height: 1,
+  };
+  return {
+    __esModule: true,
+    AssetRegistry: { registerAsset: jest.fn(() => 1), getAssetByID: jest.fn(() => asset) },
+  };
+});
+
+// No hinge under jest (a test can jest.spyOn useHinge to fold one open).
+jest.mock('expo-hinge', () => ({
+  __esModule: true,
+  useHinge: () => null,
+  getHinge: () => null,
+  isAvailable: () => false,
+  addHingeListener: () => ({ remove: () => {} }),
+}));
+
+// The fold probe is a native view; jest has no display, so it reports no regions.
+jest.mock('react-native-reserved-regions', () => ({
+  // __esModule keeps `import * as` on this object, so a test can jest.spyOn a hook.
+  __esModule: true,
+  ReservedRegionsProvider: ({ children }: { children: ReactNode }) => children,
+  ReservedRegionsGate: ({ children }: { children: ReactNode }) => children,
+  useReservedRegions: () => [],
+  useReservedRegionsReady: () => true,
+}));
+
 // Mock toast context — no-op showToast/hideToast so hooks calling useToast() in
 // tests don't blow up on the "must be within ToastProvider" guard.
 jest.mock('@/contexts/ToastContext', () => ({
@@ -29,7 +73,7 @@ jest.mock('@/contexts/ToastContext', () => ({
     showToast: jest.fn(),
     hideToast: jest.fn(),
   }),
-  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  ToastProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 // Mock offline context to avoid SQLite initialization in tests
@@ -65,7 +109,7 @@ jest.mock('@/contexts/OfflineContext', () => ({
     deleteLanguage: jest.fn(),
     syncUserData: jest.fn(),
   }),
-  OfflineProvider: ({ children }: { children: React.ReactNode }) => children,
+  OfflineProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 // Mock react-native-webview — its native module (RNCWebViewModule) isn't

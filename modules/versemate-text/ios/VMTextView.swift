@@ -42,7 +42,7 @@ final class VMTextView: ExpoView {
   /// `0 as CGFloat` is not noise — `CGSize(width: 0, …)` selects the `Int` overload, and
   /// `.greatestFiniteMagnitude` does not exist on `Int`, which fails as
   /// "ambiguous use of 'greatestFiniteMagnitude'".
-  private let textKit: (view: VMMenuTextView, storage: NSTextStorage) = {
+  private let textKit: (view: UITextView, storage: NSTextStorage) = {
     let storage = NSTextStorage()
     let layoutManager = NSLayoutManager()
     // Lay the WHOLE block out, always. This is the switch that was cutting the text.
@@ -64,10 +64,10 @@ final class VMTextView: ExpoView {
     let container = NSTextContainer(size: CGSize(width: 0 as CGFloat, height: .greatestFiniteMagnitude))
     container.widthTracksTextView = true
     layoutManager.addTextContainer(container)
-    return (VMMenuTextView(frame: .zero, textContainer: container), storage)
+    return (UITextView(frame: .zero, textContainer: container), storage)
   }()
 
-  private var textView: VMMenuTextView { textKit.view }
+  private var textView: UITextView { textKit.view }
 
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
@@ -116,14 +116,8 @@ final class VMTextView: ExpoView {
         return (String(parts[0]), String(parts[1]))
       }
     moreActionIds = more
-    textView.trimsSystemMenu = !selectionActions.isEmpty
-    textView.keepsSystemCopy = !selectionActions.contains { $0.id == "copy" }
   }
 
-  /// iOS 15's menu validates the app's items up the responder chain to here (see the extension below).
-  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-    canPerformLegacyAction(action) ?? super.canPerformAction(action, withSender: sender)
-  }
 
   /// Report a chosen menu item with the selection it applies to, then drop the selection: the app
   /// opens its own sheet next, and handles left on the text underneath it read as still active.
@@ -643,12 +637,9 @@ extension VMTextView: UITextViewDelegate {
   /// The only route by which UITextView reports a selection change — see the note in `init`.
   func textViewDidChangeSelection(_ textView: UITextView) {
     handleSelectionChanged()
-    if #unavailable(iOS 16.0) {
-      installLegacyMenuItems()
-    }
   }
 
-  /// iOS 16+: the app's items and nothing of the system's, except Copy when the app has none.
+  /// The app's items and nothing of the system's, except Copy when the app has none.
   ///
   /// Andy asked for the rest to go (2026-11-01): Writing Tools, Look Up, Translate, Search Web and
   /// Share… crowded the app's items, and Share… sent bare text, so the share sheet showed a generic
@@ -657,7 +648,6 @@ extension VMTextView: UITextViewDelegate {
   ///
   /// `range` is the selection the menu is for, captured when the menu opens, so the action reports
   /// exactly what the reader saw selected even if the selection moves afterwards.
-  @available(iOS 16.0, *)
   func textView(
     _ textView: UITextView,
     editMenuForTextIn range: NSRange,
@@ -684,7 +674,6 @@ extension VMTextView: UITextViewDelegate {
   private static let appCopyActionId = "copy"
 
   /// The system's Copy command (localized, with its icon), wherever it sits in the suggested menu tree.
-  @available(iOS 16.0, *)
   private static func copyOnly(_ elements: [UIMenuElement]) -> [UIMenuElement] {
     elements.compactMap { element in
       if let command = element as? UICommand {
@@ -696,63 +685,5 @@ extension VMTextView: UITextViewDelegate {
       }
       return nil
     }
-  }
-}
-
-// MARK: - Selection menu before iOS 16
-
-/// The reader's text view. Only exists for iOS 15's menu, which lists every action the first responder
-/// says it can perform: with the app's items present, the text view's own (Look Up, Share…, Select All)
-/// are refused, leaving the app's items and Copy. iOS 16+ trims the menu in `editMenuForTextIn`.
-final class VMMenuTextView: UITextView {
-  var trimsSystemMenu = false
-  /// False when the app supplies its own Copy, which then replaces the system's.
-  var keepsSystemCopy = true
-
-  override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-    if #unavailable(iOS 16.0), trimsSystemMenu,
-      !(keepsSystemCopy && action == #selector(UIResponderStandardEditActions.copy(_:))),
-      // The app's items are implemented on VMTextView, not here: those still go up the chain.
-      responds(to: action)
-    {
-      return false
-    }
-    return super.canPerformAction(action, withSender: sender)
-  }
-}
-
-/// iOS 15 has no `editMenuForTextIn`; its menu is `UIMenuController`, which takes items with fixed
-/// selectors. Five slots cover the app's actions (the reader uses all five). The text view is first responder,
-/// so UIKit validates and sends these up the responder chain to this view, its superview.
-extension VMTextView {
-  private static let legacySelectors: [Selector] = [
-    #selector(VMTextView.vmSelectionAction0),
-    #selector(VMTextView.vmSelectionAction1),
-    #selector(VMTextView.vmSelectionAction2),
-    #selector(VMTextView.vmSelectionAction3),
-    #selector(VMTextView.vmSelectionAction4),
-  ]
-
-  fileprivate func canPerformLegacyAction(_ action: Selector) -> Bool? {
-    guard let slot = Self.legacySelectors.firstIndex(of: action) else { return nil }
-    return slot < selectionActions.count && textView.selectedRange.length > 0
-  }
-
-  fileprivate func installLegacyMenuItems() {
-    guard textView.selectedRange.length > 0 else { return }
-    UIMenuController.shared.menuItems = zip(selectionActions, Self.legacySelectors).map {
-      UIMenuItem(title: $0.0.label, action: $0.1)
-    }
-  }
-
-  @objc fileprivate func vmSelectionAction0() { performLegacySelectionAction(0) }
-  @objc fileprivate func vmSelectionAction1() { performLegacySelectionAction(1) }
-  @objc fileprivate func vmSelectionAction2() { performLegacySelectionAction(2) }
-  @objc fileprivate func vmSelectionAction3() { performLegacySelectionAction(3) }
-  @objc fileprivate func vmSelectionAction4() { performLegacySelectionAction(4) }
-
-  private func performLegacySelectionAction(_ slot: Int) {
-    guard slot < selectionActions.count else { return }
-    dispatchSelectionAction(id: selectionActions[slot].id, range: textView.selectedRange)
   }
 }

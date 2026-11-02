@@ -13,6 +13,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import {
   ScrollView,
+  type ScrollViewInstance,
   type StyleProp,
   StyleSheet,
   useWindowDimensions,
@@ -46,7 +47,7 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
   },
   ref
 ) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const { width } = useWindowDimensions();
   const currentPageRef = useRef(initialPage);
   const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

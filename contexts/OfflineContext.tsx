@@ -46,9 +46,10 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { importJesusSeed } from '@/services/offline/jesus-store';
 import { perfSpan } from '@/lib/perf';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
-import { InteractionManager, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import React, {
   createContext,
   useCallback,
@@ -325,7 +326,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         dbReady.current = true;
 
         if (autoSync !== 'false') {
-          InteractionManager.runAfterInteractions(() => {
+          runWhenIdle(() => {
             runAutoSyncIfNeeded().catch(console.warn);
           });
         }

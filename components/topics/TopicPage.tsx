@@ -19,7 +19,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Animated, {
   Easing,
@@ -36,6 +43,7 @@ import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { Markdown } from '@/lib/markdown/Markdown';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
@@ -349,7 +357,7 @@ export function TopicPage({
   // byline is virtualized to ~3 sections).
   useEffect(() => {
     if (insightPrewarmed) return;
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setInsightPrewarmed(true);
     });
     return () => {
@@ -360,7 +368,7 @@ export function TopicPage({
   // Reset scroll state when topic changes. Separate refs per inner tab
   // matches Bible's pattern and keeps each tab's scroll position
   // independent across switches.
-  const bibleScrollRef = useRef<ScrollView>(null);
+  const bibleScrollRef = useRef<ScrollViewInstance>(null);
   // All three Insight tabs are FlatLists now — use scrollToOffset.
   const summaryScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);
   const bylineScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);

@@ -6,8 +6,9 @@
  * different headers again — which is what happened: the event had the reader
  * bar and every page leading to it had a light back-arrow bar with no menu.
  */
-import { StackActions } from '@react-navigation/native';
+
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { StackActions } from 'expo-router/react-navigation';
 import { useCallback, useState } from 'react';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
@@ -34,7 +35,7 @@ const CONTENT_ROUTES = new Set(['event/[slug]', 'entry/[slug]']);
  * List pages step back one page as normal, and the hub leaves the section.
  *
  * The hub is always at the bottom of this stack (app/jesus/_layout
- * `initialRouteName`), so a Jesus page to land on always exists. If the stack
+ * `unstable_settings.anchor`), so a Jesus page to land on always exists. If the stack
  * cannot be read at all, it falls back to the hub rather than doing nothing.
  */
 export function useJesusBack(): () => void {

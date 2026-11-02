@@ -9,6 +9,9 @@ import {
   BREAKPOINTS,
   calculatePanelWidths,
   DEFAULT_SPLIT_RATIO,
+  findVerticalFold,
+  flatOpenFold,
+  foldSplitRatio,
   getDeviceInfo,
   shouldUseSplitView,
 } from '@/utils/device-detection';
@@ -199,6 +202,86 @@ describe('device-detection', () => {
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH).toBe(320);
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH).toBe(345);
       expect(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH).toBe(900);
+    });
+  });
+
+  describe('findVerticalFold', () => {
+    const frame = (x: number, y: number, width: number, height: number) => ({
+      x,
+      y,
+      width,
+      height,
+    });
+
+    it('returns the vertical division (an open foldable in landscape)', () => {
+      expect(
+        findVerticalFold([
+          { kind: 'occlusion', frame: frame(0, 0, 120, 36) },
+          { kind: 'division', frame: frame(470, 0, 10, 669), occludesContent: false },
+        ])
+      ).toEqual({ x: 470, width: 10 });
+    });
+
+    it('ignores a horizontal division (open in portrait) and occlusions', () => {
+      expect(
+        findVerticalFold([
+          { kind: 'division', frame: frame(0, 470, 669, 10), occludesContent: false },
+          { kind: 'occlusion', frame: frame(300, 0, 20, 600) },
+        ])
+      ).toBeNull();
+    });
+
+    it('returns null with no regions (every non-foldable)', () => {
+      expect(findVerticalFold([])).toBeNull();
+    });
+  });
+
+  describe('flatOpenFold', () => {
+    const open = { status: 'fullyOpen' };
+    const duoOpen = { width: 951, height: 669 };
+
+    it('puts the fold at the middle of a full-screen landscape window with the hinge open', () => {
+      expect(flatOpenFold(open, duoOpen, duoOpen)).toEqual({ x: 475.5, width: 0 });
+      expect(flatOpenFold({ status: 'partiallyOpen' }, duoOpen, duoOpen)).toEqual({
+        x: 475.5,
+        width: 0,
+      });
+    });
+
+    it('is null without an open hinge', () => {
+      expect(flatOpenFold(null, duoOpen, duoOpen)).toBeNull();
+      expect(flatOpenFold({ status: 'closed' }, duoOpen, duoOpen)).toBeNull();
+      expect(flatOpenFold({ status: 'unknown' }, duoOpen, duoOpen)).toBeNull();
+    });
+
+    it('is null in portrait, and in an iOS Split View window, whose middle is not the fold', () => {
+      expect(
+        flatOpenFold(open, { width: 669, height: 951 }, { width: 669, height: 951 })
+      ).toBeNull();
+      expect(flatOpenFold(open, { width: 469, height: 669 }, duoOpen)).toBeNull();
+    });
+  });
+
+  describe('foldSplitRatio', () => {
+    it('puts the divider on the fold centre, measured inside the side insets', () => {
+      // 951pt window, fold 470-480, 84pt rail on the right: centre 475 of 867 inner points.
+      const ratio = foldSplitRatio({ x: 470, width: 10 }, 951, { left: 0, right: 84 });
+      expect(ratio).toBeCloseTo(475 / 867, 6);
+      expect(calculatePanelWidths(867, ratio ?? 0).leftWidth).toBe(475);
+    });
+
+    it('subtracts a left inset from the fold position', () => {
+      expect(foldSplitRatio({ x: 470, width: 0 }, 951, { left: 84, right: 0 })).toBeCloseTo(
+        386 / 867,
+        6
+      );
+    });
+
+    it('returns null when a half would be narrower than its panel minimum', () => {
+      // Left half 300pt < 320pt minimum.
+      expect(foldSplitRatio({ x: 300, width: 0 }, 951, { left: 0, right: 0 })).toBeNull();
+      // Right half 951 - 700 = 251pt < 345pt minimum.
+      expect(foldSplitRatio({ x: 700, width: 0 }, 951, { left: 0, right: 0 })).toBeNull();
     });
   });
 

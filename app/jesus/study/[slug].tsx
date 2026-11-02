@@ -55,7 +55,7 @@ export default function JesusCollectionScreen() {
           ListHeaderComponent={
             data.collection?.description ? (
               <Text style={styles.description}>{data.collection.description}</Text>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item }) => (
             <EventRow event={item} onPress={(s) => router.push(`/jesus/event/${s}`)} />

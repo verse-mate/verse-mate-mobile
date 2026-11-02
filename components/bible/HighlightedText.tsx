@@ -29,10 +29,9 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
-  type NativeSyntheticEvent,
   StyleSheet,
   Text,
-  type TextLayoutEventData,
+  type TextLayoutEvent,
   type TextProps,
 } from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
@@ -632,7 +631,7 @@ export function HighlightedText({
    * Handle text layout event to track line information
    * Used for coordinate-based word detection on long-press
    */
-  const handleTextLayout = (event: NativeSyntheticEvent<TextLayoutEventData>) => {
+  const handleTextLayout = (event: TextLayoutEvent) => {
     textLayoutRef.current = event.nativeEvent.lines as TextLayoutLine[];
   };
 

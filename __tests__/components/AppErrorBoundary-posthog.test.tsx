@@ -16,7 +16,6 @@ describe('AppErrorBoundary PostHog Integration', () => {
     const testError = new Error('Test component error');
     const errorInfo: ErrorInfo = {
       componentStack: '\n    at Component (Component.tsx:10)',
-      digest: undefined,
     };
 
     // Simulate what AppErrorBoundary does in componentDidCatch

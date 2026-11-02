@@ -238,7 +238,7 @@ export default function JesusBrowseScreen() {
                   }
                 )}
               </Text>
-            ) : null
+            ) : undefined
           }
         />
       )}

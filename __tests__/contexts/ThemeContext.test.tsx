@@ -25,14 +25,21 @@ jest.mock('expo-sensors', () => ({
 }));
 jest.mock('expo-navigation-bar', () => ({
   setBackgroundColorAsync: jest.fn(),
-  setButtonStyleAsync: jest.fn(),
+  setStyle: jest.fn(),
   setPositionAsync: jest.fn(),
 }));
 jest.mock('expo-system-ui', () => ({
   setBackgroundColorAsync: jest.fn(),
 }));
 jest.mock('suncalc');
+// ThemeContext reaches expo-localization through the PostHog provider; since SDK 58 it needs more of
+// react-native (NativeModules, Image.resolveAssetSource) than this file's react-native mock has.
+jest.mock('expo-localization', () => ({
+  getLocales: () => [{ languageTag: 'en-US', languageCode: 'en' }],
+  getCalendars: () => [],
+}));
 jest.mock('react-native', () => ({
+  NativeModules: {},
   useColorScheme: jest.fn(),
   Platform: {
     OS: 'ios',
@@ -435,7 +442,7 @@ describe('ThemeContext', () => {
     });
 
     expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalled(); // Check it was called with a color
-    expect(NavigationBar.setButtonStyleAsync).toHaveBeenCalledWith('light');
+    expect(NavigationBar.setStyle).toHaveBeenCalledWith('dark');
 
     // Switch to light mode
     await act(async () => {
@@ -443,7 +450,7 @@ describe('ThemeContext', () => {
     });
 
     expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalled();
-    expect(NavigationBar.setButtonStyleAsync).toHaveBeenCalledWith('dark');
+    expect(NavigationBar.setStyle).toHaveBeenCalledWith('light');
 
     // Reset Platform to ios
     Platform.OS = 'ios';

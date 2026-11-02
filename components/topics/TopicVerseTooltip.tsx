@@ -618,7 +618,7 @@ const createStyles = (
       alignItems: tooltipWidth ? (useSplitView ? 'flex-end' : 'center') : 'stretch',
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     container: {

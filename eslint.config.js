@@ -30,7 +30,26 @@ module.exports = defineConfig([
       'react-hooks/rules-of-hooks': 'error',
       // React Compiler rules for Rules of React violations
       'react-compiler/react-compiler': 'error',
+      // eslint-config-expo 57 ships eslint-plugin-react-hooks v7, whose
+      // recommended set adds these compiler-derived rules as errors. The code
+      // predates them (419 hits at the SDK 57 bump, 295 of them `refs`), so they
+      // warn until they are worked through; the compiler skips a component that
+      // breaks them rather than miscompiling it.
+      'react-hooks/refs': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/globals': 'warn',
+      'react-hooks/static-components': 'warn',
     },
+  },
+
+  // tsc already checks namespace members in TypeScript, and import/namespace
+  // cannot follow expo-notifications 58's compiled enums: it reported
+  // Notifications.AndroidImportance and IosAuthorizationStatus as missing.
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: { 'import/namespace': 'off' },
   },
 
   // i18n: forbid raw English strings in user-facing UI (D-016 part 3).

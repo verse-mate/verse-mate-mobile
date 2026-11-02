@@ -36,10 +36,8 @@ function detectInitialLanguage(): string {
 
 let initialized = false;
 
-export async function initI18n(initialLanguage?: string): Promise<typeof i18next> {
-  if (initialized) return i18next;
-
-  await i18next.use(initReactI18next).init({
+function initOptions(lng: string) {
+  return {
     resources: {
       en: { translation: en },
       es: { translation: es },
@@ -47,7 +45,7 @@ export async function initI18n(initialLanguage?: string): Promise<typeof i18next
       de: { translation: de },
       pt: { translation: pt },
     },
-    lng: initialLanguage ?? detectInitialLanguage(),
+    lng,
     fallbackLng: FALLBACK_LANGUAGE,
     interpolation: {
       escapeValue: false, // React already escapes
@@ -58,10 +56,24 @@ export async function initI18n(initialLanguage?: string): Promise<typeof i18next
     },
     returnNull: false,
     returnEmptyString: false,
-  });
+  };
+}
 
+export async function initI18n(initialLanguage?: string): Promise<typeof i18next> {
+  if (initialized) return i18next;
+  await i18next.use(initReactI18next).init(initOptions(initialLanguage ?? detectInitialLanguage()));
   initialized = true;
   return i18next;
+}
+
+// Server render (the web export). I18nProvider initialises in an effect, and effects never run on
+// the server, so until now every screen using useTranslation met an uninitialised i18next and
+// suspended (react-i18next's default) for good. Expo SDK 58's export waits for every Suspense
+// boundary, so it hung on them. Initialise here instead, synchronously, in the fallback language;
+// the client still initialises in the provider as before.
+if (process.env.EXPO_OS === 'web' && typeof window === 'undefined' && !initialized) {
+  i18next.use(initReactI18next).init({ ...initOptions(FALLBACK_LANGUAGE), initAsync: false });
+  initialized = true;
 }
 
 /** Programmatically change the active language at runtime. */

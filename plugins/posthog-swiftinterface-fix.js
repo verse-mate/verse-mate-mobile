@@ -86,11 +86,24 @@ const INJECTION = `
     # Matches every PostHog pod, not just the one named in the error: posthog-react-native pulls in the
     # native PostHog pod AND posthog-react-native-session-replay, which depends on PostHog too. Still not
     # project-wide -- our own VMText module keeps the check, where a broken interface is a real signal.
+    #
+    # Pods that IMPORT PostHog (posthog-react-native-session-replay) also need PostHog's private module
+    # maps on their Swift include path. Xcode 27 scans Swift module dependencies explicitly, and
+    # PostHog.swiftmodule names phlibwebp, PHPLCrashReporter and PostHogObjCExceptionSupport as
+    # dependencies, which only the PostHog target's own SWIFT_INCLUDE_PATHS can find: the Expo SDK 58
+    # build failed with "Unable to resolve module dependency: 'PHPLCrashReporter'" (and the other two)
+    # in posthog-react-native-session-replay.
+    posthog_private_modules = %w[phlibwebp PHPLCrashReporter PostHogObjCExceptionSupport].map do |name|
+      "\\"$(PODS_ROOT)/PostHog/PostHog/PrivateModules/#{name}\\""
+    end
     installer.pods_project.targets.each do |target|
       next unless target.name.downcase.include?('posthog')
       target.build_configurations.each do |build_config|
         build_config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
         build_config.build_settings['SWIFT_VERIFY_EMITTED_MODULE_INTERFACE'] = 'NO'
+        next if target.name == 'PostHog'
+        build_config.build_settings['SWIFT_INCLUDE_PATHS'] =
+          (['$(inherited)'] + posthog_private_modules).join(' ')
       end
     end
 `;

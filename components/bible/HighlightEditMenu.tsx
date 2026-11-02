@@ -191,7 +191,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, leftPadding: number)
       paddingLeft: leftPadding, // Push content to the right panel area
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: colors.backdrop,
     },
     centerContainer: {

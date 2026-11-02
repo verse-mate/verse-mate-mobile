@@ -379,9 +379,7 @@ export default function HelpScreen() {
                   )}
                 </View>
               }
-              ListEmptyComponent={
-                null // Empty state handled by "History" header logic
-              }
+              // No ListEmptyComponent: the empty state is handled by the "History" header logic.
             />
             {isLoading && conversations.length === 0 && (
               <ActivityIndicator style={StyleSheet.absoluteFill} size="large" color={colors.gold} />

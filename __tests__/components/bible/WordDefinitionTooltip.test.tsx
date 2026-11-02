@@ -23,7 +23,7 @@ jest.mock('expo-clipboard', () => ({
 }));
 
 // Mock react-native Share
-jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction', activityType: undefined });
 
 // Mock dictionary-service
 const mockLookupWord = jest.fn();

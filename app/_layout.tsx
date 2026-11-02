@@ -11,17 +11,19 @@
  */
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus, InteractionManager, Platform } from 'react-native';
+import { AppState, type AppStateStatus, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReservedRegionsProvider } from 'react-native-reserved-regions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -51,6 +53,7 @@ import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { resolveJesusDeepLink } from '@/lib/jesus/deep-link';
 import { installPerfSession, perfSpan } from '@/lib/perf';
 import { queryClient } from '@/lib/query-client';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import {
@@ -83,6 +86,7 @@ setupClientInterceptors();
  */
 function RootLayoutInner() {
   const { mode, colors, isLoading: themeLoading } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
   const hasInitialized = useRef(false);
@@ -449,8 +453,9 @@ function RootLayoutInner() {
       try {
         // Update background color to match theme
         await SystemUI.setBackgroundColorAsync(colors.background);
-        // Update nav bar button style (light buttons on dark theme, dark on light)
-        await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        // Nav bar follows the theme: a dark bar (light buttons) on the dark theme. setStyle names the
+        // bar, the inverse of the removed setButtonStyleAsync, which named the buttons.
+        NavigationBar.setStyle(mode === 'dark' ? 'dark' : 'light');
         // Ensure nav bar is visible (reverting hidden state)
         await NavigationBar.setVisibilityAsync('visible');
       } catch (error) {
@@ -469,7 +474,7 @@ function RootLayoutInner() {
         try {
           // Wait for interactions to complete before hiding splash
           await new Promise((resolve) => {
-            InteractionManager.runAfterInteractions(() => {
+            runWhenIdle(() => {
               setTimeout(resolve, 200);
             });
           });
@@ -494,93 +499,105 @@ function RootLayoutInner() {
   return (
     <AppErrorBoundary>
       <ThemeProvider value={navigationTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="bible/[bookId]/[chapterNumber]"
-            options={{
-              headerShown: false,
-              animation: 'none', // Disable route animations - PagerView handles swipe animations
-            }}
-          />
-          <Stack.Screen
-            name="topics/[topicId]"
-            options={{
-              headerShown: false,
-              animation: 'none',
-            }}
-          />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen
-            name="auth"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="bookmarks"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="highlights"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="notes"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="help"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-              animation: 'fade',
-            }}
-          />
-          <Stack.Screen
-            name="manage-downloads"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="names-of-god"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="jesus"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="e2e-auth"
-            options={{
-              headerShown: false,
-              animation: 'none',
-            }}
-          />
-        </Stack>
+        {/* Every screen keeps clear of the side safe-area insets: iPhone Duo's system rail (84pt,
+            folded and open) and the notch on a landscape iPhone. Applied once here, so screens and
+            SplitView size against the inset width. */}
+        <View
+          style={{
+            flex: 1,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            backgroundColor: colors.background,
+          }}
+        >
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="bible/[bookId]/[chapterNumber]"
+              options={{
+                headerShown: false,
+                animation: 'none', // Disable route animations - PagerView handles swipe animations
+              }}
+            />
+            <Stack.Screen
+              name="topics/[topicId]"
+              options={{
+                headerShown: false,
+                animation: 'none',
+              }}
+            />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen
+              name="auth"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="bookmarks"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="highlights"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="settings"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="notes"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="help"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="onboarding"
+              options={{
+                headerShown: false,
+                animation: 'fade',
+              }}
+            />
+            <Stack.Screen
+              name="manage-downloads"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="names-of-god"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="jesus"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="e2e-auth"
+              options={{
+                headerShown: false,
+                animation: 'none',
+              }}
+            />
+          </Stack>
+        </View>
         <StatusBar style="auto" />
         {upgradeState.mustUpgrade && !upgradeState.dismissed && (
           <UpgradePromptScreen
@@ -606,71 +623,75 @@ function RootLayoutInner() {
  * - Splash screen management
  */
 export default function RootLayout() {
+  // ReservedRegionsProvider reports the fold of an open foldable (iPhone Duo) in window points;
+  // DeviceInfoContext splits the reader on it.
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <I18nProvider>
-          <AppPostHogProvider>
-            <QueryClientProvider client={queryClient}>
-              <AuthProvider>
-                <CustomThemeProvider>
-                  <DeviceInfoProvider>
-                    <OfflineProvider>
-                      <ToastProvider>
-                        <AudioPlayerProvider
-                          engine={audioEngine}
-                          // These analytics events are keyed on an
-                          // explanation id, which scripture narration (Bible
-                          // Brain) does not have. Emitting them only for
-                          // explanation tracks keeps the existing funnels
-                          // clean; scripture playback needs its own events
-                          // before it can be reported.
-                          onPlaybackStarted={(track, args) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackStarted({
-                              explanationId: track.explanation_id,
-                              explanationType: track.explanation_type,
-                              bookId: track.book_id,
-                              chapterNumber: track.chapter_number,
-                              voice: track.voice,
-                              languageCode: track.language_code,
-                              isResume: args.isResume,
-                              resumePositionSeconds: args.resumePositionSeconds,
-                              ttsProvider: track.tts_provider,
-                            });
-                          }}
-                          onPlaybackPaused={(track, positionSeconds, reason) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackPaused({
-                              explanationId: track.explanation_id,
-                              positionSeconds,
-                              durationSeconds: track.duration_seconds,
-                              reason,
-                            });
-                          }}
-                          onPlaybackCompleted={(track) => {
-                            if (track.kind !== 'explanation') return;
-                            trackAudioPlaybackCompleted({
-                              explanationId: track.explanation_id,
-                              durationSeconds: track.duration_seconds,
-                              completedBy: 'natural',
-                            });
-                          }}
-                        >
-                          <BottomBarInsetProvider>
-                            <RootLayoutInner />
-                            <MobileAudioPlayerRoot />
-                          </BottomBarInsetProvider>
-                        </AudioPlayerProvider>
-                      </ToastProvider>
-                    </OfflineProvider>
-                  </DeviceInfoProvider>
-                </CustomThemeProvider>
-              </AuthProvider>
-            </QueryClientProvider>
-          </AppPostHogProvider>
-        </I18nProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <ReservedRegionsProvider style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <I18nProvider>
+            <AppPostHogProvider>
+              <QueryClientProvider client={queryClient}>
+                <AuthProvider>
+                  <CustomThemeProvider>
+                    <DeviceInfoProvider>
+                      <OfflineProvider>
+                        <ToastProvider>
+                          <AudioPlayerProvider
+                            engine={audioEngine}
+                            // These analytics events are keyed on an
+                            // explanation id, which scripture narration (Bible
+                            // Brain) does not have. Emitting them only for
+                            // explanation tracks keeps the existing funnels
+                            // clean; scripture playback needs its own events
+                            // before it can be reported.
+                            onPlaybackStarted={(track, args) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackStarted({
+                                explanationId: track.explanation_id,
+                                explanationType: track.explanation_type,
+                                bookId: track.book_id,
+                                chapterNumber: track.chapter_number,
+                                voice: track.voice,
+                                languageCode: track.language_code,
+                                isResume: args.isResume,
+                                resumePositionSeconds: args.resumePositionSeconds,
+                                ttsProvider: track.tts_provider,
+                              });
+                            }}
+                            onPlaybackPaused={(track, positionSeconds, reason) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackPaused({
+                                explanationId: track.explanation_id,
+                                positionSeconds,
+                                durationSeconds: track.duration_seconds,
+                                reason,
+                              });
+                            }}
+                            onPlaybackCompleted={(track) => {
+                              if (track.kind !== 'explanation') return;
+                              trackAudioPlaybackCompleted({
+                                explanationId: track.explanation_id,
+                                durationSeconds: track.duration_seconds,
+                                completedBy: 'natural',
+                              });
+                            }}
+                          >
+                            <BottomBarInsetProvider>
+                              <RootLayoutInner />
+                              <MobileAudioPlayerRoot />
+                            </BottomBarInsetProvider>
+                          </AudioPlayerProvider>
+                        </ToastProvider>
+                      </OfflineProvider>
+                    </DeviceInfoProvider>
+                  </CustomThemeProvider>
+                </AuthProvider>
+              </QueryClientProvider>
+            </AppPostHogProvider>
+          </I18nProvider>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </ReservedRegionsProvider>
   );
 }

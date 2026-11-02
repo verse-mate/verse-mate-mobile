@@ -7,10 +7,16 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useHinge } from 'expo-hinge';
 import { Dimensions } from 'react-native';
+import { useReservedRegions } from 'react-native-reserved-regions';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import {
   DEFAULT_SPLIT_RATIO,
   type DeviceInfo,
+  findVerticalFold,
+  flatOpenFold,
+  foldSplitRatio,
   getDeviceInfo,
   SPLIT_RATIO_STORAGE_KEY,
   shouldUseSplitView,
@@ -29,8 +35,13 @@ export const SPLIT_VIEW_MODE_STORAGE_KEY = 'versemate:split-view-mode';
 export interface DeviceInfoContextType extends DeviceInfo {
   /** Whether split view layout should be used */
   useSplitView: boolean;
-  /** Current split ratio (0-1, left panel proportion) */
+  /** Current split ratio (0-1, left panel proportion); on an open foldable, the fold's */
   splitRatio: number;
+  /**
+   * The divider sits on a foldable's fold (iPhone Duo open in landscape): split
+   * view is on whatever the width, and the divider is not resizable.
+   */
+  foldLocked: boolean;
   /** Update split ratio (persists to AsyncStorage) */
   setSplitRatio: (ratio: number) => void;
   /** Current view mode */
@@ -59,6 +70,24 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
   const [splitRatio, setSplitRatioState] = useState(cachedSplitRatio ?? DEFAULT_SPLIT_RATIO);
   const [splitViewMode, setSplitViewModeState] = useState<SplitViewMode>(cachedSplitViewMode ?? 'split');
   const [isLoaded, setIsLoaded] = useState(isCacheLoaded);
+
+  // An open foldable splits along its fold even below the split-view width:
+  // iPhone Duo open in landscape is about 950pt wide, its halves about 470pt.
+  // Bent, iOS reports the fold as a reserved region; lying flat it reports none, so the hinge says
+  // the display is open and the fold is its middle.
+  const reservedRegions = useReservedRegions();
+  const hinge = useHinge();
+  // The context, not useSafeAreaInsets(): that throws outside a SafeAreaProvider, and this provider
+  // also renders in tests without one. Expo Router supplies the provider in the app.
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const fold =
+    findVerticalFold(reservedRegions) ??
+    flatOpenFold(
+      hinge,
+      { width: deviceInfo.screenWidth, height: deviceInfo.screenHeight },
+      Dimensions.get('screen')
+    );
+  const foldRatio = fold ? foldSplitRatio(fold, deviceInfo.screenWidth, insets) : null;
 
   // Load persisted state on mount
   useEffect(() => {
@@ -131,8 +160,9 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
 
   const value = {
     ...deviceInfo,
-    useSplitView,
-    splitRatio,
+    useSplitView: useSplitView || foldRatio !== null,
+    splitRatio: foldRatio ?? splitRatio,
+    foldLocked: foldRatio !== null,
     setSplitRatio,
     splitViewMode,
     setSplitViewMode,

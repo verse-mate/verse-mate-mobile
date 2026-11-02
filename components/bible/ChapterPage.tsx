@@ -22,12 +22,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   findNodeHandle,
-  InteractionManager,
   Platform,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   View,
+  type ViewInstance,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -70,6 +71,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useStableList } from '@/lib/perf/use-stable-list';
+import { runWhenIdle } from '@/lib/scheduling/run-when-idle';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -165,9 +167,9 @@ function TabContent({
   onTouchEnd?: (event: GestureResponderEvent) => void;
   filteredHighlights?: Highlight[];
   filteredAutoHighlights?: AutoHighlight[];
-  scrollRef?: React.RefObject<ScrollView | null>;
+  scrollRef?: React.RefObject<ScrollViewInstance | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
-  onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
+  onByLineSectionRegister?: (verseNumber: number, node: ViewInstance | null) => void;
   /** Threaded through to ChapterReader — see ChapterReaderProps. */
   bibleVersion?: string;
   bibleLanguage?: string;
@@ -619,13 +621,13 @@ export function ChapterPage({
   // Track Bible view scroll fraction (0-1) for syncing to explanation tabs
   const bibleScrollFractionRef = useRef(0);
   // Refs for explanation tab ScrollViews to sync scroll position
-  const byLineScrollRef = useRef<ScrollView>(null);
-  const summaryScrollRef = useRef<ScrollView>(null);
-  const studyScrollRef = useRef<ScrollView>(null);
+  const byLineScrollRef = useRef<ScrollViewInstance>(null);
+  const summaryScrollRef = useRef<ScrollViewInstance>(null);
+  const studyScrollRef = useRef<ScrollViewInstance>(null);
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
   // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
-  const byLineSectionRefs = useRef<Record<number, View | null>>({});
+  const byLineSectionRefs = useRef<Record<number, ViewInstance | null>>({});
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -774,7 +776,7 @@ export function ChapterPage({
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
   // becomes a style flip (instant) instead of a 500-700ms first-mount
-  // hit. The mount is scheduled via InteractionManager.runAfterInteractions
+  // hit. The mount is scheduled via runWhenIdle
   // so it doesn't run during the chapter-swipe animation.
   //
   // NOT sticky any more. It used to stay true for the ChapterPage's lifetime on
@@ -839,7 +841,7 @@ export function ChapterPage({
       setBufferContentReady(true);
       return;
     }
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setBufferContentReady(true);
     });
     return () => {
@@ -885,7 +887,7 @@ export function ChapterPage({
     // delay. The toggleProgress-driven visibility flip below only works
     // when the Insight subtree is mounted, so we want this to flip as
     // early as possible.
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       setInsightPrewarmed(true);
     });
     return () => {
@@ -1197,7 +1199,7 @@ export function ChapterPage({
     // it chained all remaining tabs into consecutive frames — measured as a single 228-view burst
     // rather than the intended one-at-a-time. See PREWARM_TAB_GAP_MS.
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = runWhenIdle(() => {
       timer = setTimeout(() => {
         setVisitedTabs((prev) => {
           if (prev.has(next)) return prev;
@@ -1621,13 +1623,16 @@ export function ChapterPage({
     byLineSectionRefs.current = {};
   }, [bookId, chapterNumber]);
 
-  const handleByLineSectionRegister = useCallback((verseNumber: number, node: View | null) => {
-    if (node === null) {
-      delete byLineSectionRefs.current[verseNumber];
-      return;
-    }
-    byLineSectionRefs.current[verseNumber] = node;
-  }, []);
+  const handleByLineSectionRegister = useCallback(
+    (verseNumber: number, node: ViewInstance | null) => {
+      if (node === null) {
+        delete byLineSectionRefs.current[verseNumber];
+        return;
+      }
+      byLineSectionRefs.current[verseNumber] = node;
+    },
+    []
+  );
 
   const handleByLineVerseJump = useCallback((verseNumber: number) => {
     const node = byLineSectionRefs.current[verseNumber];

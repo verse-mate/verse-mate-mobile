@@ -37,6 +37,7 @@ import {
   Text,
   TextInput,
   View,
+  type ViewInstance,
 } from 'react-native';
 import {
   Gesture,
@@ -859,7 +860,7 @@ function BibleNavigationModalComponent({
   // the end of the list can sit behind the keyboard. Pad the list by the part
   // the keyboard covers so its last rows still scroll above it. Measured on
   // screen, so a platform that already resized the window gets no padding.
-  const listAreaRef = useRef<View>(null);
+  const listAreaRef = useRef<ViewInstance>(null);
   const [keyboardOverlap, setKeyboardOverlap] = useState(0);
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -1751,7 +1752,7 @@ const createStyles = (
       alignItems: useSplitView || isTabletPortrait ? 'center' : 'stretch',
     },
     backdropTouchable: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     container: {
       height: modalSpecs.height,

@@ -195,8 +195,9 @@ Example: `components/ui/icon-symbol.ios.tsx` provides iOS-specific icon implemen
 
 - **Package Manager**: Use `bun` for all commands except tests (use `npm` for test commands)
 - **TypeScript**: Strict mode enabled, all code must be properly typed
-- **React Version**: Using React 19.1.0 with React Native 0.81.4
-- **Expo SDK**: Version 54
+- **Versions**: Expo SDK, React and React Native are whatever `package.json` pins (`expo`, `react`, `react-native`)
+- **iOS lifecycle**: the app uses the UIKit scene lifecycle (default since Expo SDK 58); iOS 27 SDK builds do not launch without it
+- **Foldables**: `react-native-reserved-regions` reports an open foldable's fold (`ReservedRegionsProvider` in `app/_layout.tsx`); `DeviceInfoContext` turns split view on along a vertical fold and `SplitView` pins its divider there (`lockedToFold`)
 - **API Mocking**: Always add MSW handlers in `__tests__/mocks/handlers/` for new API endpoints
 - **Test Coverage**: Coverage thresholds currently at 0% (infrastructure phase), will increase to 60%+ minimum
 

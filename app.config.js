@@ -16,7 +16,7 @@ const config = {
   icon: './assets/images/icon.png',
   scheme: 'versemate',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
+  // newArchEnabled: removed in SDK 55, the New Architecture is the only one.
   ios: {
     icon: './assets/images/ios-icon.png',
     bundleIdentifier: 'org.versemate.app',
@@ -100,7 +100,7 @@ const config = {
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    edgeToEdgeEnabled: true,
+    // edgeToEdgeEnabled: removed in SDK 55; edge-to-edge is always on from Android 16.
     predictiveBackGestureEnabled: false,
     statusBar: {
       translucent: true,
@@ -150,6 +150,14 @@ const config = {
   },
   plugins: [
     'expo-router',
+    // SDK 55: these packages ship config plugins and `expo install --fix` asks for them.
+    '@react-native-community/datetimepicker',
+    'expo-image',
+    'expo-secure-store',
+    'expo-sharing',
+    // SDK 56: also asked for by `expo install --fix`.
+    'expo-asset',
+    'expo-status-bar',
     // GH-281: push notifications. The plugin adds the iOS push entitlement
     // (aps-environment) and Android POST_NOTIFICATIONS wiring at prebuild.
     [
@@ -176,6 +184,12 @@ const config = {
     [
       'expo-build-properties',
       {
+        android: {
+          // Expo SDK 58's template turns R8 on for release builds; the app has never shipped
+          // minified, and R8 strips classes native modules reach by reflection, which only shows as
+          // a crash in a release build on a device. Off until that is tested on its own.
+          enableMinifyInReleaseBuilds: false,
+        },
         ios: {
           extraPods: [
             { name: 'GoogleUtilities', modular_headers: true },

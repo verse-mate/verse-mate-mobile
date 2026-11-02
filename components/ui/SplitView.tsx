@@ -63,6 +63,13 @@ export interface SplitViewProps {
   /** Whether edge tabs should be visible (fades in/out based on user interaction) */
   edgeTabsVisible?: boolean;
 
+  /**
+   * The divider is pinned to a foldable's fold (`splitRatio` is the fold's).
+   * Dragging to an edge still switches to one full-width panel; a drag that
+   * ends anywhere else springs back to the fold instead of resizing.
+   */
+  lockedToFold?: boolean;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -81,12 +88,13 @@ export function SplitView({
   viewMode = 'split',
   onViewModeChange,
   edgeTabsVisible = true,
+  lockedToFold = false,
   testID = 'split-view',
 }: SplitViewProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const insets = useSafeAreaInsets();
-  const styles = createStyles(specs, colors, insets);
+  const styles = createStyles(specs, colors);
 
   // Container dimensions
   const containerWidth = useSharedValue(0);
@@ -134,11 +142,10 @@ export function SplitView({
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { width, x } = event.nativeEvent.layout;
-      // onLayout reports the container's outer width, but the container has
-      // paddingLeft/paddingRight equal to the horizontal safe-area insets
-      // (notch on landscape). Panels must size against the inner width so the
-      // right panel doesn't overflow into the notch region. (VER-70)
-      const innerWidth = Math.max(0, width - insets.left - insets.right);
+      // The root layout pads every screen by the horizontal safe-area insets (notch on a landscape
+      // iPhone, iPhone Duo's rail), so this container already sits inside them: its width is the
+      // panels' width, and its left edge is the left inset in window coordinates. (VER-70)
+      const innerWidth = Math.max(0, width);
       containerWidth.value = innerWidth;
       containerX.value = x + insets.left;
 
@@ -152,15 +159,7 @@ export function SplitView({
         setIsLayoutReady(true);
       }
     },
-    [
-      splitRatio,
-      committedSplitPosition,
-      containerWidth,
-      containerX,
-      isLayoutReady,
-      insets.left,
-      insets.right,
-    ]
+    [splitRatio, committedSplitPosition, containerWidth, containerX, isLayoutReady, insets.left]
   );
 
   // --- Sync Props to Internal State ---
@@ -478,6 +477,11 @@ export function SplitView({
               runOnJS(onViewModeChange)('left-full');
               runOnJS(triggerSuccessHaptic)();
             }
+            // On a fold the panels are the two halves of the display: back to the fold.
+            else if (lockedToFold) {
+              dividerTranslation.value = withSpring(0, { damping: 15, stiffness: 200, mass: 0.5 });
+              runOnJS(triggerMediumHaptic)();
+            }
             // 2. Limit Snaps (Commit exact limit)
             else if (currentSnap === 'limit-left' || currentSnap === 'limit-right') {
               let targetWidth = 0;
@@ -528,6 +532,7 @@ export function SplitView({
     [
       onSplitRatioChange,
       onViewModeChange,
+      lockedToFold,
       containerWidth,
       containerX,
       committedSplitPosition,
@@ -653,9 +658,11 @@ export function SplitView({
   }, [edgeTabsVisible, edgeTabsOpacity]);
 
   const handleDividerDoubleTap = useCallback(() => {
+    // On a fold the divider has no other resting place to reset to.
+    if (lockedToFold) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSplitRatioChange(specs.defaultSplitRatio);
-  }, [onSplitRatioChange, specs.defaultSplitRatio]);
+  }, [lockedToFold, onSplitRatioChange, specs.defaultSplitRatio]);
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID={testID}>
@@ -788,17 +795,14 @@ export function SplitView({
  */
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
-  colors: ReturnType<typeof useTheme>['colors'],
-  insets: ReturnType<typeof useSafeAreaInsets>
+  colors: ReturnType<typeof useTheme>['colors']
 ) {
   return StyleSheet.create({
     container: {
       flex: 1,
       flexDirection: 'row',
       backgroundColor: colors.background,
-      // Account for safe area on landscape (notch on left/right)
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
+      // No horizontal safe-area padding here: the root layout applies it to every screen.
       overflow: 'visible', // Allow edge tabs to render outside container
     },
     panel: {
@@ -883,12 +887,10 @@ function createStyles(
     },
     leftEdgeTab: {
       left: 0,
-      paddingLeft: insets.left,
       alignItems: 'flex-start', // Align button to left edge
     },
     rightEdgeTab: {
       right: 0,
-      paddingRight: insets.right,
       alignItems: 'flex-end', // Align button to right edge
     },
     // Hit area for each edge tab. Same dimensions and vertical offset as the visual

@@ -353,7 +353,8 @@ function buildFallbackNodes(text: string, ranges: TextRange[] | undefined): Reac
     const to = points[i + 1];
     if (to <= from) continue;
 
-    const merged: TextStyle = {};
+    // TextStyle is read-only since RN 0.88; this one is built up field by field.
+    const merged: { -readonly [K in keyof TextStyle]: TextStyle[K] } = {};
     for (const range of ranges) {
       if (range.start > from || range.end < to) continue;
       if (range.backgroundColor) merged.backgroundColor = range.backgroundColor;
