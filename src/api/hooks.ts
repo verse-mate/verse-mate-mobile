@@ -1,6 +1,12 @@
 // Custom React Query hooks wrapping the generated options
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   getStudyFor,
   getStudyLabels,
@@ -1176,8 +1182,12 @@ const STUDY_FALLBACK_STALE_MS = 60 * 1000;
  */
 const studyFallbacks = new WeakSet<object>();
 
-export function useStudy(bookId: number, chapter: number, language?: string) {
-  return useQuery({
+/**
+ * The one definition of a chapter-study query, shared by `useStudy` and
+ * `useStudies` so a chapter fetched either way lands in the same cache entry.
+ */
+function studyQueryOptions(bookId: number, chapter: number, language?: string) {
+  return queryOptions({
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
     enabled: bookId > 0 && chapter > 0,
     staleTime: (query) => {
@@ -1230,6 +1240,26 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
       if (fallback) studyFallbacks.add(fallback);
       return fallback;
     },
+  });
+}
+
+export function useStudy(bookId: number, chapter: number, language?: string) {
+  return useQuery(studyQueryOptions(bookId, chapter, language));
+}
+
+/**
+ * Several chapter studies at once — one per Gospel account of a Jesus event,
+ * where hooks cannot run in a loop. Same queries, same cache, as `useStudy`.
+ */
+export function useStudies(chapters: { bookId: number; chapter: number }[], language?: string) {
+  return useQueries({
+    queries: chapters.map(({ bookId, chapter }) => studyQueryOptions(bookId, chapter, language)),
+    // Combined results are memoised by TanStack, so `data` keeps its identity
+    // until a study actually changes — safe to depend on in a useMemo.
+    combine: (results) => ({
+      pending: results.some((r) => r.isPending),
+      data: results.map((r) => r.data ?? null),
+    }),
   });
 }
 

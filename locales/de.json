@@ -292,7 +292,9 @@
       "wholeChapter": "Die Studie dieses Kapitels",
       "chapterContext": "Kapitelkontext",
       "accountPicker": "Jeden Bericht studieren",
-      "noStudyForAccount": "Die Studie zu {{account}} wurde noch nicht erstellt."
+      "noStudyForAccount": "Die Studie zu {{account}} wurde noch nicht erstellt.",
+      "allAccounts": "Alle Berichte",
+      "acrossAccounts": "Über {{accounts}} hinweg"
     },
     "entry": {
       "missing": "Diesen Eintrag gibt es nicht.",

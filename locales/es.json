@@ -292,7 +292,9 @@
       "wholeChapter": "El estudio de este capítulo",
       "chapterContext": "Contexto del capítulo",
       "accountPicker": "Estudia cada relato",
-      "noStudyForAccount": "El estudio de {{account}} aún no se ha generado."
+      "noStudyForAccount": "El estudio de {{account}} aún no se ha generado.",
+      "allAccounts": "Todos los relatos",
+      "acrossAccounts": "En {{accounts}}"
     },
     "entry": {
       "missing": "Esa entrada no existe.",

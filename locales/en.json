@@ -292,7 +292,9 @@
       "wholeChapter": "This chapter’s study",
       "chapterContext": "Chapter context",
       "accountPicker": "Study each account",
-      "noStudyForAccount": "The study of {{account}} hasn’t been generated yet."
+      "noStudyForAccount": "The study of {{account}} hasn’t been generated yet.",
+      "allAccounts": "All accounts",
+      "acrossAccounts": "Across {{accounts}}"
     },
     "entry": {
       "missing": "That entry doesn’t exist.",
