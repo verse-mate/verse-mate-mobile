@@ -181,3 +181,28 @@ it('shows no picker for an event told once', () => {
   render(<JesusTabBodies tab="study" detail={DETAIL} />);
   expect(screen.queryByTestId('jesus-study-accounts')).toBeNull();
 });
+
+it("prefers the backend's generated study across the accounts when the event has one", () => {
+  const generated = {
+    title: 'The temptation',
+    steps: [{ number: 1, kind: 'prose', title: 'Begin with prayer', summary: '', body: 'Pray.' }],
+    interpretation: {
+      movements: [{ number: 1, title: 'How the accounts relate', range: 'Mark 1:12-13', body: '' }],
+    },
+    application: { questions: [] },
+  };
+  mockStudiesArgs.mockClear();
+  render(<JesusTabBodies tab="study" detail={{ ...TEMPTATION, study: generated } as never} />);
+  // Rendered as is — no chapter studies fetched to merge.
+  expect(mockStudiesArgs).not.toHaveBeenCalled();
+  const props = mockPanel.mock.calls.at(-1)?.[0] as { study: unknown };
+  expect(props.study).toBe(generated);
+});
+
+it('falls back to the merge when the generated study is malformed', () => {
+  mockStudiesArgs.mockClear();
+  render(
+    <JesusTabBodies tab="study" detail={{ ...TEMPTATION, study: { steps: 'nope' } } as never} />
+  );
+  expect(mockStudiesArgs).toHaveBeenCalled();
+});

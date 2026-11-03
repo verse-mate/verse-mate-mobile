@@ -12,6 +12,7 @@
  * passage order — rather than from a second request.
  */
 
+import type { InductiveStudy } from '@versemate/studies';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
@@ -439,11 +440,63 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
       ) : null}
 
       {showAll ? (
-        <AllAccountsStudy passages={ordered} title={event.title} />
+        isEventStudy(detail.study) ? (
+          <GeneratedEventStudy study={detail.study} passages={ordered} />
+        ) : (
+          <AllAccountsStudy passages={ordered} title={event.title} />
+        )
       ) : active ? (
         <StudyAccount key={`${active.display}-${activeIndex}`} passage={active} />
       ) : null}
     </View>
+  );
+}
+
+/**
+ * Is this the backend's generated study, in a shape StudyPanel can render?
+ * Checked rather than trusted: a malformed row falls back to the merge
+ * instead of rendering an empty or crashing panel.
+ */
+function isEventStudy(value: unknown): value is InductiveStudy {
+  if (!value || typeof value !== 'object') return false;
+  const study = value as Partial<InductiveStudy>;
+  return (
+    Array.isArray(study.steps) &&
+    study.steps.length > 0 &&
+    Array.isArray(study.interpretation?.movements) &&
+    Array.isArray(study.application?.questions)
+  );
+}
+
+/**
+ * The generated study of the event across its accounts — read together by the
+ * backend rather than laid side by side here, so it can say how the accounts
+ * relate. Preferred over the merge whenever the event carries one.
+ */
+function GeneratedEventStudy({
+  study,
+  passages,
+}: {
+  study: InductiveStudy;
+  passages: JesusEventPassage[];
+}) {
+  const { t } = useTranslation();
+  const { styles } = useTabStyles();
+  const first = passages[0];
+  return (
+    <StudyPanel
+      bookId={first?.book_id ?? 0}
+      chapter={first?.chapter ?? 0}
+      study={study}
+      testID="jesus-study-panel"
+      header={
+        <Text style={styles.studyScope} testID="jesus-study-scope">
+          {t('jesus.study.acrossAccounts', 'Across {{accounts}}', {
+            accounts: passages.map((p) => p.display).join(' · '),
+          })}
+        </Text>
+      }
+    />
   );
 }
 

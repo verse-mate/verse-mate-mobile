@@ -6,6 +6,7 @@
  * agree field-for-field — a divergence here is a bug, not a platform
  * difference. Keep them in step when the endpoints change.
  */
+import type { InductiveStudy } from '@versemate/studies';
 
 // Mirrors the backend's /jesus/* contract. The hub is rendered from
 // `JesusOverview` rather than from hardcoded section names, so a taxonomy
@@ -258,6 +259,12 @@ export interface JesusEventDetail {
   };
   reactions: { who: string; what: string; source_ref: string | null; provenance: number }[];
   explanation: Record<string, string>;
+  /**
+   * One generated inductive study across every Gospel account of the event
+   * (backend `study` layer, InductiveStudy shape). Null or absent until it has
+   * been generated — and never for an event one Gospel tells.
+   */
+  study?: InductiveStudy | null;
   related: JesusEventCard[];
 }
 
