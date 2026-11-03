@@ -34,9 +34,15 @@ import { useJesusCompare } from '@/hooks/jesus';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { covers } from '@/lib/jesus/byline-scope';
-import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
+import { type AccountStudy, mergeAccountStudies } from '@/lib/jesus/study-merge';
+import {
+  type EventVerseSpan,
+  eventVerseSpan,
+  narrowStudyToEvent,
+  spanRangeLabel,
+} from '@/lib/jesus/study-scope';
 import { Markdown } from '@/lib/markdown/Markdown';
-import { useBibleByLine, useStudy } from '@/src/api';
+import { useBibleByLine, useStudies, useStudy } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -341,15 +347,30 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
    *
    * A picker rather than stacking them: each is a full nine-step study, and
    * three of them end to end would bury the second and third accounts.
+   *
+   * "All accounts" comes first and is the default when there is more than one:
+   * "Cleansing of the temple study also only shows Matthew detail" — the
+   * picker still read the event through one Gospel at a time. AllAccountsStudy
+   * lays every account's narrowed study side by side, step by step.
    */
   const passages = detail.passages ?? [];
   const primaryIndex = Math.max(
     0,
     passages.findIndex((p) => p.is_primary)
   );
-  const [selected, setSelected] = useState<number | null>(null);
-  const activeIndex = selected != null && selected < passages.length ? selected : primaryIndex;
+  const [selected, setSelected] = useState<number | 'all' | null>(null);
+  const showAll = passages.length > 1 && (selected === null || selected === 'all');
+  const activeIndex =
+    typeof selected === 'number' && selected < passages.length ? selected : primaryIndex;
   const active = passages[activeIndex] ?? null;
+  // Primary first: the merged study takes its chapter-context steps from it.
+  const ordered = useMemo(
+    () =>
+      passages.length > 0
+        ? [passages[primaryIndex], ...passages.filter((_, i) => i !== primaryIndex)]
+        : [],
+    [passages, primaryIndex]
+  );
 
   /*
    * No Where / When / Period / Accounts / People table.
@@ -398,11 +419,17 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
             {t('jesus.study.accountPicker', 'Study each account')}
           </Text>
           <View style={styles.accountPicker} testID="jesus-study-accounts">
+            <JesusPill
+              label={t('jesus.study.allAccounts', 'All accounts')}
+              active={showAll}
+              onPress={() => setSelected('all')}
+              testID="jesus-study-account-all"
+            />
             {passages.map((passage, index) => (
               <JesusPill
                 key={`${passage.display}-${index}`}
                 label={passage.display}
-                active={index === activeIndex}
+                active={!showAll && index === activeIndex}
                 onPress={() => setSelected(index)}
                 testID={`jesus-study-account-${passage.display}`}
               />
@@ -411,8 +438,100 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
         </>
       ) : null}
 
-      {active ? <StudyAccount key={`${active.display}-${activeIndex}`} passage={active} /> : null}
+      {showAll ? (
+        <AllAccountsStudy passages={ordered} title={event.title} />
+      ) : active ? (
+        <StudyAccount key={`${active.display}-${activeIndex}`} passage={active} />
+      ) : null}
     </View>
+  );
+}
+
+/**
+ * Every account's study at once, merged step by step (lib/jesus/study-merge).
+ *
+ * Each account is narrowed to its own verses exactly as StudyAccount narrows
+ * it; an account whose chapter has no study is left out and named, rather
+ * than holding the others back.
+ */
+function AllAccountsStudy({ passages, title }: { passages: JesusEventPassage[]; title: string }) {
+  const { t } = useTranslation();
+  const { styles } = useTabStyles();
+  const language = usePreferredLanguage();
+
+  const spans = useMemo(
+    () =>
+      passages
+        .map((passage) => ({ passage, span: eventVerseSpan(passage) }))
+        .filter((x): x is { passage: JesusEventPassage; span: EventVerseSpan } => Boolean(x.span)),
+    [passages]
+  );
+  const { pending, data: studies } = useStudies(
+    spans.map(({ span }) => ({ bookId: span.bookId, chapter: span.chapter })),
+    language
+  );
+
+  const merged = useMemo(() => {
+    if (pending) return null;
+    const accounts: AccountStudy[] = [];
+    const missing: string[] = [];
+    spans.forEach(({ passage, span }, i) => {
+      const study = studies[i];
+      if (!study) {
+        missing.push(passage.display);
+        return;
+      }
+      accounts.push({
+        bookName: passage.book_name,
+        display: passage.display,
+        narrowed: narrowStudyToEvent(study, span),
+      });
+    });
+    return { result: mergeAccountStudies(accounts, title), missing };
+  }, [pending, spans, studies, title]);
+
+  if (pending) return <JesusPlaceholder loading testID="jesus-study-loading" />;
+  if (!merged?.result) {
+    return (
+      <Text style={styles.bylineNote} testID="jesus-study-empty-all">
+        {t('jesus.study.noStudyForAccount', 'The study of {{account}} hasn’t been generated yet.', {
+          account: passages.map((p) => p.display).join(' · '),
+        })}
+      </Text>
+    );
+  }
+  const { result, missing } = merged;
+  const first = spans[0].span;
+
+  return (
+    <StudyPanel
+      bookId={first.bookId}
+      chapter={first.chapter}
+      study={result.study}
+      testID="jesus-study-panel"
+      chapterContext={{
+        steps: result.chapterScopedSteps,
+        label: t('jesus.study.chapterContext', 'Chapter context'),
+      }}
+      header={
+        <View>
+          <Text style={styles.studyScope} testID="jesus-study-scope">
+            {t('jesus.study.acrossAccounts', 'Across {{accounts}}', {
+              accounts: result.accounts.join(' · '),
+            })}
+          </Text>
+          {missing.length > 0 ? (
+            <Text style={styles.studyScope} testID="jesus-study-missing">
+              {t(
+                'jesus.study.noStudyForAccount',
+                'The study of {{account}} hasn’t been generated yet.',
+                { account: missing.join(' · ') }
+              )}
+            </Text>
+          ) : null}
+        </View>
+      }
+    />
   );
 }
 
