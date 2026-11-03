@@ -1,6 +1,12 @@
 // Custom React Query hooks wrapping the generated options
 
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   getStudyFor,
   getStudyLabels,
@@ -1181,7 +1187,7 @@ const studyFallbacks = new WeakSet<object>();
  * `useStudies` so a chapter fetched either way lands in the same cache entry.
  */
 function studyQueryOptions(bookId: number, chapter: number, language?: string) {
-  return {
+  return queryOptions({
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
     enabled: bookId > 0 && chapter > 0,
     staleTime: (query) => {
@@ -1234,7 +1240,7 @@ function studyQueryOptions(bookId: number, chapter: number, language?: string) {
       if (fallback) studyFallbacks.add(fallback);
       return fallback;
     },
-  };
+  });
 }
 
 export function useStudy(bookId: number, chapter: number, language?: string) {
