@@ -18,7 +18,7 @@ async function loadEaston(): Promise<EastonDictionary> {
 }
 
 /**
- * Looks up a word in Easton's Bible Dictionary
+ * Looks up a word's exact headword in Easton's Bible Dictionary
  *
  * @param word - The word to look up (will be normalized)
  * @returns EastonEntry if found, null otherwise
@@ -36,66 +36,85 @@ export async function lookupEaston(word: string): Promise<EastonEntry | null> {
 
   const dictionary = await loadEaston();
   const normalized = normalizeWord(word);
-
-  // 1. Exact match
-  if (dictionary[normalized]) {
-    return dictionary[normalized];
-  }
-
-  // 2. Fuzzy match — try common biblical spelling variants
-  const fuzzyMatch = findFuzzyMatch(normalized, dictionary);
-  return fuzzyMatch;
+  return dictionary[normalized] ?? null;
 }
 
 /**
- * Finds a fuzzy match in the dictionary for common spelling variants.
- * Handles cases like "zaccheus" → "zacchaeus", "isaih" → "isaiah", etc.
+ * Looks up a near spelling of a word in Easton's — biblical name variants
+ * ("Zaccheus" → Zacchaeus, "Isaih" → Isaiah).
+ *
+ * Separate from `lookupEaston` because it must only run once every exact
+ * lookup has missed, and only for names. Run first, as it once was, it caught
+ * ordinary English: in NASB1995, 2,768 distinct words had no exact Easton
+ * headword and were handed the nearest one — "will" → Wall, "soul" → Saul,
+ * "holy" → Hold, "servant" → Serpent, "anew" → Anab — before Webster's,
+ * which has most of them, was ever asked.
+ */
+export async function lookupEastonVariant(word: string): Promise<EastonEntry | null> {
+  if (!word) return null;
+
+  const dictionary = await loadEaston();
+  return findFuzzyMatch(normalizeWord(word), dictionary);
+}
+
+/**
+ * A name's spelling with the transliteration variants that differ between
+ * English Bibles folded away: doubled consonants (Bezaleel/Bezalel,
+ * Pashhur/Pashur), "ae"/"ee" (Zacchaeus/Zaccheus), "ch" for "c"
+ * (Maachah/Maacah), a final "h" after a vowel (Ramah/Rama), hyphens
+ * (Bath-sheba/Bathsheba). Doubled "a" stays: in a
+ * Hebrew name it marks a different word (Raamah is not Ramah).
+ */
+function canonicalName(key: string): string {
+  return key
+    .replace(/-/g, '')
+    .replace(/ae|ee/g, 'e')
+    .replace(/ch/g, 'c')
+    .replace(/([b-df-hj-np-tv-z])\1/g, '$1')
+    .replace(/([aeiou])h$/, '$1');
+}
+
+let canonicalIndex: Map<string, string[]> | null = null;
+let canonicalIndexFor: EastonDictionary | null = null;
+
+function canonicalKeys(dictionary: EastonDictionary): Map<string, string[]> {
+  if (canonicalIndex && canonicalIndexFor === dictionary) return canonicalIndex;
+  const index = new Map<string, string[]>();
+  for (const key of Object.keys(dictionary)) {
+    const c = canonicalName(key);
+    const list = index.get(c);
+    if (list) list.push(key);
+    else index.set(c, [key]);
+  }
+  canonicalIndex = index;
+  canonicalIndexFor = dictionary;
+  return index;
+}
+
+/**
+ * Finds the entry a name's other spelling is filed under. Every rule is an
+ * exact match on a rewritten form; the edit-distance match this replaced
+ * also caught near-misses that are other names ("Pilate" → Palace, "Herod" →
+ * Harod, "Neco" → Nebo).
+ *
+ * 1. Gentilic singular: "Jebusite" → "jebusites".
+ * 2. A longer headword that begins with the name, when it is the only one:
+ *    "Pilate" → "pilate pontius" (but "Herod" has six — none is guessed).
+ * 3. The same canonical spelling (see `canonicalName`), when unambiguous.
  */
 function findFuzzyMatch(normalized: string, dictionary: EastonDictionary): EastonEntry | null {
-  // Only attempt fuzzy matching for words 4+ characters (avoid false positives on short words)
-  if (normalized.length < 4) return null;
+  if (normalized.length < 3) return null;
 
-  const keys = Object.keys(dictionary);
+  const plural = dictionary[`${normalized}s`];
+  if (plural) return plural;
 
-  // Strategy 1: Check if removing/adding common letter variants matches
-  // e.g., ae/e, ph/f, ck/c, double letters
-  for (const key of keys) {
-    if (Math.abs(key.length - normalized.length) > 2) continue;
-    if (key[0] !== normalized[0]) continue; // Must start with same letter
+  const longer = Object.keys(dictionary).filter((k) => k.startsWith(`${normalized} `));
+  if (longer.length === 1) return dictionary[longer[0]];
 
-    // Simple edit distance check — allow distance of 1-2 for similar words
-    const dist = levenshteinDistance(normalized, key);
-    if (dist === 1 || (dist === 2 && normalized.length >= 6)) {
-      return dictionary[key];
-    }
-  }
+  const same = canonicalKeys(dictionary).get(canonicalName(normalized));
+  if (same && same.length === 1) return dictionary[same[0]];
 
   return null;
-}
-
-/**
- * Compute Levenshtein edit distance between two strings.
- * Used for fuzzy dictionary matching on biblical name variants.
- */
-function levenshteinDistance(a: string, b: string): number {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-      }
-    }
-  }
-
-  return dp[m][n];
 }
 
 /**

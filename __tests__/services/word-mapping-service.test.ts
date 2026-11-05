@@ -3,7 +3,15 @@ import { normalizeWord } from '@/services/word-mapping-service';
 describe('normalizeWord', () => {
   it('lowercases and strips punctuation', () => {
     expect(normalizeWord('Jesus,')).toBe('jesus');
-    expect(normalizeWord("Christ's")).toBe('christs');
+  });
+
+  // A possessive looks up its noun. NASB writes the curly ’, which used to survive
+  // normalization, so "Lord’s" and "king’s" found no definition at all.
+  it('reduces possessives to their noun', () => {
+    expect(normalizeWord("Christ's")).toBe('christ');
+    expect(normalizeWord('Lord’s')).toBe('lord');
+    expect(normalizeWord('David’s,')).toBe('david');
+    expect(normalizeWord('fathers’')).toBe('fathers');
   });
 
   // VER-43: KJV typography uses æ/Æ/œ/Œ ligatures (e.g., "Zacchæus"), which Unicode

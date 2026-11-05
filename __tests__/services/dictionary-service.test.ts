@@ -2,8 +2,10 @@ import { lookupWord } from '@/services/dictionary-service';
 
 // Mock easton-service
 const mockLookupEaston = jest.fn();
+const mockLookupEastonVariant = jest.fn();
 jest.mock('@/services/easton-service', () => ({
   lookupEaston: (...args: unknown[]) => mockLookupEaston(...args),
+  lookupEastonVariant: (...args: unknown[]) => mockLookupEastonVariant(...args),
 }));
 
 // Mock lexicon-service
@@ -62,6 +64,7 @@ describe('dictionary-service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLookupEaston.mockResolvedValue(null);
+    mockLookupEastonVariant.mockResolvedValue(null);
     mockHasStrongsNumber.mockReturnValue(false);
     mockGetStrongsNumber.mockReturnValue(null);
     mockIsValidStrongsNumber.mockReturnValue(false);
