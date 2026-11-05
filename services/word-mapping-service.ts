@@ -125,12 +125,20 @@ const LIGATURE_MAP: Record<string, string> = {
  * lowercasing, and removing punctuation.
  */
 export function normalizeWord(word: string): string {
-  return word
-    .replace(/[æÆœŒ]/g, (c) => LIGATURE_MAP[c])
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[.,;:!?'"()]/g, '');
+  return (
+    word
+      .trim()
+      // Possessives look up their noun: "David’s" → "david", "fathers'" → "fathers". NASB
+      // uses the curly ’, which the punctuation strip below never touched, so every
+      // possessive in the text ("Lord’s", "king’s") found no definition at all.
+      .replace(/['’]s?(?=[.,;:!?"”)]*$)/i, '')
+      .replace(/[‘’]/g, "'")
+      .replace(/[æÆœŒ]/g, (c) => LIGATURE_MAP[c])
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .toLowerCase()
+      .replace(/[.,;:!?'"()]/g, '')
+  );
 }
 
 /**
