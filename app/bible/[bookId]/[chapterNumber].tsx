@@ -78,12 +78,14 @@ import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useGesturePager } from '@/hooks/bible/use-gesture-pager';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useRatingPrompt } from '@/hooks/bible/use-rating-prompt';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { perfAdd } from '@/lib/perf';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import {
   useBibleChapter,
   usePrefetchNextChapter,
@@ -478,6 +480,16 @@ export default function ChapterScreen() {
     initialVisible: true,
   });
 
+  const { onReaderScroll } = useRatingPrompt(bookId, chapterNumber);
+  useRatingPromptBlocker(isNavigationModalOpen || isMenuOpen);
+  const handleReaderScroll = useCallback(
+    (velocity: number, isAtBottom: boolean) => {
+      handleScroll(velocity, isAtBottom);
+      onReaderScroll(isAtBottom);
+    },
+    [handleScroll, onReaderScroll]
+  );
+
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
@@ -765,7 +777,7 @@ export default function ChapterScreen() {
           activeView={activeView}
           toggleProgress={toggleProgress}
           activeTabProgress={activeTabProgress}
-          onScroll={handleScroll}
+          onScroll={handleReaderScroll}
           onTap={handleTap}
           isPreloading={!isCurrent}
           targetVerse={isUrgentCurrent ? targetVerse : undefined}
@@ -782,7 +794,7 @@ export default function ChapterScreen() {
       activeView,
       toggleProgress,
       activeTabProgress,
-      handleScroll,
+      handleReaderScroll,
       handleTap,
       bookId,
       chapterNumber,
@@ -913,7 +925,7 @@ export default function ChapterScreen() {
                   onPageChange={handlePageChange}
                   onNavigatePrev={handlePrevious}
                   onNavigateNext={handleNext}
-                  onScroll={handleScroll}
+                  onScroll={handleReaderScroll}
                   onTap={handleTap}
                   targetVerse={targetVerse}
                   targetEndVerse={targetEndVerse}
@@ -931,7 +943,7 @@ export default function ChapterScreen() {
                   onTabChange={handleTabChange}
                   isTabPending={isTabPending}
                   onMenuPress={() => setIsMenuOpen(true)}
-                  onScroll={handleScroll}
+                  onScroll={handleReaderScroll}
                   onTap={handleTap}
                   fabVisible={fabVisible}
                   onFABInteraction={showButtons}

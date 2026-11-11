@@ -70,6 +70,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useStableList } from '@/lib/perf/use-stable-list';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -639,6 +640,14 @@ export function ChapterPage({
 
   // Verse tooltip state - shown after scroll animation completes
   const [verseTooltipVisible, setVerseTooltipVisible] = useState(false);
+  useRatingPromptBlocker(
+    notesModalVisible ||
+      viewModalVisible ||
+      optionsModalVisible ||
+      editModalVisible ||
+      deleteConfirmVisible ||
+      verseTooltipVisible
+  );
   const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isAuthenticated } = useAuth();
@@ -1402,6 +1411,19 @@ export function ChapterPage({
     onScrollRef.current?.(velocity, isAtBottom);
   }, []);
 
+  const bibleViewportHeightRef = useRef(0);
+  const bibleContentHeightRef = useRef(0);
+  const reportBibleFitsOnScreen = useCallback(() => {
+    const viewport = bibleViewportHeightRef.current;
+    const content = bibleContentHeightRef.current;
+    if (isPreloading || viewport === 0 || content === 0) return;
+    if (content - viewport <= BOTTOM_THRESHOLD) notifyScrollTransition(0, true);
+  }, [isPreloading, notifyScrollTransition]);
+
+  useEffect(() => {
+    reportBibleFitsOnScreen();
+  }, [reportBibleFitsOnScreen]);
+
   /**
    * Push the visible Y range to JS. Called from the scroll worklet at most every
    * VISIBILITY_PUSH_INTERVAL_MS.
@@ -1446,6 +1468,7 @@ export function ChapterPage({
   const lastScrollTimeSv = useSharedValue(0);
   const fabVisibleSv = useSharedValue(true);
   const lastVisibilityPushSv = useSharedValue(0);
+  const atBottomSv = useSharedValue(false);
 
   const animatedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -1471,6 +1494,9 @@ export function ChapterPage({
       else if (velocity < -FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = true;
       else if (velocity > FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = false;
 
+      const reachedBottom = isAtBottom && !atBottomSv.value;
+      atBottomSv.value = isAtBottom;
+
       if (nextFabVisible !== fabVisibleSv.value) {
         fabVisibleSv.value = nextFabVisible;
         // Hand over the velocity that caused the transition so the JS side's existing
@@ -1480,6 +1506,8 @@ export function ChapterPage({
         // Reaching the bottom must always show the FAB, even without a velocity
         // spike — a slow drag to the end would otherwise leave it hidden.
         fabVisibleSv.value = true;
+        runOnJS(notifyScrollTransition)(velocity, true);
+      } else if (reachedBottom) {
         runOnJS(notifyScrollTransition)(velocity, true);
       }
 
@@ -1982,6 +2010,14 @@ export function ChapterPage({
           showsVerticalScrollIndicator={true}
           testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
           onScroll={animatedScrollHandler}
+          onLayout={(event) => {
+            bibleViewportHeightRef.current = event.nativeEvent.layout.height;
+            reportBibleFitsOnScreen();
+          }}
+          onContentSizeChange={(_width, height) => {
+            bibleContentHeightRef.current = height;
+            reportBibleFitsOnScreen();
+          }}
           // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is
           // no reason to throttle it — throttling only ever existed to reduce JS
           // bridge traffic, and there is none now.
