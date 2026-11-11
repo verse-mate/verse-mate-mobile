@@ -51,6 +51,8 @@ export enum AnalyticsEvent {
   TOOLTIP_READING_DURATION = 'TOOLTIP_READING_DURATION',
   CHAPTER_SCROLL_DEPTH = 'CHAPTER_SCROLL_DEPTH',
 
+  RATING_PROMPT_REQUESTED = 'RATING_PROMPT_REQUESTED',
+
   // Explanation Audio Events (feat-explanation-audio / TASK-017)
   AUDIO_PLAYBACK_STARTED = 'AUDIO_PLAYBACK_STARTED',
   AUDIO_PLAYBACK_PAUSED = 'AUDIO_PLAYBACK_PAUSED',
@@ -254,6 +256,12 @@ export interface OnboardingCompletedProperties {
  * Chapter Reading Duration Event Properties
  * Fired when user exits a chapter, tracks total reading time
  */
+export interface RatingPromptRequestedProperties {
+  trigger: 'finished_chapter' | 'fifth_reading_day';
+  app_version: string;
+  platform: 'ios' | 'android';
+}
+
 export interface ChapterReadingDurationProperties {
   /** Total reading time in seconds */
   duration_seconds: number;
@@ -463,6 +471,7 @@ export interface EventProperties {
   [AnalyticsEvent.ONBOARDING_COMPLETED]: OnboardingCompletedProperties;
   // Time-Based Analytics Events
   [AnalyticsEvent.CHAPTER_READING_DURATION]: ChapterReadingDurationProperties;
+  [AnalyticsEvent.RATING_PROMPT_REQUESTED]: RatingPromptRequestedProperties;
   [AnalyticsEvent.VIEW_MODE_DURATION]: ViewModeDurationProperties;
   [AnalyticsEvent.TOOLTIP_READING_DURATION]: TooltipReadingDurationProperties;
   [AnalyticsEvent.CHAPTER_SCROLL_DEPTH]: ChapterScrollDepthProperties;
