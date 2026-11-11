@@ -10,7 +10,7 @@ function requestedPlatforms(args) {
 }
 
 function exportsNativeBundle(args) {
-  if (!args.includes('export')) return false;
+  if (!args.some((arg) => arg === 'export' || arg === 'export:embed')) return false;
   const platforms = requestedPlatforms(args);
   return platforms.length === 0 || platforms.some((platform) => platform !== 'web');
 }

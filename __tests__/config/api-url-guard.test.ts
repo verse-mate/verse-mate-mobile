@@ -10,6 +10,8 @@ describe('API URL guard in app config', () => {
     [['export', '--platform=android'], 'http://localhost:4000'],
     [['export'], 'http://127.0.0.1:4000'],
     [['export', '-p', 'ios'], 'not a url'],
+    [['export', '-p', 'android'], 'https://localhost:4000'],
+    [['export:embed', '--platform', 'ios'], undefined],
   ])('refuses a native export of %j with API URL %s', (args, url) => {
     expect(run(args, { EXPO_PUBLIC_API_URL: url }).error).toMatch(/EXPO_PUBLIC_API_URL/);
   });
@@ -32,5 +34,20 @@ describe('API URL guard in app config', () => {
       /production API/
     );
     expect(run(['start'], { EXPO_PUBLIC_API_URL: PRODUCTION, APP_ENV: 'development' })).toEqual({});
+  });
+
+  it('stops app config evaluation for a native export without an API URL', () => {
+    const argv = process.argv;
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    process.argv = ['node', 'expo', 'export', '--platform', 'ios'];
+    delete process.env.EXPO_PUBLIC_API_URL;
+    try {
+      jest.isolateModules(() => {
+        expect(() => require('../../app.config.js')).toThrow(/EXPO_PUBLIC_API_URL/);
+      });
+    } finally {
+      process.argv = argv;
+      if (apiUrl !== undefined) process.env.EXPO_PUBLIC_API_URL = apiUrl;
+    }
   });
 });

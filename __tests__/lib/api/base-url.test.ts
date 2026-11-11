@@ -11,7 +11,6 @@ const SKIPPED_DIRS = new Set([
   'generated',
   'agent-os',
   'assets',
-  'config',
   'docs',
   'e2e',
   'locales',
@@ -22,7 +21,7 @@ const SKIPPED_DIRS = new Set([
   'android',
   'dist',
 ]);
-const SKIPPED_FILES = new Set(['app.config.js']);
+const SKIPPED_FILES = new Set(['api-url-guard.js']);
 
 function sourceFiles(dir: string): string[] {
   const entries: Dirent[] = readdirSync(dir, { withFileTypes: true });
