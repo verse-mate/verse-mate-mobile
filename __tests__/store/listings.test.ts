@@ -74,6 +74,11 @@ const readAppStore = (language: string): AppStoreEntry | undefined => {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : undefined;
 };
 
+const readAppStoreText = (language: string): string | undefined => {
+  const file = path.join(APP_STORE_DIR, `${language}.json`);
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined;
+};
+
 const readPlay = (folder: string, file: string): string | undefined => {
   const full = path.join(PLAY_DIR, folder, file);
   return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : undefined;
@@ -85,8 +90,8 @@ const approvals = (): Record<string, Approval> =>
 function copyFingerprint(language: string): string {
   const hash = createHash('sha256');
   hash.update(`app-store/${language}.json\n`);
-  hash.update(fs.readFileSync(path.join(APP_STORE_DIR, `${language}.json`), 'utf8'));
-  const primaryPlay = LISTING_LANGUAGES[language].play[0];
+  hash.update(readAppStoreText(language) ?? '');
+  const primaryPlay = LISTING_LANGUAGES[language]?.play[0] ?? language;
   for (const [file] of PLAY_LIMITS) {
     hash.update(`\ngoogle-play/${primaryPlay}/${file}\n`);
     hash.update(readPlay(primaryPlay, file) ?? '');
@@ -219,10 +224,29 @@ describe('store listings', () => {
     expect(problems).toEqual([]);
   });
 
+  it('publishes each App Store entry to its storefronts and nothing else', () => {
+    const config = require(path.join(ROOT, 'store.config.js'));
+    const expected: Record<string, AppStoreEntry> = {};
+    for (const language of languagesWithAppStoreCopy()) {
+      for (const locale of LISTING_LANGUAGES[language]?.appStore ?? []) {
+        expected[locale] = readAppStore(language) as AppStoreEntry;
+      }
+    }
+    expect(Object.keys(config)).toEqual(['configVersion', 'apple']);
+    expect(Object.keys(config.apple)).toEqual(['info']);
+    expect(config.apple.info).toEqual(expected);
+    expect(Object.keys(config.apple.info).sort()).toEqual(['en-US', 'pt-BR', 'pt-PT']);
+  });
+
   it('has the approved text for every language, and an approval only where there is copy', () => {
     const problems: string[] = [];
     const recorded = approvals();
-    const withCopy = languagesWithAppStoreCopy();
+    const withCopy = [
+      ...new Set([
+        ...languagesWithAppStoreCopy(),
+        ...playFolders().map((folder) => languageOfPlayFolder(folder) ?? folder),
+      ]),
+    ];
     for (const language of withCopy) {
       const approval = recorded[language];
       if (!approval?.approver) {

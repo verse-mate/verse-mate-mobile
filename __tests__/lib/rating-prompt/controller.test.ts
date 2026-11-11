@@ -65,6 +65,15 @@ describe('rating prompt controller', () => {
     expect(session.storeReview.requestReview).not.toHaveBeenCalled();
   });
 
+  it('starts over instead of trusting a stored state of the wrong shape', async () => {
+    const session = await startSession();
+    await session.storage.setItem(KEY, JSON.stringify({ requests: 'oops' }));
+    await session.controller.noteChapterOpened(at('2026-12-05'));
+    const state = await storedState(session);
+    expect(state.readingDays).toBe(1);
+    expect(state.requests).toEqual([]);
+  });
+
   it('requests the sheet, records the request and tracks the event', async () => {
     const session = await startSession(earlierState());
     expect(await session.controller.requestRating('finished_chapter', at('2026-12-05'))).toBe(
@@ -81,15 +90,72 @@ describe('rating prompt controller', () => {
     });
   });
 
-  it('keeps the caps across restarts', async () => {
-    const first = await startSession(earlierState());
-    await first.controller.requestRating('finished_chapter', at('2026-12-05'));
-    const persisted = await storedState(first);
-    const restarted = await startSession(persisted);
-    expect(await restarted.controller.requestRating('finished_chapter', at('2027-03-05'))).toBe(
+  it('reads the caps back after a restart', async () => {
+    const stored = earlierState({
+      requests: [
+        { at: at('2026-12-05').toISOString(), version: '1.7.0', trigger: 'finished_chapter' },
+      ],
+    });
+    const soon = await startSession(stored);
+    expect(await soon.controller.requestRating('finished_chapter', at('2027-01-01'))).toBe(
       'refused'
     );
-    expect(restarted.storeReview.requestReview).not.toHaveBeenCalled();
+    const later = await startSession(stored);
+    expect(await later.controller.requestRating('finished_chapter', at('2027-04-01'))).toBe(
+      'requested'
+    );
+  });
+
+  it('counts the request before the sheet answers, even if it fails', async () => {
+    const session = await startSession(earlierState());
+    session.storeReview.requestReview.mockRejectedValueOnce(new Error('sheet failed'));
+    expect(await session.controller.requestRating('finished_chapter', at('2026-12-05'))).toBe(
+      'requested'
+    );
+    expect((await storedState(session)).requests).toHaveLength(1);
+  });
+
+  it('opens the sheet once when two moments arrive together', async () => {
+    const session = await startSession(earlierState());
+    const outcomes = await Promise.all([
+      session.controller.requestRating('finished_chapter', at('2026-12-05')),
+      session.controller.requestRating('fifth_reading_day', at('2026-12-05')),
+    ]);
+    expect(outcomes.filter((outcome) => outcome === 'requested')).toHaveLength(1);
+    expect(session.storeReview.requestReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers after a failed storage read', async () => {
+    const session = await startSession(earlierState());
+    session.storage.getItem.mockRejectedValueOnce(new Error('disk'));
+    expect(await session.controller.requestRating('finished_chapter', at('2026-12-05'))).toBe(
+      'unavailable'
+    );
+    expect(await session.controller.requestRating('finished_chapter', at('2026-12-05'))).toBe(
+      'requested'
+    );
+  });
+
+  it('re-arms a refused fifth reading day on a later reading day', async () => {
+    const session = await startSession(
+      earlierState({
+        readingDays: 4,
+        lastReadingDay: '2026-12-06',
+        requests: [
+          { at: at('2026-11-20').toISOString(), version: '1.7.0', trigger: 'finished_chapter' },
+        ],
+      })
+    );
+    await session.controller.noteChapterOpened(at('2026-12-09'));
+    expect(await session.controller.requestRating('fifth_reading_day', at('2026-12-09'))).toBe(
+      'refused'
+    );
+    expect(session.controller.isFifthDayPending()).toBe(false);
+    await session.controller.noteChapterOpened(at('2027-03-01'));
+    expect(session.controller.isFifthDayPending()).toBe(true);
+    expect(await session.controller.requestRating('fifth_reading_day', at('2027-03-01'))).toBe(
+      'requested'
+    );
   });
 
   it('stores nothing when the platform reports no review sheet', async () => {

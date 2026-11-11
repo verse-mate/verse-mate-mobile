@@ -62,6 +62,7 @@ import {
   useChapterNavigation,
 } from '@/hooks/bible/use-chapter-navigation';
 import { perfAdd, perfSpan } from '@/lib/perf';
+import { setRatingPromptHold } from '@/lib/rating-prompt/blockers';
 import type { TestamentBook } from '@/src/api';
 
 /**
@@ -238,6 +239,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     currentKeyRef.current = `${bookId}-${chapterNumber}`;
 
     useEffect(() => clearPendingTimer, []);
+    useEffect(() => () => setRatingPromptHold('chapter-pager', false), []);
 
     // Dev-only swipe timing. Opened in handlePageSelected, closed here once the
     // resulting chapter change has committed. Held in a ref because it spans a
@@ -597,6 +599,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // A drag can only come from the user — `setPageWithoutAnimation` never
       // produces one. This is the signal the guard uses to tell a real swipe from
       // the trailing events of its own seek.
+      setRatingPromptHold('chapter-pager', state !== 'idle');
       if (state === 'dragging') {
         draggedSinceSeekRef.current = true;
         isDraggingRef.current = true;

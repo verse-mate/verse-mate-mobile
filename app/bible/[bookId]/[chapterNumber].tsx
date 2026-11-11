@@ -480,7 +480,7 @@ export default function ChapterScreen() {
     initialVisible: true,
   });
 
-  const { onReaderScroll } = useRatingPrompt(bookId, chapterNumber);
+  const { onReaderScroll, onChapterFitsScreen } = useRatingPrompt(bookId, chapterNumber);
   useRatingPromptBlocker(isNavigationModalOpen || isMenuOpen);
   const handleReaderScroll = useCallback(
     (velocity: number, isAtBottom: boolean) => {
@@ -778,6 +778,7 @@ export default function ChapterScreen() {
           toggleProgress={toggleProgress}
           activeTabProgress={activeTabProgress}
           onScroll={handleReaderScroll}
+          onChapterFitsScreen={onChapterFitsScreen}
           onTap={handleTap}
           isPreloading={!isCurrent}
           targetVerse={isUrgentCurrent ? targetVerse : undefined}
@@ -795,6 +796,7 @@ export default function ChapterScreen() {
       toggleProgress,
       activeTabProgress,
       handleReaderScroll,
+      onChapterFitsScreen,
       handleTap,
       bookId,
       chapterNumber,
@@ -926,6 +928,7 @@ export default function ChapterScreen() {
                   onNavigatePrev={handlePrevious}
                   onNavigateNext={handleNext}
                   onScroll={handleReaderScroll}
+                  onChapterFitsScreen={onChapterFitsScreen}
                   onTap={handleTap}
                   targetVerse={targetVerse}
                   targetEndVerse={targetEndVerse}

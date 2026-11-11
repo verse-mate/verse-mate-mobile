@@ -14,10 +14,11 @@ function loadStoreReview(): StoreReviewApi | null {
   return require('expo-store-review') as StoreReviewApi;
 }
 
-export async function requestStoreReview(): Promise<boolean> {
+export async function isStoreReviewAvailable(): Promise<boolean> {
   const storeReview = loadStoreReview();
-  if (!storeReview) return false;
-  if (!(await storeReview.isAvailableAsync())) return false;
-  await storeReview.requestReview();
-  return true;
+  return storeReview ? storeReview.isAvailableAsync() : false;
+}
+
+export async function showStoreReview(): Promise<void> {
+  await loadStoreReview()?.requestReview();
 }

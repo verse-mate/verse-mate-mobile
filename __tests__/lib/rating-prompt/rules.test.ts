@@ -5,6 +5,7 @@ import {
   ratingRefusal,
   recordChapterOpen,
   recordRatingRequest,
+  repairRatingState,
 } from '@/lib/rating-prompt/rules';
 
 const at = (day: string, time = '10:00') => new Date(`${day}T${time}:00`);
@@ -21,8 +22,16 @@ function readOn(state: RatingPromptState, days: string[]) {
 }
 
 describe('rating prompt rules', () => {
-  it('uses the local calendar day', () => {
-    expect(localDay(new Date(2026, 0, 2, 0, 30))).toBe('2026-01-02');
+  it('uses the local calendar day, not the UTC one', () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'America/Sao_Paulo';
+    try {
+      const lateEvening = new Date(2026, 0, 2, 23, 30);
+      expect(lateEvening.toISOString().slice(0, 10)).toBe('2026-01-03');
+      expect(localDay(lateEvening)).toBe('2026-01-02');
+    } finally {
+      process.env.TZ = originalTz;
+    }
   });
 
   it('refuses during the first session, even after midnight', () => {
@@ -46,9 +55,16 @@ describe('rating prompt rules', () => {
 
   it('counts the first-launch day and fires on the fifth reading day, not before', () => {
     const start = initialRatingState(at('2026-12-01'), FIRST_SESSION);
-    const fourDays = readOn(start, ['2026-12-01', '2026-12-03', '2026-12-04', '2026-12-04']);
-    expect(fourDays.state.readingDays).toBe(3);
-    const fifth = readOn(fourDays.state, ['2026-12-06', '2026-12-09']);
+    const fourDays = readOn(start, [
+      '2026-12-01',
+      '2026-12-03',
+      '2026-12-04',
+      '2026-12-04',
+      '2026-12-06',
+    ]);
+    expect(fourDays.state.readingDays).toBe(4);
+    expect(fourDays.fifthDayDue).toBe(false);
+    const fifth = readOn(fourDays.state, ['2026-12-09']);
     expect(fifth.state.readingDays).toBe(5);
     expect(fifth.fifthDayDue).toBe(true);
   });
@@ -102,6 +118,37 @@ describe('rating prompt rules', () => {
     state = recordRatingRequest(state, at('2025-07-20'), '1.3.0', 'finished_chapter');
     expect(ratingRefusal(state, at('2025-11-01'), '1.4.0', LATER_SESSION)).toBe('yearly_cap');
     expect(ratingRefusal(state, at('2026-01-11'), '1.4.0', LATER_SESSION)).toBeNull();
+  });
+
+  it('starts over when the stored state is unusable', () => {
+    expect(repairRatingState({ requests: 'oops' }, at('2026-12-05'), LATER_SESSION)).toEqual(
+      initialRatingState(at('2026-12-05'), LATER_SESSION)
+    );
+  });
+
+  it('keeps the request history when one stored request is damaged', () => {
+    const start = initialRatingState(at('2026-01-01'), FIRST_SESSION);
+    const asked = recordRatingRequest(start, at('2026-03-01'), '1.7.0', 'finished_chapter');
+    const damaged = {
+      ...asked,
+      requests: [
+        ...asked.requests,
+        { at: 'not a date', version: '1.7.1', trigger: 'finished_chapter' },
+      ],
+    };
+    const repaired = repairRatingState(damaged, at('2026-04-01'), LATER_SESSION);
+    expect(repaired.requests).toHaveLength(2);
+    expect(repaired.requests[0]).toEqual(asked.requests[0]);
+    expect(ratingRefusal(repaired, at('2026-04-10'), '1.8.0', LATER_SESSION)).toBe('too_soon');
+  });
+
+  it('refuses rather than skipping the caps when a stored date is unreadable', () => {
+    const start = initialRatingState(at('2026-01-01'), FIRST_SESSION);
+    const broken = {
+      ...start,
+      requests: [{ at: 'not a date', version: '1.7.0', trigger: 'finished_chapter' as const }],
+    };
+    expect(ratingRefusal(broken, at('2026-06-01'), '1.8.0', LATER_SESSION)).toBe('too_soon');
   });
 
   it('does not stay blocked when the clock moved backwards', () => {

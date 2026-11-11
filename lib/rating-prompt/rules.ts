@@ -54,6 +54,35 @@ export function recordChapterOpen(
 
 const daysApart = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) / DAY_MS;
 
+const isRequestRecord = (value: unknown): value is RatingRequestRecord => {
+  const request = value as Partial<RatingRequestRecord> | null;
+  return (
+    typeof request?.at === 'string' &&
+    typeof request.version === 'string' &&
+    (request.trigger === 'finished_chapter' || request.trigger === 'fifth_reading_day')
+  );
+};
+
+export function repairRatingState(
+  value: unknown,
+  now: Date,
+  sessionId: string
+): RatingPromptState {
+  const state = (value ?? {}) as Partial<RatingPromptState>;
+  const usable =
+    typeof state.firstLaunchDay === 'string' &&
+    typeof state.firstSessionId === 'string' &&
+    Number.isFinite(state.readingDays) &&
+    (state.lastReadingDay === null || typeof state.lastReadingDay === 'string') &&
+    typeof state.fifthDayRequested === 'boolean' &&
+    Array.isArray(state.requests);
+  if (!usable) return initialRatingState(now, sessionId);
+  const requests = (state.requests as unknown[]).filter(isRequestRecord).map((request) =>
+    Number.isNaN(Date.parse(request.at)) ? { ...request, at: now.toISOString() } : request
+  );
+  return { ...(state as RatingPromptState), requests };
+}
+
 export function ratingRefusal(
   state: RatingPromptState,
   now: Date,
@@ -64,7 +93,7 @@ export function ratingRefusal(
   if (state.firstLaunchDay === localDay(now)) return 'first_day';
   if (state.requests.some((request) => request.version === version)) return 'version';
   const gaps = state.requests.map((request) => daysApart(now, new Date(request.at)));
-  if (gaps.some((gap) => gap < MIN_DAYS_BETWEEN_REQUESTS)) return 'too_soon';
+  if (gaps.some((gap) => Number.isNaN(gap) || gap < MIN_DAYS_BETWEEN_REQUESTS)) return 'too_soon';
   if (gaps.filter((gap) => gap < YEAR_DAYS).length >= MAX_REQUESTS_PER_YEAR) return 'yearly_cap';
   return null;
 }

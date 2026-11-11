@@ -70,7 +70,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useStableList } from '@/lib/perf/use-stable-list';
-import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
+import { setRatingPromptHold, useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -545,6 +545,7 @@ export interface ChapterPageProps {
   markTargetVerse?: boolean;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
+  onChapterFitsScreen?: (bookId: number, chapterNumber: number) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
   /** Hide the chapter title text (used in split view where parent has a header) */
@@ -599,6 +600,7 @@ export function ChapterPage({
   targetKey,
   markTargetVerse = false,
   onScroll,
+  onChapterFitsScreen,
   onTap,
   hideChapterTitle = false,
   fabVisible = true,
@@ -1411,14 +1413,25 @@ export function ChapterPage({
     onScrollRef.current?.(velocity, isAtBottom);
   }, []);
 
+  const scrollHoldKeyRef = useRef(`bible-scroll-${bookId}-${chapterNumber}`);
+  const setBibleScrollHold = useCallback((held: boolean) => {
+    setRatingPromptHold(scrollHoldKeyRef.current, held);
+  }, []);
+  useEffect(() => {
+    const holdKey = `bible-scroll-${bookId}-${chapterNumber}`;
+    scrollHoldKeyRef.current = holdKey;
+    return () => setRatingPromptHold(holdKey, false);
+  }, [bookId, chapterNumber]);
+
   const bibleViewportHeightRef = useRef(0);
   const bibleContentHeightRef = useRef(0);
+  const bibleTextShown = !!displayChapter && !isPreloading;
   const reportBibleFitsOnScreen = useCallback(() => {
     const viewport = bibleViewportHeightRef.current;
     const content = bibleContentHeightRef.current;
-    if (isPreloading || viewport === 0 || content === 0) return;
-    if (content - viewport <= BOTTOM_THRESHOLD) notifyScrollTransition(0, true);
-  }, [isPreloading, notifyScrollTransition]);
+    if (!bibleTextShown || viewport === 0 || content === 0) return;
+    if (content - viewport <= BOTTOM_THRESHOLD) onChapterFitsScreen?.(bookId, chapterNumber);
+  }, [bibleTextShown, onChapterFitsScreen, bookId, chapterNumber]);
 
   useEffect(() => {
     reportBibleFitsOnScreen();
@@ -1494,7 +1507,7 @@ export function ChapterPage({
       else if (velocity < -FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = true;
       else if (velocity > FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = false;
 
-      const reachedBottom = isAtBottom && !atBottomSv.value;
+      const bottomChanged = isAtBottom !== atBottomSv.value;
       atBottomSv.value = isAtBottom;
 
       if (nextFabVisible !== fabVisibleSv.value) {
@@ -1507,8 +1520,8 @@ export function ChapterPage({
         // spike — a slow drag to the end would otherwise leave it hidden.
         fabVisibleSv.value = true;
         runOnJS(notifyScrollTransition)(velocity, true);
-      } else if (reachedBottom) {
-        runOnJS(notifyScrollTransition)(velocity, true);
+      } else if (bottomChanged) {
+        runOnJS(notifyScrollTransition)(velocity, isAtBottom);
       }
 
       // Text-visibility range, throttled. Tokenization only needs a coarse window,
@@ -1517,6 +1530,22 @@ export function ChapterPage({
         lastVisibilityPushSv.value = now;
         runOnJS(pushVisibleRange)(y, viewportHeight, event.contentSize.height);
       }
+    },
+    onBeginDrag: () => {
+      'worklet';
+      runOnJS(setBibleScrollHold)(true);
+    },
+    onEndDrag: () => {
+      'worklet';
+      runOnJS(setBibleScrollHold)(false);
+    },
+    onMomentumBegin: () => {
+      'worklet';
+      runOnJS(setBibleScrollHold)(true);
+    },
+    onMomentumEnd: () => {
+      'worklet';
+      runOnJS(setBibleScrollHold)(false);
     },
   });
 

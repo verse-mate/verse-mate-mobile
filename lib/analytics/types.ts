@@ -252,16 +252,16 @@ export interface OnboardingCompletedProperties {
 // Time-Based Analytics Event Properties (Phase 2-3)
 // ============================================================================
 
-/**
- * Chapter Reading Duration Event Properties
- * Fired when user exits a chapter, tracks total reading time
- */
 export interface RatingPromptRequestedProperties {
   trigger: 'finished_chapter' | 'fifth_reading_day';
   app_version: string;
   platform: 'ios' | 'android';
 }
 
+/**
+ * Chapter Reading Duration Event Properties
+ * Fired when user exits a chapter, tracks total reading time
+ */
 export interface ChapterReadingDurationProperties {
   /** Total reading time in seconds */
   duration_seconds: number;

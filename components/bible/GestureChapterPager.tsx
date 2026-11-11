@@ -63,6 +63,7 @@ import {
   computeChapterNavigation,
 } from '@/hooks/bible/use-chapter-navigation';
 import { perfAdd, perfSpan, watchFrames } from '@/lib/perf';
+import { setRatingPromptHold } from '@/lib/rating-prompt/blockers';
 import type { TestamentBook } from '@/src/api';
 
 export interface GestureChapterPagerRef {
@@ -650,15 +651,23 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      */
     const swipeSpanRef = useRef<(() => void) | null>(null);
     const beginSwipeMeasure = useCallback(() => {
+      setRatingPromptHold('chapter-pager', true);
       swipeSpanRef.current?.();
       swipeSpanRef.current = perfSpan('gesture.swipe');
       watchFrames('anim.swipe', SWIPE_FRAME_WINDOW_MS);
     }, []);
     const endSwipeMeasure = useCallback(() => {
+      setRatingPromptHold('chapter-pager', false);
       swipeSpanRef.current?.();
       swipeSpanRef.current = null;
     }, []);
-    useEffect(() => () => swipeSpanRef.current?.(), []);
+    useEffect(
+      () => () => {
+        setRatingPromptHold('chapter-pager', false);
+        swipeSpanRef.current?.();
+      },
+      []
+    );
 
     /**
      * Guarantee the offset and the mounted content agree once the pager is at rest.
