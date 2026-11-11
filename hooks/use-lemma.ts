@@ -23,6 +23,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
 export interface RelatedWord {
   translit: string;
@@ -73,7 +74,7 @@ export class LemmaNotFoundError extends Error {
   }
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.versemate.org';
+const API_URL = resolveApiBaseUrl();
 
 export async function fetchLemma(strongs: string, lang: string | undefined): Promise<LemmaCard> {
   const url = new URL(`/lemma/${encodeURIComponent(strongs)}`, API_URL);

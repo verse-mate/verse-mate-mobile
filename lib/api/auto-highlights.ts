@@ -8,6 +8,7 @@
  * these can be replaced with generated API client calls.
  */
 
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import type {
   GetAutoHighlightsResponse,
@@ -16,7 +17,7 @@ import type {
   UpdateThemePreferenceRequest,
 } from '@/types/auto-highlights';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+const BASE_URL = resolveApiBaseUrl();
 
 /**
  * Get auto-highlights for a specific chapter

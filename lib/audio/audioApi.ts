@@ -9,6 +9,7 @@
  * Reader DTO (br-audio-007) is the 4-field shape only. Provider info
  * lives behind admin endpoints, not exposed here.
  */
+import { resolveApiBaseUrl } from "@/lib/api/base-url";
 import { authenticatedFetch } from "@/lib/api/authenticated-fetch";
 
 const POLL_INTERVAL_MS = 2000;
@@ -86,7 +87,7 @@ interface JobStatusResponse {
 export type SaveReason = "pause" | "complete" | "background" | "navigation";
 
 function getApiBase(): string {
-  return process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
+  return resolveApiBaseUrl();
 }
 
 function audioUrl(

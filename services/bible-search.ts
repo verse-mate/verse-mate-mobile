@@ -7,6 +7,7 @@
  * answers instead (exact words only, Bible order); the page says which.
  */
 
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import {
   VERSE_SEARCH_PAGE_SIZE,
   type VerseSearchFilters,
@@ -14,7 +15,7 @@ import {
 } from '@/lib/bible-search/types';
 import { hasOfflineVerses, searchVersesOffline } from '@/services/offline/verse-search';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+const BASE_URL = resolveApiBaseUrl();
 
 /** A search that takes longer than this falls back to the device, when it can. */
 const ONLINE_TIMEOUT_MS = 8000;

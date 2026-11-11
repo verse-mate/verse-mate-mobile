@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
-
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { getAccessToken } from '@/lib/auth/token-storage';
 
 export function useDeleteAccount() {
@@ -29,7 +29,7 @@ export function useDeleteAccount() {
       }
 
       // Call API to delete account
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      const baseUrl = resolveApiBaseUrl();
       const response = await fetch(`${baseUrl}/auth/account`, {
         method: 'DELETE',
         headers: {

@@ -341,7 +341,7 @@ describe('OfflineSyncService', () => {
   describe('fetchManifest', () => {
     it('fetches manifest from API', async () => {
       server.use(
-        http.get('https://api.versemate.org/offline/manifest', () => {
+        http.get('http://localhost:4000/offline/manifest', () => {
           return HttpResponse.json(mockManifest);
         })
       );
@@ -414,13 +414,9 @@ describe('OfflineSyncService', () => {
     beforeEach(() => {
       // Register handlers for all offline download endpoints used by the test manifest
       server.use(
-        http.get('https://api.versemate.org/offline/bible/:versionKey', () =>
-          HttpResponse.json([])
-        ),
-        http.get('https://api.versemate.org/offline/commentaries/:lang', () =>
-          HttpResponse.json([])
-        ),
-        http.get('https://api.versemate.org/offline/topics/:lang', () =>
+        http.get('http://localhost:4000/offline/bible/:versionKey', () => HttpResponse.json([])),
+        http.get('http://localhost:4000/offline/commentaries/:lang', () => HttpResponse.json([])),
+        http.get('http://localhost:4000/offline/topics/:lang', () =>
           HttpResponse.json({ topics: [], references: [], explanations: [] })
         )
       );
@@ -611,7 +607,7 @@ describe('OfflineSyncService', () => {
   describe('downloadCommentaries origin tagging (VER-87)', () => {
     beforeEach(() => {
       server.use(
-        http.get('https://api.versemate.org/offline/commentaries/:lang', () => {
+        http.get('http://localhost:4000/offline/commentaries/:lang', () => {
           return HttpResponse.json([]);
         })
       );
