@@ -1,0 +1,64 @@
+/**
+ * Smoke tests for the onboarding feature previews + slide template.
+ *
+ * These render the leaf components in isolation (theme is auto-mocked globally)
+ * to guard against runtime crashes — e.g. a missing theme token or a bad SVG
+ * prop — without needing the PagerView / router / reanimated stack.
+ */
+
+import { render } from '@testing-library/react-native';
+import {
+  InductivePreview,
+  LanguagesPreview,
+  LevelsPreview,
+  LexiconPreview,
+  TopicsPreview,
+  VerseInsightPreview,
+  VisualsPreview,
+} from '@/components/onboarding/OnboardingPreviews';
+import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide';
+
+describe('OnboardingSlide', () => {
+  it('renders eyebrow, title, and body', () => {
+    const { getByText } = render(
+      <OnboardingSlide eyebrow="ORIGINAL LANGUAGES" title="Greek & Hebrew" body="A description.">
+        {null}
+      </OnboardingSlide>
+    );
+    expect(getByText('ORIGINAL LANGUAGES')).toBeTruthy();
+    expect(getByText('Greek & Hebrew')).toBeTruthy();
+    expect(getByText('A description.')).toBeTruthy();
+  });
+});
+
+describe('Onboarding previews', () => {
+  it('VerseInsightPreview renders the insight card', () => {
+    expect(render(<VerseInsightPreview />).getByText('Verse Insight')).toBeTruthy();
+  });
+
+  it('LevelsPreview renders the explanation levels', () => {
+    expect(render(<LevelsPreview />).getByText('By Line')).toBeTruthy();
+  });
+
+  it('TopicsPreview renders topic rows', () => {
+    expect(render(<TopicsPreview />).getByText('Prophecies')).toBeTruthy();
+  });
+
+  it('LexiconPreview renders the Hebrew definition card', () => {
+    const { getByText } = render(<LexiconPreview />);
+    expect(getByText('yom')).toBeTruthy();
+    expect(getByText('day')).toBeTruthy();
+  });
+
+  it('InductivePreview renders the observation steps', () => {
+    expect(render(<InductivePreview />).getByText('Begin with prayer')).toBeTruthy();
+  });
+
+  it('VisualsPreview renders the visuals tab', () => {
+    expect(render(<VisualsPreview />).getByText('Visuals for Genesis 1')).toBeTruthy();
+  });
+
+  it('LanguagesPreview renders language chips', () => {
+    expect(render(<LanguagesPreview />).getByText('English')).toBeTruthy();
+  });
+});
