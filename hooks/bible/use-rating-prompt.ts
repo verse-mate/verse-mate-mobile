@@ -1,5 +1,5 @@
-import { useIsFocused } from '@react-navigation/native';
-import { useCallback, useEffect, useRef } from 'react';
+import { NavigationContext } from '@react-navigation/native';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { isReaderCalm, noteReaderActivity } from '@/lib/rating-prompt/blockers';
 import {
@@ -49,9 +49,9 @@ export function useRatingPrompt(bookId: number, chapterNumber: number) {
   const key = chapterKey(bookId, chapterNumber);
   const visitRef = useRef<ChapterVisit>(newVisit(key, Date.now()));
   const fitsRef = useRef(new Map<string, boolean>());
-  const isFocused = useIsFocused();
-  const focusedRef = useRef(isFocused);
-  focusedRef.current = isFocused;
+  const navigation = useContext(NavigationContext);
+  const navigationRef = useRef(navigation);
+  navigationRef.current = navigation;
 
   useEffect(() => {
     if (!isRatingPromptEnabled()) return;
@@ -82,7 +82,9 @@ export function useRatingPrompt(bookId: number, chapterNumber: number) {
           : null;
       if (!trigger) return;
       const calm =
-        focusedRef.current && AppState.currentState === 'active' && isReaderCalm(now, CALM_MS);
+        (navigationRef.current?.isFocused() ?? true) &&
+        AppState.currentState === 'active' &&
+        isReaderCalm(now, CALM_MS);
       if (!calm) return;
       if (trigger === 'finished_chapter') visit.finishedPending = false;
       requestRating(trigger).catch(() => undefined);

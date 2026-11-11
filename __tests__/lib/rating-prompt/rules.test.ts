@@ -23,15 +23,12 @@ function readOn(state: RatingPromptState, days: string[]) {
 
 describe('rating prompt rules', () => {
   it('uses the local calendar day, not the UTC one', () => {
-    const originalTz = process.env.TZ;
-    process.env.TZ = 'America/Sao_Paulo';
-    try {
-      const lateEvening = new Date(2026, 0, 2, 23, 30);
-      expect(lateEvening.toISOString().slice(0, 10)).toBe('2026-01-03');
-      expect(localDay(lateEvening)).toBe('2026-01-02');
-    } finally {
-      process.env.TZ = originalTz;
-    }
+    const lateEveningLocal = Object.assign(new Date('2026-01-03T02:30:00Z'), {
+      getFullYear: () => 2026,
+      getMonth: () => 0,
+      getDate: () => 2,
+    });
+    expect(localDay(lateEveningLocal)).toBe('2026-01-02');
   });
 
   it('refuses during the first session, even after midnight', () => {

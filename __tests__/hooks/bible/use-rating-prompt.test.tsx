@@ -5,7 +5,9 @@ import { setRatingPromptHold, useRatingPromptBlocker } from '@/lib/rating-prompt
 import * as controller from '@/lib/rating-prompt/controller';
 
 let mockFocused = true;
-jest.mock('@react-navigation/native', () => ({ useIsFocused: () => mockFocused }));
+jest.mock('@react-navigation/native', () => ({
+  NavigationContext: require('react').createContext({ isFocused: () => mockFocused }),
+}));
 jest.mock('@/lib/rating-prompt/controller', () => ({
   isRatingPromptEnabled: jest.fn(() => true),
   noteChapterOpened: jest.fn(() => Promise.resolve()),
