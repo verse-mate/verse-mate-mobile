@@ -1,4 +1,12 @@
 {
-  "en": { "approver": "Augusto Chaves" },
-  "pt": { "approver": "Augusto Chaves" }
+  "en": {
+    "approver": "Augusto Chaves",
+    "signedOff": "2026-11-10",
+    "fingerprint": "9cb430dfac6f4af380e0ef26a1581d87d6941101526d84de97211bd31bd10a9d"
+  },
+  "pt": {
+    "approver": "Augusto Chaves",
+    "signedOff": "2026-11-10",
+    "fingerprint": "6b86ca8a3082a28997653b15e5fd48af5328c7701df75603c35f3eeb71fcfae6"
+  }
 }
