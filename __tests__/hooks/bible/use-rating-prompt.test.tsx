@@ -101,7 +101,7 @@ describe('useRatingPrompt', () => {
 
   it('counts a chapter that fits on screen once 60 seconds pass', () => {
     const { result } = renderPrompt();
-    act(() => result.current.onChapterFitsScreen(43, 3));
+    act(() => result.current.onChapterFitsScreen(43, 3, true));
     advance(59_000);
     expect(requestRating).not.toHaveBeenCalled();
     advance(5_000);
@@ -110,9 +110,38 @@ describe('useRatingPrompt', () => {
 
   it('keeps a fit report sent just before the swipe that opens the chapter', () => {
     const { result, rerender } = renderPrompt({ bookId: 19, chapterNumber: 116 });
-    act(() => result.current.onChapterFitsScreen(19, 117));
+    act(() => result.current.onChapterFitsScreen(19, 117, true));
     rerender({ bookId: 19, chapterNumber: 117 });
     advance(64_000);
+    expect(requestRating).toHaveBeenCalledWith('finished_chapter');
+  });
+
+  it('forgets a fit once the chapter is measured as longer than the screen', () => {
+    const { result } = renderPrompt();
+    act(() => result.current.onChapterFitsScreen(43, 3, true));
+    act(() => result.current.onChapterFitsScreen(43, 3, false));
+    advance(70_000);
+    expect(requestRating).not.toHaveBeenCalled();
+  });
+
+  it('tracks the end of each pane on its own', () => {
+    const { result } = renderPrompt();
+    advance(30_000);
+    act(() => result.current.onReaderScroll(true, 'insight'));
+    advance(90_000);
+    act(() => result.current.onReaderScroll(true, 'bible'));
+    advance(3_000);
+    expect(requestRating).toHaveBeenCalledWith('finished_chapter');
+  });
+
+  it('lets a hold whose end was lost expire', () => {
+    const { result } = renderPrompt();
+    advance(70_000);
+    setRatingPromptHold('test-lost-end', true);
+    act(() => result.current.onReaderScroll(true));
+    advance(5_000);
+    expect(requestRating).not.toHaveBeenCalled();
+    advance(10_000);
     expect(requestRating).toHaveBeenCalledWith('finished_chapter');
   });
 
@@ -132,7 +161,7 @@ describe('useRatingPrompt', () => {
     advance(70_000);
     act(() => result.current.onReaderScroll(true));
     setRatingPromptHold('test-drag', true);
-    advance(30_000);
+    advance(8_000);
     expect(requestRating).not.toHaveBeenCalled();
     setRatingPromptHold('test-drag', false);
     advance(1_000);

@@ -580,6 +580,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       if (pendingNavRef.current) {
         pendingTimerRef.current = setTimeout(() => {
           pendingTimerRef.current = null;
+          setRatingPromptHold('chapter-pager', false);
           if (!pendingNavRef.current) return;
           const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
           pendingNavRef.current = null;

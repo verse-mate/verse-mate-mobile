@@ -54,14 +54,18 @@ export function recordChapterOpen(
 
 const daysApart = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) / DAY_MS;
 
-const isRequestRecord = (value: unknown): value is RatingRequestRecord => {
-  const request = value as Partial<RatingRequestRecord> | null;
-  return (
-    typeof request?.at === 'string' &&
-    typeof request.version === 'string' &&
-    (request.trigger === 'finished_chapter' || request.trigger === 'fifth_reading_day')
-  );
-};
+function repairRequest(value: unknown, now: Date): RatingRequestRecord {
+  const request = (value ?? {}) as Partial<RatingRequestRecord>;
+  const at =
+    typeof request.at === 'string' && !Number.isNaN(Date.parse(request.at))
+      ? request.at
+      : now.toISOString();
+  return {
+    at,
+    version: typeof request.version === 'string' ? request.version : 'unknown',
+    trigger: request.trigger === 'fifth_reading_day' ? 'fifth_reading_day' : 'finished_chapter',
+  };
+}
 
 export function repairRatingState(
   value: unknown,
@@ -77,9 +81,7 @@ export function repairRatingState(
     typeof state.fifthDayRequested === 'boolean' &&
     Array.isArray(state.requests);
   if (!usable) return initialRatingState(now, sessionId);
-  const requests = (state.requests as unknown[]).filter(isRequestRecord).map((request) =>
-    Number.isNaN(Date.parse(request.at)) ? { ...request, at: now.toISOString() } : request
-  );
+  const requests = (state.requests as unknown[]).map((request) => repairRequest(request, now));
   return { ...(state as RatingPromptState), requests };
 }
 

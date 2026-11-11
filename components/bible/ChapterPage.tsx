@@ -544,8 +544,8 @@ export interface ChapterPageProps {
    */
   markTargetVerse?: boolean;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
-  onScroll?: (velocity: number, isAtBottom: boolean) => void;
-  onChapterFitsScreen?: (bookId: number, chapterNumber: number) => void;
+  onScroll?: (velocity: number, isAtBottom: boolean, pane?: 'bible' | 'insight') => void;
+  onChapterFitsScreen?: (bookId: number, chapterNumber: number, fits: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
   /** Hide the chapter title text (used in split view where parent has a header) */
@@ -1410,9 +1410,12 @@ export function ChapterPage({
    * recreated each render would be re-serialised each render.
    */
   const notifyScrollTransition = useCallback((velocity: number, isAtBottom: boolean) => {
-    onScrollRef.current?.(velocity, isAtBottom);
+    onScrollRef.current?.(velocity, isAtBottom, 'bible');
   }, []);
 
+  const bibleViewportHeightRef = useRef(0);
+  const bibleContentHeightRef = useRef(0);
+  const bibleHeightIsCompleteRef = useRef(false);
   const scrollHoldKeyRef = useRef(`bible-scroll-${bookId}-${chapterNumber}`);
   const setBibleScrollHold = useCallback((held: boolean) => {
     setRatingPromptHold(scrollHoldKeyRef.current, held);
@@ -1420,22 +1423,28 @@ export function ChapterPage({
   useEffect(() => {
     const holdKey = `bible-scroll-${bookId}-${chapterNumber}`;
     scrollHoldKeyRef.current = holdKey;
+    bibleHeightIsCompleteRef.current = false;
     return () => setRatingPromptHold(holdKey, false);
   }, [bookId, chapterNumber]);
 
-  const bibleViewportHeightRef = useRef(0);
-  const bibleContentHeightRef = useRef(0);
-  const bibleTextShown = !!displayChapter && !isPreloading;
+  const bibleTextComplete =
+    !!displayChapter &&
+    (nativeTextOn
+      ? !isPreloading || bufferContentReady
+      : !isPreloading && bibleSectionsMax === Number.POSITIVE_INFINITY);
   const reportBibleFitsOnScreen = useCallback(() => {
     const viewport = bibleViewportHeightRef.current;
     const content = bibleContentHeightRef.current;
-    if (!bibleTextShown || viewport === 0 || content === 0) return;
-    if (content - viewport <= BOTTOM_THRESHOLD) onChapterFitsScreen?.(bookId, chapterNumber);
-  }, [bibleTextShown, onChapterFitsScreen, bookId, chapterNumber]);
+    if (isPreloading || !bibleHeightIsCompleteRef.current || viewport === 0) return;
+    onChapterFitsScreen?.(bookId, chapterNumber, content - viewport <= BOTTOM_THRESHOLD);
+  }, [isPreloading, onChapterFitsScreen, bookId, chapterNumber]);
 
   useEffect(() => {
+    if (bibleTextComplete && bibleContentHeightRef.current > 0) {
+      bibleHeightIsCompleteRef.current = true;
+    }
     reportBibleFitsOnScreen();
-  }, [reportBibleFitsOnScreen]);
+  }, [bibleTextComplete, reportBibleFitsOnScreen]);
 
   /**
    * Push the visible Y range to JS. Called from the scroll worklet at most every
@@ -1590,7 +1599,7 @@ export function ChapterPage({
     lastScrollTime.current = currentTime;
 
     // Call parent callback
-    onScroll(velocity, isAtBottom);
+    onScroll(velocity, isAtBottom, 'insight');
   };
 
   /**
@@ -2045,6 +2054,7 @@ export function ChapterPage({
           }}
           onContentSizeChange={(_width, height) => {
             bibleContentHeightRef.current = height;
+            bibleHeightIsCompleteRef.current = bibleTextComplete;
             reportBibleFitsOnScreen();
           }}
           // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is

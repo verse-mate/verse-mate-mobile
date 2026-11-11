@@ -63,8 +63,8 @@ export interface BibleContentPanelProps {
   onNavigateNext?: () => void;
 
   /** Callback when user scrolls */
-  onScroll?: (velocity: number, isAtBottom: boolean) => void;
-  onChapterFitsScreen?: (bookId: number, chapterNumber: number) => void;
+  onScroll?: (velocity: number, isAtBottom: boolean, pane?: 'bible' | 'insight') => void;
+  onChapterFitsScreen?: (bookId: number, chapterNumber: number, fits: boolean) => void;
 
   /** Callback when user taps */
   onTap?: () => void;

@@ -78,7 +78,7 @@ import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useGesturePager } from '@/hooks/bible/use-gesture-pager';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
-import { useRatingPrompt } from '@/hooks/bible/use-rating-prompt';
+import { type ReaderPane, useRatingPrompt } from '@/hooks/bible/use-rating-prompt';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -483,9 +483,9 @@ export default function ChapterScreen() {
   const { onReaderScroll, onChapterFitsScreen } = useRatingPrompt(bookId, chapterNumber);
   useRatingPromptBlocker(isNavigationModalOpen || isMenuOpen);
   const handleReaderScroll = useCallback(
-    (velocity: number, isAtBottom: boolean) => {
+    (velocity: number, isAtBottom: boolean, pane?: ReaderPane) => {
       handleScroll(velocity, isAtBottom);
-      onReaderScroll(isAtBottom);
+      onReaderScroll(isAtBottom, pane);
     },
     [handleScroll, onReaderScroll]
   );

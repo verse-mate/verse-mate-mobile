@@ -14,11 +14,13 @@ const TICK_MS = 1_000;
 const CALM_MS = 2_000;
 const REMEMBERED_FITS = 8;
 
+export type ReaderPane = 'bible' | 'insight';
+
 interface ChapterVisit {
   key: string;
   activeMs: number;
   activeSince: number | null;
-  atBottom: boolean;
+  atBottom: Partial<Record<ReaderPane | 'other', boolean>>;
   finishedPending: boolean;
   finishedHandled: boolean;
 }
@@ -29,7 +31,7 @@ const newVisit = (key: string, now: number): ChapterVisit => ({
   key,
   activeMs: 0,
   activeSince: AppState.currentState === 'active' ? now : null,
-  atBottom: false,
+  atBottom: {},
   finishedPending: false,
   finishedHandled: false,
 });
@@ -46,7 +48,7 @@ function markFinishedIfRead(visit: ChapterVisit, now: number): void {
 export function useRatingPrompt(bookId: number, chapterNumber: number) {
   const key = chapterKey(bookId, chapterNumber);
   const visitRef = useRef<ChapterVisit>(newVisit(key, Date.now()));
-  const fitsRef = useRef<string[]>([]);
+  const fitsRef = useRef(new Map<string, boolean>());
   const isFocused = useIsFocused();
   const focusedRef = useRef(isFocused);
   focusedRef.current = isFocused;
@@ -72,7 +74,7 @@ export function useRatingPrompt(bookId: number, chapterNumber: number) {
     const timer = setInterval(() => {
       const visit = visitRef.current;
       const now = Date.now();
-      if (fitsRef.current.includes(visit.key)) markFinishedIfRead(visit, now);
+      if (fitsRef.current.get(visit.key)) markFinishedIfRead(visit, now);
       const trigger = visit.finishedPending
         ? 'finished_chapter'
         : isFifthDayPending()
@@ -92,19 +94,26 @@ export function useRatingPrompt(bookId: number, chapterNumber: number) {
     };
   }, [key]);
 
-  const onReaderScroll = useCallback((isAtBottom: boolean) => {
+  const onReaderScroll = useCallback((isAtBottom: boolean, pane?: ReaderPane) => {
     const visit = visitRef.current;
     const now = Date.now();
+    const source = pane ?? 'other';
     noteReaderActivity(now);
-    if (isAtBottom && !visit.atBottom) markFinishedIfRead(visit, now);
-    visit.atBottom = isAtBottom;
+    if (isAtBottom && !visit.atBottom[source]) markFinishedIfRead(visit, now);
+    visit.atBottom[source] = isAtBottom;
   }, []);
 
-  const onChapterFitsScreen = useCallback((pageBookId: number, pageChapterNumber: number) => {
-    const fitKey = chapterKey(pageBookId, pageChapterNumber);
-    if (fitsRef.current.includes(fitKey)) return;
-    fitsRef.current = [fitKey, ...fitsRef.current].slice(0, REMEMBERED_FITS);
-  }, []);
+  const onChapterFitsScreen = useCallback(
+    (pageBookId: number, pageChapterNumber: number, fits: boolean) => {
+      const fitStates = fitsRef.current;
+      const fitKey = chapterKey(pageBookId, pageChapterNumber);
+      fitStates.delete(fitKey);
+      fitStates.set(fitKey, fits);
+      while (fitStates.size > REMEMBERED_FITS)
+        fitStates.delete(fitStates.keys().next().value as string);
+    },
+    []
+  );
 
   return { onReaderScroll, onChapterFitsScreen };
 }

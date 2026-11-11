@@ -13,7 +13,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterPage } from '@/components/bible/ChapterPage';
@@ -235,6 +235,64 @@ describe('ChapterPage', () => {
       expect(screen.getByTestId('chapter-reader')).toBeTruthy();
       expect(screen.getByText('Genesis 1')).toBeTruthy();
     });
+  });
+
+  it('reports whether the current chapter fits on the screen, only once its text is shown', async () => {
+    const onChapterFitsScreen = jest.fn();
+    mockUseBibleChapter.mockReturnValue({
+      data: {
+        bookId: 19,
+        chapterNumber: 117,
+        title: 'Psalm 117',
+        sections: [
+          {
+            startVerse: 1,
+            endVerse: 2,
+            subtitle: '',
+            verses: [{ verseNumber: 1, text: 'Praise the Lord' }],
+          },
+        ],
+      },
+      isLoading: false,
+      isPlaceholderData: false,
+      error: null,
+      isError: false,
+      isSuccess: true,
+    } as any);
+    const renderPage = (isPreloading: boolean) => (
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ToastProvider>
+              <ChapterPage
+                bookId={19}
+                chapterNumber={117}
+                activeTab="summary"
+                activeView="bible"
+                isPreloading={isPreloading}
+                onChapterFitsScreen={onChapterFitsScreen}
+              />
+            </ToastProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    );
+    const view = render(renderPage(true));
+    const scroll = screen.getByTestId('chapter-page-scroll-19-117-bible');
+    fireEvent(scroll, 'layout', {
+      nativeEvent: { layout: { width: 390, height: 700, x: 0, y: 0 } },
+    });
+    fireEvent(scroll, 'contentSizeChange', 390, 300);
+    expect(onChapterFitsScreen).not.toHaveBeenCalled();
+
+    view.rerender(renderPage(false));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    fireEvent(scroll, 'contentSizeChange', 390, 2400);
+    expect(onChapterFitsScreen).toHaveBeenLastCalledWith(19, 117, false);
+    fireEvent(scroll, 'contentSizeChange', 390, 300);
+    expect(onChapterFitsScreen).toHaveBeenLastCalledWith(19, 117, true);
   });
 
   it('should call useBibleChapter with correct bookId and chapterNumber', () => {

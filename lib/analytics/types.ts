@@ -258,10 +258,6 @@ export interface RatingPromptRequestedProperties {
   platform: 'ios' | 'android';
 }
 
-/**
- * Chapter Reading Duration Event Properties
- * Fired when user exits a chapter, tracks total reading time
- */
 export interface ChapterReadingDurationProperties {
   /** Total reading time in seconds */
   duration_seconds: number;

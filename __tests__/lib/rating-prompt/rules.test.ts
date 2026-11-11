@@ -136,8 +136,17 @@ describe('rating prompt rules', () => {
         { at: 'not a date', version: '1.7.1', trigger: 'finished_chapter' },
       ],
     };
-    const repaired = repairRatingState(damaged, at('2026-04-01'), LATER_SESSION);
-    expect(repaired.requests).toHaveLength(2);
+    const repaired = repairRatingState(
+      { ...damaged, requests: [...damaged.requests, { version: 3 }] },
+      at('2026-04-01'),
+      LATER_SESSION
+    );
+    expect(repaired.requests).toHaveLength(3);
+    expect(repaired.requests[2]).toEqual({
+      at: at('2026-04-01').toISOString(),
+      version: 'unknown',
+      trigger: 'finished_chapter',
+    });
     expect(repaired.requests[0]).toEqual(asked.requests[0]);
     expect(ratingRefusal(repaired, at('2026-04-10'), '1.8.0', LATER_SESSION)).toBe('too_soon');
   });
