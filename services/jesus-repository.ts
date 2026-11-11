@@ -17,7 +17,9 @@
  * the screen — React Query still sees a resolved promise, so a retry is the
  * caller's decision rather than an unhandled rejection.
  */
+
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { perfTimer, perfTrace } from '@/lib/perf';
 import {
   getJesusLocal,
@@ -44,7 +46,7 @@ import type {
   JesusThemeSummary,
 } from '@/types/jesus';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+const BASE_URL = resolveApiBaseUrl();
 
 type QueryValue = string | number | boolean;
 

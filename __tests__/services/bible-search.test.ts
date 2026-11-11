@@ -1,6 +1,7 @@
 import { HttpResponse, http } from 'msw';
 import { mockEastAndWest } from '@/__tests__/mocks/handlers/bible-search.handlers';
 import { server } from '@/__tests__/mocks/server';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { searchVerses } from '@/services/bible-search';
 import { hasOfflineVerses, searchVersesOffline } from '@/services/offline/verse-search';
 
@@ -9,7 +10,7 @@ jest.mock('@/services/offline/verse-search', () => ({
   searchVersesOffline: jest.fn(),
 }));
 
-const SEARCH_URL = `${process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org'}/bible/search`;
+const SEARCH_URL = `${resolveApiBaseUrl()}/bible/search`;
 const offlinePage = {
   results: [],
   nextCursor: null,

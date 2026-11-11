@@ -1,13 +1,11 @@
 /**
  * MSW handler for GET /bible/search (verse search).
- *
- * The search service calls the public API base (EXPO_PUBLIC_API_URL, else
- * https://api.versemate.org), not the generated client's localhost:4000.
  */
 
 import { HttpResponse, http } from 'msw';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
-const SEARCH_URL = `${process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org'}/bible/search`;
+const SEARCH_URL = `${resolveApiBaseUrl()}/bible/search`;
 
 export const mockEastAndWest = {
   results: [

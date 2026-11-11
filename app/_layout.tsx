@@ -22,6 +22,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus, InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -223,12 +224,8 @@ function RootLayoutInner() {
           if (__DEV__) console.log('Topic deep link detected:', { category, slug });
 
           try {
-            const baseUrl = process.env.EXPO_PUBLIC_API_URL;
-            if (!baseUrl) {
-              throw new Error('EXPO_PUBLIC_API_URL is not configured');
-            }
+            const baseUrl = resolveApiBaseUrl();
 
-            // Fetch topic details to get topic_id
             const response = await authenticatedFetch(
               `${baseUrl}/topics/by-slug?category=${category}&slug=${slug}`
             );

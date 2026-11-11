@@ -1,8 +1,11 @@
 import { HttpResponse, http } from 'msw';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import * as syncService from '@/services/offline/offline-sync-service';
 import * as sqliteManager from '@/services/offline/sqlite-manager';
 import { server } from '../../mocks/server';
+
+const API_URL = resolveApiBaseUrl();
 
 // Mock dependencies
 jest.mock('@/lib/api/authenticated-fetch', () => ({
@@ -341,7 +344,7 @@ describe('OfflineSyncService', () => {
   describe('fetchManifest', () => {
     it('fetches manifest from API', async () => {
       server.use(
-        http.get('https://api.versemate.org/offline/manifest', () => {
+        http.get(`${API_URL}/offline/manifest`, () => {
           return HttpResponse.json(mockManifest);
         })
       );
@@ -414,13 +417,9 @@ describe('OfflineSyncService', () => {
     beforeEach(() => {
       // Register handlers for all offline download endpoints used by the test manifest
       server.use(
-        http.get('https://api.versemate.org/offline/bible/:versionKey', () =>
-          HttpResponse.json([])
-        ),
-        http.get('https://api.versemate.org/offline/commentaries/:lang', () =>
-          HttpResponse.json([])
-        ),
-        http.get('https://api.versemate.org/offline/topics/:lang', () =>
+        http.get(`${API_URL}/offline/bible/:versionKey`, () => HttpResponse.json([])),
+        http.get(`${API_URL}/offline/commentaries/:lang`, () => HttpResponse.json([])),
+        http.get(`${API_URL}/offline/topics/:lang`, () =>
           HttpResponse.json({ topics: [], references: [], explanations: [] })
         )
       );
@@ -611,7 +610,7 @@ describe('OfflineSyncService', () => {
   describe('downloadCommentaries origin tagging (VER-87)', () => {
     beforeEach(() => {
       server.use(
-        http.get('https://api.versemate.org/offline/commentaries/:lang', () => {
+        http.get(`${API_URL}/offline/commentaries/:lang`, () => {
           return HttpResponse.json([]);
         })
       );

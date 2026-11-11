@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { getAccessToken } from '@/lib/auth/token-storage';
 import { perfTimer, perfTrace } from '@/lib/perf';
 import {
@@ -1202,7 +1203,7 @@ function studyQueryOptions(bookId: number, chapter: number, language?: string) {
     // surfaced after the DB-backed study migration #343).
     networkMode: 'always',
     queryFn: async (): Promise<InductiveStudy | null> => {
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      const baseUrl = resolveApiBaseUrl();
       try {
         const accessToken = await getAccessToken();
         const headers: HeadersInit = {};
@@ -1282,7 +1283,7 @@ export function useStudyLabels(language?: string): StudyLabels {
     // Study-tab labels; the bundled getStudyLabels() below is the fallback.
     networkMode: 'always',
     queryFn: async (): Promise<Partial<StudyLabels> | null> => {
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      const baseUrl = resolveApiBaseUrl();
       try {
         const accessToken = await getAccessToken();
         const headers: HeadersInit = {};
@@ -1319,7 +1320,7 @@ export function getUserRecentlyViewedBooksOptions() {
   return {
     queryKey: ['user', 'recently-viewed-books'],
     queryFn: async () => {
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      const baseUrl = resolveApiBaseUrl();
 
       // Get access token from storage for authentication
       const accessToken = await getAccessToken();
@@ -1347,7 +1348,7 @@ export function getUserRecentlyViewedBooksOptions() {
 export function postUserRecentlyViewedBooksSyncMutation() {
   return {
     mutationFn: async ({ body }: { body: { books: { bookId: string; timestamp: number }[] } }) => {
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      const baseUrl = resolveApiBaseUrl();
 
       // Get access token from storage for authentication
       const accessToken = await getAccessToken();

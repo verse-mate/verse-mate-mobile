@@ -9,6 +9,7 @@
  *
  * Authored without an Android build — verify on device/emulator.
  */
+import { resolveApiBaseUrl } from "@/lib/api/base-url";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking } from "react-native";
 import type { WidgetTaskHandlerProps } from "react-native-android-widget";
@@ -187,7 +188,7 @@ async function writeCache(cache: VerseCache): Promise<void> {
 }
 
 export async function fetchVerse(): Promise<WidgetVerseData> {
-  const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
+  const apiBase = resolveApiBaseUrl();
   // Declared out here so the catch can check the cache against the identity we
   // were fetching for. If the throw beat the AsyncStorage reads these stay at
   // their defaults, which simply fails the identity check — the conservative

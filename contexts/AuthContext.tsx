@@ -9,6 +9,7 @@
  * @see Time-Based Analytics Spec - Phase 1: last_login_at user property
  */
 
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import {
   clearTokens,
   getAccessToken,
@@ -181,7 +182,7 @@ async function postAuthSso(body: {
   token: string;
   platform: 'mobile' | 'web';
 }): Promise<{ data?: SSOAuthResponse; error?: SSOErrorResponse }> {
-  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+  const baseUrl = resolveApiBaseUrl();
 
   try {
     const response = await fetch(`${baseUrl}/auth/sso`, {

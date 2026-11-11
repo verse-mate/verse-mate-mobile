@@ -11,6 +11,7 @@
  * Interceptors are implemented using the client's middleware system.
  */
 
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { client } from '@/src/api/generated/client.gen';
 import type { ResolvedRequestOptions } from '@/src/api/generated/client/types.gen';
 import { getAccessToken } from '@/lib/auth/token-storage';
@@ -146,13 +147,7 @@ const fetchNamingFailures = (request: Request): Promise<Response> =>
  * Also sets the baseUrl from environment variable (overrides hardcoded value in generated client).
  */
 export function setupClientInterceptors(): void {
-  // Override baseUrl from environment variable
-  // The generated client has a hardcoded baseUrl, but we want to use the env var for flexibility
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) {
-    client.setConfig({ baseUrl: apiUrl });
-  }
-
+  client.setConfig({ baseUrl: resolveApiBaseUrl() });
   client.setConfig({ fetch: fetchNamingFailures as typeof fetch });
 
   // Add request interceptor for token injection
