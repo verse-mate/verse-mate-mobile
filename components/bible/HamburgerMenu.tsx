@@ -250,10 +250,11 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     onClose();
     router.push('/settings' as never);
   };
-
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        .activeOffsetX(14) // drawer only closes rightward, so one positive offset is enough
+        .failOffsetY([-18, 18]) // give up the moment the drag looks vertical -> ScrollView owns it
         .onUpdate((event) => {
           translateX.value = Math.max(0, event.translationX);
         })
@@ -321,7 +322,6 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                     </View>
                   </Pressable>
                 </View>
-
                 <ScrollView
                   style={styles.menuScrollContent}
                   contentContainerStyle={styles.menuScrollContainer}
