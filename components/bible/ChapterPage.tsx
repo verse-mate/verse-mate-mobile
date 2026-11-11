@@ -1424,6 +1424,7 @@ export function ChapterPage({
     const holdKey = `bible-scroll-${bookId}-${chapterNumber}`;
     scrollHoldKeyRef.current = holdKey;
     bibleHeightIsCompleteRef.current = false;
+    bibleContentHeightRef.current = 0;
     return () => setRatingPromptHold(holdKey, false);
   }, [bookId, chapterNumber]);
 
@@ -1491,6 +1492,7 @@ export function ChapterPage({
   const fabVisibleSv = useSharedValue(true);
   const lastVisibilityPushSv = useSharedValue(0);
   const atBottomSv = useSharedValue(false);
+  const bibleDraggingSv = useSharedValue(false);
 
   const animatedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -1538,22 +1540,27 @@ export function ChapterPage({
       if (now - lastVisibilityPushSv.value >= VISIBILITY_PUSH_INTERVAL_MS) {
         lastVisibilityPushSv.value = now;
         runOnJS(pushVisibleRange)(y, viewportHeight, event.contentSize.height);
+        if (bibleDraggingSv.value) runOnJS(setBibleScrollHold)(true);
       }
     },
     onBeginDrag: () => {
       'worklet';
+      bibleDraggingSv.value = true;
       runOnJS(setBibleScrollHold)(true);
     },
     onEndDrag: () => {
       'worklet';
+      bibleDraggingSv.value = false;
       runOnJS(setBibleScrollHold)(false);
     },
     onMomentumBegin: () => {
       'worklet';
+      bibleDraggingSv.value = true;
       runOnJS(setBibleScrollHold)(true);
     },
     onMomentumEnd: () => {
       'worklet';
+      bibleDraggingSv.value = false;
       runOnJS(setBibleScrollHold)(false);
     },
   });
