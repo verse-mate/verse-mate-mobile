@@ -10,8 +10,7 @@
 import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 
-const API_BASE =
-  resolveApiBaseUrl();
+const API_BASE = resolveApiBaseUrl();
 
 export type DevicePlatform = 'ios' | 'android';
 

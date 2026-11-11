@@ -6,9 +6,10 @@
  */
 
 import { HttpResponse, http } from 'msw';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
 // Support both local and production API URLs for testing
-const BASE_URLS = ['http://localhost:4000', 'https://api.versemate.org'];
+const BASE_URLS = [resolveApiBaseUrl()];
 
 /**
  * Mock auto-highlights data
