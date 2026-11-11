@@ -29,13 +29,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleByLine, useBibleSummary } from '@/src/api';
 import {
@@ -149,7 +149,6 @@ export function BibleExplanationsPanel({
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
-  const { user } = useAuth();
   const { isOffline } = useOfflineStatus();
   const insets = useSafeAreaInsets();
   const { fontSize: userFontSize } = useFontSize();
@@ -158,9 +157,7 @@ export function BibleExplanationsPanel({
     () => createStyles(specs, colors, insets, userFontSize),
     [specs, colors, insets, userFontSize]
   );
-  // Get current language from user preferences (default to 'en-US')
-  // This ensures the query key changes when language changes
-  const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+  const language = usePreferredLanguage();
 
   // Visuals tab is gated per-book; check once per render. Computed
   // here (not deferred to the JSX) because the tab list, indicator
