@@ -17,6 +17,7 @@ import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext
 import { useTheme } from '@/contexts/ThemeContext';
 import { trackAudioSeek, trackAudioSpeedChanged } from '@/lib/analytics/audio-events';
 import type { ResumeProgress } from '@/lib/audio/audioApi';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import { useBibleTestaments } from '@/src/api';
 
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
@@ -40,6 +41,7 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
   const player = useAudioPlayer();
   const track = player.currentTrack;
   const isOpen = player.fullScreenOpen;
+  useRatingPromptBlocker(isOpen && !!track);
   const label = track ? trackDisplayLabel(track) : null;
   /**
    * "Mark 8", not "MRK 8". `book_usfm` is the code the Bible Brain fileset is
