@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import {
   deleteBibleBook,
   deleteBibleVersion,
@@ -45,7 +46,7 @@ import type {
   UserDataDownload,
 } from './types';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+const API_URL = resolveApiBaseUrl();
 const LAST_SYNC_KEY = 'versemate:offline:last_sync';
 const AUTO_SYNC_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 

@@ -7,10 +7,10 @@
  * committed OpenAPI schema yet. All calls are best-effort: failures are logged,
  * never thrown, so notification plumbing never blocks a user flow.
  */
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 
-const API_BASE =
-  process.env.EXPO_PUBLIC_API_URL ?? 'https://api.versemate.org';
+const API_BASE = resolveApiBaseUrl();
 
 export type DevicePlatform = 'ios' | 'android';
 

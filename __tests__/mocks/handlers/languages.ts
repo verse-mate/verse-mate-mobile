@@ -5,8 +5,9 @@
  */
 
 import { HttpResponse, http } from 'msw';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
-const BASE_URLS = ['http://localhost:4000', 'https://api.versemate.org'];
+const BASE_URLS = [resolveApiBaseUrl()];
 
 export const languagesHandlers = BASE_URLS.flatMap((BASE_URL) => [
   // GET /bible/languages - Get available languages

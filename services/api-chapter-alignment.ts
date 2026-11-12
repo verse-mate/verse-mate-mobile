@@ -26,6 +26,7 @@
  */
 
 import type { AlignedToken, ChapterAlignment, LemmaKey, LexEntry } from '@versemate/lexicon';
+import { resolveApiBaseUrl } from '@/lib/api/base-url';
 
 interface ApiVerseToken {
   text: string;
@@ -56,7 +57,7 @@ export interface TaggedChapterResponse {
   message?: string;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.versemate.org';
+const API_URL = resolveApiBaseUrl();
 
 /** Build the URL the chapter endpoint expects for tagged rendering. */
 function taggedChapterUrl(bookId: number, chapterNumber: number, versionKey: string): string {
