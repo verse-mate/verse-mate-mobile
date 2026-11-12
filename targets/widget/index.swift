@@ -54,7 +54,14 @@ private let cacheKey = "votd_last_response_v2"
 // This extension is a separate process and cannot reach the JS locale catalogs,
 // so the app resolves them and writes the result here.
 private let stringsDefaultsKey = "widget_strings"
-private let apiBaseURL = "https://api.versemate.org"
+private let apiBaseURLInfoKey = "VMWidgetApiBaseURL"
+private let localApiBaseURL = "http://localhost:4000"
+private let apiBaseURL: String = {
+  let hostAppURL = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+  let configured = Bundle(url: hostAppURL)?.object(forInfoDictionaryKey: apiBaseURLInfoKey) as? String
+  guard let configured, !configured.isEmpty else { return localApiBaseURL }
+  return configured
+}()
 // KNOWN PROD-ONLY CONSTANT (GH-265 / L-003): the iOS widget extension is a
 // separate process and cannot read the JS `EXPO_PUBLIC_WEB_URL` at runtime, so
 // this host is hardcoded to production. It MUST match the deployed web host that
