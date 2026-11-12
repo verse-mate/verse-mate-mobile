@@ -67,6 +67,7 @@ import { useWordChoices } from '@/hooks/bible/use-word-choices';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import { type VerseSelection, verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
@@ -465,6 +466,7 @@ export function ChapterReader({
   const [wordToDefine, setWordToDefine] = useState<{ word: string; verseNumber: number } | null>(
     null
   );
+  useRatingPromptBlocker(lexiconActive !== null || wordToDefine !== null || errorModalVisible);
 
   // Line layout information for paragraph groups (for accurate tap detection)
   const paragraphLineLayoutsRef = useRef<

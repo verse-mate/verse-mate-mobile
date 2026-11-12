@@ -68,6 +68,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getSupportConversations } from '@/lib/api/support';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import type { getColors } from '@/theme/tokens';
 import { MessageModal } from './MessageModal';
 import { SuccessModal } from './SuccessModal';
@@ -125,6 +126,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   // Success Modal State
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({ title: '', message: '' });
+  useRatingPromptBlocker(modalVisible || successModalVisible);
 
   // Unread State
   const [hasUnreadHelp, setHasUnreadHelp] = useState(false);

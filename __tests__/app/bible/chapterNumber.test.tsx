@@ -43,6 +43,10 @@ jest.mock('@react-native-community/netinfo', () => ({
 }));
 
 // Component-specific mocks
+jest.mock('@/hooks/bible/use-rating-prompt', () => ({
+  useRatingPrompt: () => ({ onReaderScroll: jest.fn() }),
+}));
+
 jest.mock('@/hooks/bible/use-highlights', () => ({
   useHighlights: jest.fn(() => ({
     chapterHighlights: [],

@@ -120,7 +120,8 @@
     },
     "production": {
       "ios": {
-        "ascAppId": "6756897180"
+        "ascAppId": "6756897180",
+        "metadataPath": "./store.config.js"
       }
     }
   }

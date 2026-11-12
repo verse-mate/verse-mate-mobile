@@ -41,6 +41,7 @@ import type { AutoHighlight } from '@/types/auto-highlights';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { useTranslation } from 'react-i18next';
 import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 
 interface BibleInteractionContextType {
   // Data
@@ -134,6 +135,14 @@ export function BibleInteractionProvider({
     verseNumber: number | null;
     text?: string;
   }>({ visible: false, verseNumber: null });
+
+  useRatingPromptBlocker(
+    verseTooltipState.visible ||
+      autoHighlightState.visible ||
+      selectionSheetState.visible ||
+      editMenuState.visible ||
+      colorPickerState.visible
+  );
 
   // Actions
   const openVerseTooltip = (

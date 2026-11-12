@@ -63,6 +63,7 @@ import {
   computeChapterNavigation,
 } from '@/hooks/bible/use-chapter-navigation';
 import { perfAdd, perfSpan, watchFrames } from '@/lib/perf';
+import { setRatingPromptHold } from '@/lib/rating-prompt/blockers';
 import type { TestamentBook } from '@/src/api';
 
 export interface GestureChapterPagerRef {
@@ -649,6 +650,12 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      * be split before it can be chased.
      */
     const swipeSpanRef = useRef<(() => void) | null>(null);
+    const holdPromptForSwipe = useCallback(() => {
+      setRatingPromptHold('chapter-pager', true);
+    }, []);
+    const releasePromptAfterSwipe = useCallback(() => {
+      setRatingPromptHold('chapter-pager', false);
+    }, []);
     const beginSwipeMeasure = useCallback(() => {
       swipeSpanRef.current?.();
       swipeSpanRef.current = perfSpan('gesture.swipe');
@@ -658,7 +665,13 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
       swipeSpanRef.current?.();
       swipeSpanRef.current = null;
     }, []);
-    useEffect(() => () => swipeSpanRef.current?.(), []);
+    useEffect(
+      () => () => {
+        setRatingPromptHold('chapter-pager', false);
+        swipeSpanRef.current?.();
+      },
+      []
+    );
 
     /**
      * Guarantee the offset and the mounted content agree once the pager is at rest.
@@ -707,6 +720,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
           .onStart(() => {
             'worklet';
             gestureActiveSV.value = true;
+            runOnJS(holdPromptForSwipe)();
             runOnJS(beginSwipeMeasure)();
             // Take over any settle in flight. Nothing else owns the position, so input
             // is never refused — the property ViewPager2 has no equivalent for.
@@ -760,6 +774,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
                 (finished) => {
                   'worklet';
                   settlingSV.value = false;
+                  if (!gestureActiveSV.value) runOnJS(releasePromptAfterSwipe)();
                   runOnJS(endSwipeMeasure)();
                   if (finished) runOnJS(commitIndex)(target);
                 }
@@ -777,6 +792,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
               () => {
                 'worklet';
                 settlingSV.value = false;
+                if (!gestureActiveSV.value) runOnJS(releasePromptAfterSwipe)();
                 runOnJS(endSwipeMeasure)();
               }
             );
@@ -788,6 +804,9 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         widthSV,
         originSV,
         settlingSV,
+        gestureActiveSV,
+        holdPromptForSwipe,
+        releasePromptAfterSwipe,
         beginSwipeMeasure,
         endSwipeMeasure,
         minIndexSV,
@@ -862,6 +881,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         if (!resolveIndex(target)) return;
 
         perfAdd('gesturePager.buttonStep', 1);
+        holdPromptForSwipe();
         settlingSV.value = true;
         extendTowards(target);
         scrollX.value = withTiming(
@@ -870,6 +890,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
           (finished) => {
             'worklet';
             settlingSV.value = false;
+            if (!gestureActiveSV.value) runOnJS(releasePromptAfterSwipe)();
             if (finished) runOnJS(commitIndex)(target);
           }
         );
@@ -884,6 +905,9 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         scrollX,
         origin,
         commitIndex,
+        gestureActiveSV,
+        holdPromptForSwipe,
+        releasePromptAfterSwipe,
       ]
     );
 

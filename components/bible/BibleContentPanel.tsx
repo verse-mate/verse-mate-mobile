@@ -63,7 +63,8 @@ export interface BibleContentPanelProps {
   onNavigateNext?: () => void;
 
   /** Callback when user scrolls */
-  onScroll?: (velocity: number, isAtBottom: boolean) => void;
+  onScroll?: (velocity: number, isAtBottom: boolean, pane?: 'bible' | 'insight') => void;
+  onChapterFitsScreen?: (bookId: number, chapterNumber: number, fits: boolean) => void;
 
   /** Callback when user taps */
   onTap?: () => void;
@@ -103,6 +104,7 @@ export function BibleContentPanel({
   onNavigatePrev,
   onNavigateNext,
   onScroll,
+  onChapterFitsScreen,
   onTap,
   targetVerse,
   targetEndVerse,
@@ -154,6 +156,7 @@ export function BibleContentPanel({
           activeTab="summary"
           activeView="bible"
           onScroll={onScroll}
+          onChapterFitsScreen={onChapterFitsScreen}
           onTap={onTap}
           isPreloading={!isCurrent}
           targetVerse={isCurrent ? targetVerse : undefined}
@@ -166,6 +169,7 @@ export function BibleContentPanel({
     },
     [
       onScroll,
+      onChapterFitsScreen,
       onTap,
       bookId,
       chapterNumber,

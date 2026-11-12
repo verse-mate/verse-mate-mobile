@@ -71,6 +71,7 @@ import Reanimated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRatingPromptBlocker } from '@/lib/rating-prompt/blockers';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import { getBookSlug } from '@/utils/bookSlugs';
 
@@ -132,6 +133,7 @@ export function VisualsPanel({
 
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
+  useRatingPromptBlocker(openCard !== null);
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
   // ─── Bug #3 — actually download the PDF instead of handing the URL to
