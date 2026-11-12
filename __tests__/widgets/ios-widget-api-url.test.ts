@@ -39,4 +39,9 @@ describe('iOS widget API base URL', () => {
     expect(iosInfoPlist(undefined)[widgetInfoKey()]).toBe('http://localhost:4000');
     expect(iosInfoPlist('')[widgetInfoKey()]).toBe('http://localhost:4000');
   });
+
+  it('falls back in the widget to the same local backend the config uses', () => {
+    const fallback = widgetSource.match(/localApiBaseURL = "([^"]+)"/)?.[1];
+    expect(fallback).toBe(iosInfoPlist(undefined)[widgetInfoKey()]);
+  });
 });
