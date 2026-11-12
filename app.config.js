@@ -1,5 +1,5 @@
 const fs = require('node:fs');
-const { checkApiUrl } = require('./config/api-url-guard');
+const { checkApiUrl, configuredApiUrl } = require('./config/api-url-guard');
 
 // GH-281: only wire the FCM config when google-services.json is actually
 // present, so an Android prebuild/build doesn't fail before push credentials
@@ -36,6 +36,7 @@ const config = {
     },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      VMWidgetApiBaseURL: configuredApiUrl(process.env),
       NSPhotoLibraryUsageDescription:
         'Allow VerseMate to access your photo library to set a profile picture.',
       // TASK-017 / br-audio-011: keep audio playing when the app is

@@ -30,7 +30,7 @@ function sourceFiles(dir: string): string[] {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRS.has(entry.name) ? [] : sourceFiles(full);
     if (SKIPPED_FILES.has(entry.name) || /\.test\./.test(entry.name)) return [];
-    return /\.(ts|tsx|js|jsx)$/.test(entry.name) ? [full] : [];
+    return /\.(ts|tsx|js|jsx|swift)$/.test(entry.name) ? [full] : [];
   });
 }
 
@@ -102,12 +102,22 @@ describe('API base URL', () => {
     }
   });
 
+  it('keeps the development build profile off the production API', () => {
+    const profiles: Record<string, BuildProfile> = JSON.parse(
+      readFileSync(path.join(ROOT, 'eas.json'), 'utf8')
+    ).build;
+    expect(new URL(resolvedEnv(profiles, 'development').EXPO_PUBLIC_API_URL).hostname).not.toBe(
+      PRODUCTION_HOST
+    );
+  });
+
   it('has no production fallback hardcoded in app code', () => {
     const files = sourceFiles(ROOT);
     expect(files).toEqual(
       expect.arrayContaining([
         path.join(ROOT, 'lib/api/base-url.ts'),
         path.join(ROOT, 'constants/bible-versions.ts'),
+        path.join(ROOT, 'targets/widget/index.swift'),
       ])
     );
     const offenders = files

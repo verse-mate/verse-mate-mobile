@@ -24,6 +24,22 @@ describe('API URL guard in app config', () => {
     ).toEqual({});
   });
 
+  it.each([
+    ['production', undefined],
+    ['preview', 'http://localhost:4000'],
+  ])('refuses a %s build config whose API URL is %s', (appEnv, url) => {
+    expect(run(['prebuild'], { APP_ENV: appEnv, EXPO_PUBLIC_API_URL: url }).error).toMatch(
+      /EXPO_PUBLIC_API_URL/
+    );
+  });
+
+  it('lets store build configs through with the production URL', () => {
+    expect(run(['prebuild'], { APP_ENV: 'production', EXPO_PUBLIC_API_URL: PRODUCTION })).toEqual(
+      {}
+    );
+    expect(run(['config'], { APP_ENV: 'preview', EXPO_PUBLIC_API_URL: PRODUCTION })).toEqual({});
+  });
+
   it('lets a local web export or dev server run against the local default', () => {
     expect(run(['export', '--platform', 'web'])).toEqual({});
     expect(run(['start', '--web'])).toEqual({});
