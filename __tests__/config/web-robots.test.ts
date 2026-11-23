@@ -36,8 +36,17 @@ function rootDisallowedFor(text: string, agent: string) {
   const group =
     all.find((candidate) => candidate.agents.includes(agent.toLowerCase())) ??
     all.find((candidate) => candidate.agents.includes('*'));
-  return group?.disallow.includes('/') ?? false;
+  const longest = (rules: string[]) =>
+    Math.max(-1, ...rules.filter((rule) => '/'.startsWith(rule)).map((rule) => rule.length));
+  return group ? longest(group.disallow) > longest(group.allow) : false;
 }
+
+describe('the robots.txt reader used here', () => {
+  it('lets an Allow rule win a tie, as crawlers do', () => {
+    const text = 'User-agent: GPTBot\nAllow: /\nDisallow: /\n';
+    expect(rootDisallowedFor(text, 'GPTBot')).toBe(false);
+  });
+});
 
 describe('the mobile web build robots.txt', () => {
   const text = readFileSync(robotsPath, 'utf8');
