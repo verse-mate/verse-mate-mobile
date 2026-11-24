@@ -88,6 +88,8 @@ import { getTestamentFromBookId, MAX_RECENT_BOOKS } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
 import { splitBookScope } from '@/utils/bible/bookScope';
 
+const SHEET_TOPIC_CATEGORIES: TopicCategory[] = ['EVENT', 'PROPHECY', 'THEME'];
+
 interface BibleNavigationModalProps {
   /** Whether modal is visible */
   visible: boolean;
@@ -253,14 +255,7 @@ function BibleNavigationModalComponent({
 
   // Animate category tab indicator when selectedTopicCategory changes
   useEffect(() => {
-    const categoryIndex =
-      selectedTopicCategory === 'EVENT'
-        ? 0
-        : selectedTopicCategory === 'PROPHECY'
-          ? 1
-          : selectedTopicCategory === 'PARABLE'
-            ? 2
-            : 3;
+    const categoryIndex = Math.max(0, SHEET_TOPIC_CATEGORIES.indexOf(selectedTopicCategory));
     RNAnimated.spring(categoryTabSlideAnim, {
       toValue: categoryIndex,
       useNativeDriver: true,
@@ -286,7 +281,7 @@ function BibleNavigationModalComponent({
 
   // Fetch books and recent books - when modal is visible or being dragged
   const shouldFetchData = visible || isOpenOrDragging;
-  const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments(undefined, {
+  const { data: allBooks = [] } = useBibleTestaments(undefined, {
     enabled: !!shouldFetchData,
   });
   const { recentBooks } = useRecentBooks();
@@ -356,34 +351,23 @@ function BibleNavigationModalComponent({
   const { topics: eventTopics, isInitialLoad: isEventsInitialLoad } = useCachedTopics('EVENT');
   const { topics: prophecyTopics, isInitialLoad: isPropheciesInitialLoad } =
     useCachedTopics('PROPHECY');
-  const { topics: parableTopics, isInitialLoad: isParablesInitialLoad } =
-    useCachedTopics('PARABLE');
   const { topics: themeTopics, isInitialLoad: isThemesInitialLoad } = useCachedTopics('THEME');
 
   // Only show loading state if ALL categories are doing initial load (empty cache)
-  const isTopicsLoading =
-    isEventsInitialLoad && isPropheciesInitialLoad && isParablesInitialLoad && isThemesInitialLoad;
+  const isTopicsLoading = isEventsInitialLoad && isPropheciesInitialLoad && isThemesInitialLoad;
 
   // Get current category topics or all topics when searching
   const currentTopics = useMemo(() => {
     if (hasSearchText) {
       // When searching, combine all categories
-      return [...eventTopics, ...prophecyTopics, ...parableTopics, ...themeTopics];
+      return [...eventTopics, ...prophecyTopics, ...themeTopics];
     }
     // No search - return only selected category
     if (selectedTopicCategory === 'EVENT') return eventTopics;
     if (selectedTopicCategory === 'PROPHECY') return prophecyTopics;
-    if (selectedTopicCategory === 'PARABLE') return parableTopics;
     if (selectedTopicCategory === 'THEME') return themeTopics;
     return [];
-  }, [
-    eventTopics,
-    prophecyTopics,
-    parableTopics,
-    themeTopics,
-    selectedTopicCategory,
-    hasSearchText,
-  ]);
+  }, [eventTopics, prophecyTopics, themeTopics, selectedTopicCategory, hasSearchText]);
 
   const backdropOpacity = useDerivedValue(() => {
     'worklet';
@@ -426,7 +410,9 @@ function BibleNavigationModalComponent({
         setSelectedTestament(getTestamentFromBookId(currentBookId));
         // Set the initial topic category if provided
         if (initialTopicCategory) {
-          setSelectedTopicCategory(initialTopicCategory);
+          setSelectedTopicCategory(
+            SHEET_TOPIC_CATEGORIES.includes(initialTopicCategory) ? initialTopicCategory : 'EVENT'
+          );
         }
       }
 
@@ -1047,12 +1033,11 @@ function BibleNavigationModalComponent({
 
   // Calculate translateX for category tab indicator
   const categoryTabTranslateX = categoryTabSlideAnim.interpolate({
-    inputRange: [0, 1, 2, 3],
+    inputRange: [0, 1, 2],
     outputRange: [
       0,
       singleMeasuredCategoryTabWidth + spacing.xs,
       (singleMeasuredCategoryTabWidth + spacing.xs) * 2,
-      (singleMeasuredCategoryTabWidth + spacing.xs) * 3,
     ],
   });
 
@@ -1109,24 +1094,6 @@ function BibleNavigationModalComponent({
             adjustsFontSizeToFit
           >
             Prophecies
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => handleTopicCategoryChange('PARABLE')}
-          style={styles.categoryTab}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: selectedTopicCategory === 'PARABLE' }}
-        >
-          <Text
-            style={[
-              styles.categoryTabText,
-              selectedTopicCategory === 'PARABLE' && styles.categoryTabTextActive,
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          >
-            Parables
           </Text>
         </Pressable>
 
@@ -1359,7 +1326,7 @@ function BibleNavigationModalComponent({
         accessibilityState={{ selected }}
         testID={testID}
       >
-        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+        <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>
           {label} <Text style={selected ? styles.chipTextSelected : styles.chipCount}>{count}</Text>
         </Text>
       </Pressable>
@@ -1452,14 +1419,6 @@ function BibleNavigationModalComponent({
 
   // Render book list
   const renderBookList = () => {
-    if (isBooksLoading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading books...</Text>
-        </View>
-      );
-    }
-
     return (
       <GestureDetector gesture={scrollGesture}>
         <SectionList<ListRow, BookListSection>

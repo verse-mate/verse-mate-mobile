@@ -170,6 +170,28 @@ describe('BibleNavigationModal', () => {
     expect(screen.getAllByText('Exodus')[0]).toBeTruthy();
   });
 
+  it('lists the books it already has while the book request is still pending', () => {
+    (useBibleTestaments as jest.Mock).mockReturnValue({
+      data: mockBooks,
+      isLoading: true,
+      isPending: true,
+      fetchStatus: 'fetching',
+      error: null,
+    });
+    renderWithTheme(
+      <BibleNavigationModal
+        visible={true}
+        currentBookId={1}
+        currentChapter={1}
+        onClose={mockOnClose}
+        onSelectChapter={mockOnSelectChapter}
+      />
+    );
+
+    expect(screen.queryByText('Loading books...')).toBeNull();
+    expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
+  });
+
   it('names the testaments Old and New, at one size with the other tabs', () => {
     /*
      * Four tabs leave no room for "Old Testament" / "New Testament" on a phone.
