@@ -66,6 +66,21 @@ describe('the mobile web build robots.txt', () => {
     }
   });
 
+  it('names OAI-SearchBot in a group of its own that allows everything', () => {
+    const lines = text.split('\n').map((line) => line.trim());
+    const at = lines.indexOf('User-agent: OAI-SearchBot');
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(lines[at + 1]).toBe('Allow: /');
+    expect(rootDisallowedFor(text, 'OAI-SearchBot')).toBe(false);
+  });
+
+  it('mentions Google-Extended only in a comment that explains why it is not blocked', () => {
+    const naming = text.split('\n').filter((line) => /google-extended/i.test(line));
+    expect(naming.length).toBeGreaterThan(0);
+    for (const line of naming) expect(line.trim().startsWith('#')).toBe(true);
+    expect(text).toMatch(/^#.*Gemini/im);
+  });
+
   it('carries the same content signal as the reader, and no sitemap of its own', () => {
     const signals = text.split('\n').filter((line) => /^content-signal:/i.test(line.trim()));
     expect(signals).toEqual(['Content-Signal: search=yes, ai-input=yes, ai-train=no']);
