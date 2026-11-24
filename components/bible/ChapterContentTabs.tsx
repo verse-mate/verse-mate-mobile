@@ -406,7 +406,6 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     scrollTrack: {
       width: '100%',
     },
-    // The inactive label sits exactly on top of the active one; only opacity distinguishes them.
     measure: {
       position: 'absolute',
       opacity: 0,
@@ -415,6 +414,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flexDirection: 'row',
       alignItems: 'flex-start',
     },
+    // The inactive label sits exactly on top of the active one; only opacity distinguishes them.
     tabTextOverlay: {
       position: 'absolute',
       top: 0,

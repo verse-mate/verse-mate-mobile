@@ -34,6 +34,7 @@ type Colors = ReturnType<typeof getColors>;
 type Row = { kind: 'event'; event: JesusEventCard };
 
 const UNGROUPED_TYPES = new Set(['PARABLE']);
+const MAX_EVENTS_PAGE = 200;
 
 function eventsInLifeOrder(topics: JesusTopicGroup[], lifeOrder: string[]): JesusEventCard[] {
   const bySlug = new Map<string, JesusEventCard>();
@@ -61,7 +62,10 @@ export default function JesusBrowseScreen() {
   const contentLanguage = useJesusContentLanguage();
   const { data } = browse;
   const ungrouped = UNGROUPED_TYPES.has(data?.type?.type ?? '');
-  const lifeOrdered = useJesusEvents({ type: ungrouped ? data?.type?.type : undefined });
+  const lifeOrdered = useJesusEvents({
+    type: ungrouped ? data?.type?.type : undefined,
+    limit: Math.min(Math.max(data?.total_events ?? 0, 50), MAX_EVENTS_PAGE),
+  });
   const browsePhase = queryPhase(browse);
   const phase =
     browsePhase === 'ready' &&
