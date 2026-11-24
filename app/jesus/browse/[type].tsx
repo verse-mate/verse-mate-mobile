@@ -1,6 +1,6 @@
 /**
  * JesusBrowseScreen: one kind, grouped by topic. Parables are the exception:
- * one flat list in Gospel order, since the parables menu is already nested.
+ * one flat list in the order of His life, since the parables menu is already nested.
  *
  * Route: /jesus/browse/[type]   e.g. /jesus/browse/parables
  *
@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPill, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJesusBrowse, useJesusContentLanguage } from '@/hooks/jesus';
+import { useJesusBrowse, useJesusContentLanguage, useJesusEvents } from '@/hooks/jesus';
 import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventCard, JesusTopicGroup } from '@/types/jesus';
@@ -35,15 +35,17 @@ type Row = { kind: 'event'; event: JesusEventCard };
 
 const UNGROUPED_TYPES = new Set(['PARABLE']);
 
-function eventsInGospelOrder(topics: JesusTopicGroup[]): JesusEventCard[] {
+function eventsInLifeOrder(topics: JesusTopicGroup[], lifeOrder: string[]): JesusEventCard[] {
   const bySlug = new Map<string, JesusEventCard>();
   for (const topic of topics) {
     for (const event of topic.events ?? []) {
       if (!bySlug.has(event.slug)) bySlug.set(event.slug, event);
     }
   }
+  const rank = new Map(lifeOrder.map((slug, i) => [slug, i]));
   return [...bySlug.values()].sort(
-    (a, b) => (a.sequence ?? Number.MAX_SAFE_INTEGER) - (b.sequence ?? Number.MAX_SAFE_INTEGER)
+    (a, b) =>
+      (rank.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
   );
 }
 
@@ -58,8 +60,16 @@ export default function JesusBrowseScreen() {
   const browse = useJesusBrowse(type);
   const contentLanguage = useJesusContentLanguage();
   const { data } = browse;
-  const phase = queryPhase(browse);
   const ungrouped = UNGROUPED_TYPES.has(data?.type?.type ?? '');
+  const lifeOrdered = useJesusEvents({ type: ungrouped ? data?.type?.type : undefined });
+  const browsePhase = queryPhase(browse);
+  const phase =
+    browsePhase === 'ready' &&
+    ungrouped &&
+    lifeOrdered.isPending &&
+    lifeOrdered.fetchStatus === 'fetching'
+      ? 'loading'
+      : browsePhase;
 
   // A topic leads with the sayings it is built from, then the remaining events
   // that carry no quoted point of their own — that ordering is what makes the
@@ -76,7 +86,10 @@ export default function JesusBrowseScreen() {
      * what "copy the web version" asks for.
      */
     if (ungrouped) {
-      const events = eventsInGospelOrder(data?.topics ?? []);
+      const events = eventsInLifeOrder(
+        data?.topics ?? [],
+        (lifeOrdered.data?.events ?? []).map((event) => event.slug)
+      );
       if (events.length === 0) return [];
       return [
         {
@@ -91,7 +104,7 @@ export default function JesusBrowseScreen() {
       topic: topic as JesusTopicGroup | null,
       data: (topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
     }));
-  }, [data, ungrouped]);
+  }, [data, ungrouped, lifeOrdered.data]);
 
   /**
    * The section a chip asked for, kept so a failed jump can be retried once the

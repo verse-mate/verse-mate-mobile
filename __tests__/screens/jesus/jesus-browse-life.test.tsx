@@ -37,8 +37,10 @@ jest.mock('@/components/bible/HamburgerMenu', () => ({ HamburgerMenu: () => null
 
 const mockBrowse = jest.fn();
 const mockLife = jest.fn();
+const mockEvents = jest.fn();
 jest.mock('@/hooks/jesus', () => ({
   useJesusBrowse: () => mockBrowse(),
+  useJesusEvents: (params: { type?: string }) => mockEvents(params),
   useJesusContentLanguage: () => 'en',
   useJesusLife: () => mockLife(),
 }));
@@ -53,6 +55,7 @@ const EVENT = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockEvents.mockReturnValue({ isPending: true, fetchStatus: 'idle', data: undefined });
   mockBrowse.mockReturnValue({
     isPending: false,
     fetchStatus: 'idle',
@@ -252,24 +255,33 @@ describe('JesusBrowseScreen, parables', () => {
             name: 'Kingdom',
             description: 'The reign of God.',
             events: [
-              parable('sower', 'The Sower', 20),
-              parable('prodigal', 'The Prodigal Son', 50),
+              parable('sower', 'The Sower', 54),
+              parable('prodigal', 'The Prodigal Son', 17),
             ],
           },
           {
             slug: 'money',
             name: 'Money',
             description: 'Treasure.',
-            events: [parable('rich-fool', 'The Rich Fool', 40), parable('sower', 'The Sower', 20)],
+            events: [parable('rich-fool', 'The Rich Fool', 7), parable('sower', 'The Sower', 54)],
           },
         ],
         total_events: 3,
         truncated: false,
       },
     });
+    mockEvents.mockImplementation(({ type }: { type?: string }) =>
+      type === 'PARABLE'
+        ? {
+            isPending: false,
+            fetchStatus: 'idle',
+            data: { events: [{ slug: 'sower' }, { slug: 'rich-fool' }, { slug: 'prodigal' }] },
+          }
+        : { isPending: true, fetchStatus: 'idle', data: undefined }
+    );
   });
 
-  it('lists every parable once, in Gospel order, with no topic groups', () => {
+  it('lists every parable once, in the order of His life, with no topic groups', () => {
     render(<JesusBrowseScreen />);
     expect(screen.queryByTestId('jesus-topic-section-kingdom')).toBeNull();
     expect(screen.queryByTestId('jesus-topic-nav')).toBeNull();
