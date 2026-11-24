@@ -195,12 +195,12 @@ export function useJesusSearch(query: string) {
 }
 
 /** One page of events for a kind or a theme. */
-export function useJesusEvents(params: { type?: string; theme?: string }) {
+export function useJesusEvents(params: { type?: string; theme?: string; limit?: number }) {
   const { bibleVersion, language } = useJesusContext();
-  const { type, theme } = params;
+  const { type, theme, limit = 50 } = params;
   return useQuery({
-    queryKey: ['jesus', 'events', type ?? null, theme ?? null, bibleVersion, language],
-    queryFn: () => repo.fetchEvents({ type, theme, limit: 50 }, bibleVersion, language),
+    queryKey: ['jesus', 'events', type ?? null, theme ?? null, limit, bibleVersion, language],
+    queryFn: () => repo.fetchEvents({ type, theme, limit }, bibleVersion, language),
     enabled: Boolean(type || theme),
     ...STATIC,
   });

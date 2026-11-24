@@ -263,7 +263,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
       // Category tabs should appear
       expect(screen.getByText('Events')).toBeTruthy();
       expect(screen.getByText('Prophecies')).toBeTruthy();
-      expect(screen.getByText('Parables')).toBeTruthy();
+      expect(screen.queryByText('Parables')).toBeNull();
       expect(screen.getByText('Themes')).toBeTruthy();
     });
 
@@ -316,7 +316,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
       });
     });
 
-    it('should switch to parable topics when Parables tab is pressed', async () => {
+    it('opens on Events when asked for the parables category', async () => {
       renderWithTheme(
         <BibleNavigationModal
           visible={true}
@@ -325,20 +325,15 @@ describe('BibleNavigationModal - Topics Tab', () => {
           onClose={mockOnClose}
           onSelectChapter={mockOnSelectChapter}
           onSelectTopic={mockOnSelectTopic}
+          initialTab="TOPICS"
+          initialTopicCategory="PARABLE"
         />
       );
 
-      // Click Topics tab
-      fireEvent.press(screen.getByText('Topics'));
-
-      // Click Parables category
-      fireEvent.press(screen.getByText('Parables'));
-
-      // Verify parable topics are displayed
       await waitFor(() => {
-        expect(screen.getByText('The Good Samaritan')).toBeTruthy();
-        expect(screen.getByText('Parable about loving your neighbor')).toBeTruthy();
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
+      expect(screen.queryByText('The Good Samaritan')).toBeNull();
     });
   });
 
@@ -425,16 +420,11 @@ describe('BibleNavigationModal - Topics Tab', () => {
         expect(screen.queryByText('The Creation')).toBeFalsy(); // Event not matching search
       });
 
-      // Clear search and switch to Parables category
-      fireEvent.changeText(filterInput, '');
-      fireEvent.press(screen.getByText('Parables'));
-
-      // Only parable topics should be visible
+      fireEvent.changeText(filterInput, 'Samaritan');
       await waitFor(() => {
-        expect(screen.getByText('The Good Samaritan')).toBeTruthy();
-        expect(screen.queryByText('The Creation')).toBeFalsy();
         expect(screen.queryByText('The Messiah')).toBeFalsy();
       });
+      expect(screen.queryByText('The Good Samaritan')).toBeNull();
     });
   });
 

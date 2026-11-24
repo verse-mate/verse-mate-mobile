@@ -281,9 +281,9 @@ export function narrowStudyToEvent(study: InductiveStudy, span: EventVerseSpan):
     return step;
   });
 
-  const movements: StudyMovement[] = study.interpretation.movements.filter((mv) =>
-    touches(mv.range, span),
-  );
+  const movements: StudyMovement[] = study.interpretation.movements
+    .filter((mv) => touches(mv.range, span))
+    .map((mv, i) => ({ ...mv, number: i + 1 }));
   const questions: StudyApplication[] = study.application.questions.filter((q) =>
     touches(q.range, span),
   );

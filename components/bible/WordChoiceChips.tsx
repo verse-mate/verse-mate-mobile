@@ -120,7 +120,12 @@ export function WordChoiceChips({
               accessibilityState={{ selected }}
               testID={`${testID}-${index}`}
             >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{word}</Text>
+              <Text
+                style={[styles.chipText, selected && styles.chipTextSelected]}
+                numberOfLines={1}
+              >
+                {word}
+              </Text>
             </Pressable>
           );
         })}

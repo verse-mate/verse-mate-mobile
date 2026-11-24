@@ -179,4 +179,32 @@ describe('ChapterContentTabs', () => {
 
     expect(screen.getByTestId('tab-summary')).toHaveStyle({ width: 195 });
   });
+  it('widens every pill to fit its longest label rather than wrapping it', () => {
+    renderWithTheme(
+      <ChapterContentTabs activeTab="summary" onTabChange={mockOnTabChange} showStudy showVisuals />
+    );
+
+    fireEvent(screen.getByTestId('chapter-content-tabs-track'), 'layout', {
+      nativeEvent: { layout: { width: 380, height: 44, x: 0, y: 0 } },
+    });
+    fireEvent(
+      screen.getByTestId('tab-label-measure-summary', { includeHiddenElements: true }),
+      'layout',
+      {
+        nativeEvent: { layout: { width: 101.2, height: 30, x: 0, y: 0 } },
+      }
+    );
+
+    expect(screen.getByTestId('tab-summary')).toHaveStyle({ width: 118 });
+    expect(screen.getByTestId('tab-visuals')).toHaveStyle({ width: 118 });
+  });
+
+  it('keeps each label on one line', () => {
+    renderWithTheme(
+      <ChapterContentTabs activeTab="summary" onTabChange={mockOnTabChange} showStudy showVisuals />
+    );
+    for (const label of screen.getAllByText('Summary')) {
+      expect(label.props.numberOfLines).toBe(1);
+    }
+  });
 });

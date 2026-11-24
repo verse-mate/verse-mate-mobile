@@ -819,12 +819,6 @@ const createStyles = (
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
-      // Static height cap so long Markdown content scrolls inside the
-      // ScrollView instead of stretching the modal toward the top of
-      // the screen. The Reanimated maxHeight on the outer wrapper
-      // (insightContentWrapper) wasn't reliably constraining a
-      // ScrollView child with intrinsic content height.
-      maxHeight: 360,
     },
     insightScrollContent: {
       padding: spacing.md,

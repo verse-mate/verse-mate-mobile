@@ -28,6 +28,7 @@ import {
   Dimensions,
   Modal,
   PanResponder,
+  type PanResponderCallbacks,
   Pressable,
   ScrollView,
   Share,
@@ -53,6 +54,7 @@ import { useDeviceInfo } from '@/hooks/use-device-info';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { VersemateTooltipSource } from '@/lib/analytics/types';
+import { sheetDragDecision, sheetDragDismisses } from '@/lib/bible/sheet-drag';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfTimer, perfTrace } from '@/lib/perf';
 import { useBibleByLine } from '@/src/api';
@@ -523,17 +525,6 @@ export function VerseMateTooltip({
     scrollOffsetRef.current = 0;
   }, [targetVerseNumber]);
 
-  /**
-   * Whether the drag now in progress began with the analysis at the top.
-   *
-   * The sheet takes the touch at its start (the only way it gets the gesture
-   * on iOS before the ScrollView's own pan does — a move-phase claim loses
-   * that race, measured on the simulator). So the rule is applied to what the
-   * drag DOES instead: a drag that began with the analysis scrolled down is the
-   * reader scrolling back up, and must neither slide nor dismiss the sheet.
-   * Before this the start claim made the "only at the top" check unreachable,
-   * so scrolling back up a long analysis could close it.
-   */
   const dragFromTopRef = useRef(true);
   const springBack = () => {
     Animated.spring(slideAnim, {
@@ -544,43 +535,61 @@ export function VerseMateTooltip({
     }).start();
   };
 
+  const sheetDrag: PanResponderCallbacks = {
+    // Android's native scroll can take the gesture back mid-drag: never
+    // leave the sheet stranded part-way down when it does.
+    onPanResponderTerminate: springBack,
+    onPanResponderMove: (_, gestureState) => {
+      // Only a downward drag that began at the top slides the whole sheet.
+      if (gestureState.dy > 0 && dragFromTopRef.current) {
+        slideAnim.setValue(gestureState.dy);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      // A drag that began mid-analysis was scrolling, not moving the sheet.
+      if (!dragFromTopRef.current) {
+        springBack();
+        return;
+      }
+      // Swipe Up -> Expand (if not already)
+      if (gestureState.dy < -50 && !isExpandedRef.current) {
+        expandRef.current(true);
+      }
+      // Swipe Down -> Dismiss. Velocity as well as distance: a quick flick
+      // is a dismissal even when it covers little ground, which is most of
+      // what "make it easier to close" means in practice.
+      else if (sheetDragDismisses(gestureState.dy, gestureState.vy * 1000)) {
+        dismissRef.current();
+      }
+      // Snap back if dragged down but not enough
+      else if (gestureState.dy > 0) {
+        springBack();
+      }
+    },
+  };
+
   // Pan responder for swipe-to-dismiss AND expand
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) =>
+        Math.abs(gestureState.dy) > Math.abs(gestureState.dx) &&
+        sheetDragDecision(scrollOffsetRef.current, gestureState.dy) === 'activate',
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         dragFromTopRef.current = scrollOffsetRef.current <= 0;
       },
-      // Android's native scroll can take the gesture back mid-drag: never
-      // leave the sheet stranded part-way down when it does.
-      onPanResponderTerminate: springBack,
-      onPanResponderMove: (_, gestureState) => {
-        // Only a downward drag that began at the top slides the whole sheet.
-        if (gestureState.dy > 0 && dragFromTopRef.current) {
-          slideAnim.setValue(gestureState.dy);
-        }
+      ...sheetDrag,
+    })
+  ).current;
+
+  const headerPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        dragFromTopRef.current = true;
       },
-      onPanResponderRelease: (_, gestureState) => {
-        // A drag that began mid-analysis was scrolling, not moving the sheet.
-        if (!dragFromTopRef.current) {
-          springBack();
-          return;
-        }
-        // Swipe Up -> Expand (if not already)
-        if (gestureState.dy < -50 && !isExpandedRef.current) {
-          expandRef.current(true);
-        }
-        // Swipe Down -> Dismiss. Velocity as well as distance: a quick flick
-        // is a dismissal even when it covers little ground, which is most of
-        // what "make it easier to close" means in practice.
-        else if (gestureState.dy > 70 || (gestureState.dy > 20 && gestureState.vy > 0.6)) {
-          dismissRef.current();
-        }
-        // Snap back if dragged down but not enough
-        else if (gestureState.dy > 0) {
-          springBack();
-        }
-      },
+      ...sheetDrag,
     })
   ).current;
 
@@ -628,10 +637,15 @@ export function VerseMateTooltip({
       <Animated.View
         style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
         pointerEvents="auto"
+        testID="verse-insight-sheet"
         {...panResponder.panHandlers}
       >
         {/* Header with pan responder for swipe */}
-        <View style={styles.header}>
+        <View
+          style={styles.header}
+          testID="verse-insight-sheet-header"
+          {...headerPanResponder.panHandlers}
+        >
           <View style={styles.handle} />
           <Text style={styles.verseMateHeader}>Verse Insight</Text>
         </View>
@@ -643,13 +657,12 @@ export function VerseMateTooltip({
             style={styles.scrollContainer}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            // No rubber-band at the top: that bounce is what the sheet's own
-            // drag-to-dismiss has to replace, and having both means the sheet
-            // appears to resist being closed.
-            bounces={false}
             scrollEventThrottle={16}
             onScroll={(e) => {
               scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            onScrollEndDrag={(e) => {
+              if (e.nativeEvent.contentOffset.y <= -PULL_TO_DISMISS) handleDismiss();
             }}
           >
             <View style={{ paddingHorizontal: spacing.lg }}>
@@ -887,6 +900,8 @@ export function VerseMateTooltip({
 /**
  * Creates all styles for VerseMateTooltip component
  */
+const PULL_TO_DISMISS = 60;
+
 const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,

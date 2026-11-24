@@ -19,7 +19,7 @@
 
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
@@ -163,11 +163,20 @@ export function ChapterContentTabs({
     [tabs]
   );
 
-  const [tabWidth, setTabWidth] = useState(0);
+  const [labelWidths, setLabelWidths] = useState<Partial<Record<ContentTabType, number>>>({});
+  const widestLabel = Math.max(0, ...tabs.map((tab) => labelWidths[tab.id] ?? 0));
   // Available width of the pill track (the visible row, not the scroll content).
   // Used to keep the row at least full-width when tabs fit, and to centre the
   // active tab when the row overflows and scrolls.
   const [trackWidth, setTrackWidth] = useState(0);
+  const tabWidth =
+    trackWidth > 0
+      ? Math.max(
+          (trackWidth - 8 - (tabs.length - 1) * 4) / tabs.length,
+          MIN_TAB_WIDTH,
+          widestLabel + spacing.sm * 2
+        )
+      : 0;
   const scrollRef = useRef<ScrollView>(null);
 
   /**
@@ -191,13 +200,7 @@ export function ChapterContentTabs({
   // between tabs, so usable width = W - 8 - (N-1)*4 and per-tab
   // width = usable / N.
   const handleLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
-    const { width } = event.nativeEvent.layout;
-    const n = tabs.length;
-    const usableWidth = width - 8 - (n - 1) * 4;
-    // Even split when there's room; clamp to MIN_TAB_WIDTH when narrow so the
-    // row scrolls horizontally instead of cramming the labels (#1).
-    setTabWidth(Math.max(usableWidth / n, MIN_TAB_WIDTH));
-    setTrackWidth(width);
+    setTrackWidth(event.nativeEvent.layout.width);
   };
 
   // When the active tab changes and the row is scrollable, bring the active
@@ -259,6 +262,29 @@ export function ChapterContentTabs({
               styles={styles}
             />
           ))}
+
+          <View
+            style={styles.measure}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {tabs.map((tab) => (
+              <Text
+                key={tab.id}
+                style={styles.tabText}
+                testID={`tab-label-measure-${tab.id}`}
+                onLayout={(e) => {
+                  const width = Math.ceil(e.nativeEvent.layout.width);
+                  setLabelWidths((prev) =>
+                    prev[tab.id] === width ? prev : { ...prev, [tab.id]: width }
+                  );
+                }}
+              >
+                {tab.label}
+              </Text>
+            ))}
+          </View>
         </ScrollView>
       </View>
     </View>
@@ -337,7 +363,10 @@ function TabButton({
           active one, and only their opacities animate. `collapsable={false}` keeps Android from
           flattening the wrapper away, which would break the stacking. */}
       <View collapsable={false}>
-        <Animated.Text style={[styles.tabText, { color: activeColor }, activeTextStyle]}>
+        <Animated.Text
+          style={[styles.tabText, { color: activeColor }, activeTextStyle]}
+          numberOfLines={1}
+        >
           {tab.label}
         </Animated.Text>
         <Animated.Text
@@ -347,6 +376,7 @@ function TabButton({
             { color: inactiveColor },
             inactiveTextStyle,
           ]}
+          numberOfLines={1}
           // Never a hit target and never read aloud — it is the same word twice.
           pointerEvents="none"
           accessibilityElementsHidden
@@ -375,6 +405,14 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     // the available width (used for even-split vs. clamp + active-tab centring).
     scrollTrack: {
       width: '100%',
+    },
+    measure: {
+      position: 'absolute',
+      opacity: 0,
+      top: 0,
+      left: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
     },
     // The inactive label sits exactly on top of the active one; only opacity distinguishes them.
     tabTextOverlay: {

@@ -162,7 +162,10 @@ export function JesusEventHeader({
                 accessibilityRole="tab"
                 accessibilityState={{ selected: view === key }}
               >
-                <Text style={[styles.toggleText, view === key && styles.toggleTextActive]}>
+                <Text
+                  style={[styles.toggleText, view === key && styles.toggleTextActive]}
+                  numberOfLines={1}
+                >
                   {key === 'bible' ? 'Bible' : 'Insight'}
                 </Text>
               </Pressable>

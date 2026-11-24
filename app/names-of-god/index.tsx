@@ -109,7 +109,10 @@ export default function NamesOfGodListScreen() {
             onPress={() => setLanguageFilter(lang)}
             testID={`filter-chip-${lang}`}
           >
-            <Text style={[styles.chipText, languageFilter === lang && styles.chipTextActive]}>
+            <Text
+              style={[styles.chipText, languageFilter === lang && styles.chipTextActive]}
+              numberOfLines={1}
+            >
               {lang === 'All'
                 ? t('names_of_god.filter_all')
                 : t(`names_of_god.language_${lang.toLowerCase()}`)}
