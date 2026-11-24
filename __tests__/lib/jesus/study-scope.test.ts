@@ -127,8 +127,8 @@ describe('narrowStudyToEvent', () => {
     ],
     interpretation: {
       movements: [
-        { range: '2:1-7', title: 'The birth' },
-        { range: '2:41-52', title: 'The boy in the temple' },
+        { number: 1, range: '2:1-7', title: 'The birth' },
+        { number: 2, range: '2:41-52', title: 'The boy in the temple' },
       ],
     },
     application: {
@@ -165,6 +165,13 @@ describe('narrowStudyToEvent', () => {
     expect(out.kept).toEqual({ movements: 1, questions: 1 });
     expect(out.total).toEqual({ movements: 2, questions: 2 });
     expect(out.narrowed).toBe(true);
+  });
+
+  it('numbers the kept movements from 1, not by their place in the chapter', () => {
+    const out = narrowStudyToEvent(study, span);
+    expect(out.study.interpretation.movements.map((mv) => [mv.number, mv.title])).toEqual([
+      [1, 'The boy in the temple'],
+    ]);
   });
 
   it('falls back to every movement rather than rendering an empty section', () => {
