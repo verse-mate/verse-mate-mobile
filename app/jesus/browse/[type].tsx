@@ -1,5 +1,6 @@
 /**
- * JesusBrowseScreen — one kind, grouped by topic.
+ * JesusBrowseScreen: one kind, grouped by topic. Parables are the exception:
+ * one flat list in Gospel order, since the parables menu is already nested.
  *
  * Route: /jesus/browse/[type]   e.g. /jesus/browse/parables
  *
@@ -25,12 +26,26 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusBrowse, useJesusContentLanguage } from '@/hooks/jesus';
 import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
-import type { JesusEventCard } from '@/types/jesus';
+import type { JesusEventCard, JesusTopicGroup } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
 // Events only. The "What He says here" panel is gone — see the sections memo.
 type Row = { kind: 'event'; event: JesusEventCard };
+
+const UNGROUPED_TYPES = new Set(['PARABLE']);
+
+function eventsInGospelOrder(topics: JesusTopicGroup[]): JesusEventCard[] {
+  const bySlug = new Map<string, JesusEventCard>();
+  for (const topic of topics) {
+    for (const event of topic.events ?? []) {
+      if (!bySlug.has(event.slug)) bySlug.set(event.slug, event);
+    }
+  }
+  return [...bySlug.values()].sort(
+    (a, b) => (a.sequence ?? Number.MAX_SAFE_INTEGER) - (b.sequence ?? Number.MAX_SAFE_INTEGER)
+  );
+}
 
 export default function JesusBrowseScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
@@ -44,6 +59,7 @@ export default function JesusBrowseScreen() {
   const contentLanguage = useJesusContentLanguage();
   const { data } = browse;
   const phase = queryPhase(browse);
+  const ungrouped = UNGROUPED_TYPES.has(data?.type?.type ?? '');
 
   // A topic leads with the sayings it is built from, then the remaining events
   // that carry no quoted point of their own — that ordering is what makes the
@@ -59,12 +75,23 @@ export default function JesusBrowseScreen() {
      * now goes description -> examples, which is what the web screen does and
      * what "copy the web version" asks for.
      */
+    if (ungrouped) {
+      const events = eventsInGospelOrder(data?.topics ?? []);
+      if (events.length === 0) return [];
+      return [
+        {
+          key: 'all',
+          topic: null,
+          data: events.map((event) => ({ kind: 'event' as const, event })),
+        },
+      ];
+    }
     return (data?.topics ?? []).map((topic) => ({
       key: topic.slug ?? 'other',
-      topic,
+      topic: topic as JesusTopicGroup | null,
       data: (topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
     }));
-  }, [data]);
+  }, [data, ungrouped]);
 
   /**
    * The section a chip asked for, kept so a failed jump can be retried once the
@@ -149,26 +176,29 @@ export default function JesusBrowseScreen() {
               ) : null}
               {data ? (
                 <Text style={styles.stats} testID="jesus-category-stats">
-                  {categoryStats(data, t, contentLanguage)}
+                  {categoryStats(ungrouped ? { ...data, topics: [] } : data, t, contentLanguage)}
                 </Text>
               ) : null}
               {sections.length > 1 ? (
                 <View style={styles.pillRow} testID="jesus-topic-nav">
-                  {sections.map((s, i) => (
-                    <JesusPill
-                      key={s.key}
-                      label={s.topic.name}
-                      count={s.topic.facet_count || s.topic.event_count}
-                      onPress={() => jumpTo(i)}
-                      testID={`jesus-topic-chip-${s.key}`}
-                    />
-                  ))}
+                  {sections.map((s, i) =>
+                    s.topic ? (
+                      <JesusPill
+                        key={s.key}
+                        label={s.topic.name}
+                        count={s.topic.facet_count || s.topic.event_count}
+                        onPress={() => jumpTo(i)}
+                        testID={`jesus-topic-chip-${s.key}`}
+                      />
+                    ) : null
+                  )}
                 </View>
               ) : null}
             </View>
           }
-          renderSectionHeader={({ section }) => (
-            /*
+          renderSectionHeader={({ section: { topic, key } }) =>
+            topic ? (
+              /*
               The topic heading opens that theme's own page.
 
               It was plain text styled as the most prominent thing in each
@@ -180,50 +210,44 @@ export default function JesusBrowseScreen() {
               group for events carrying no theme has a null slug and stays
               plain text: there is no page to open.
             */
-            <Pressable
-              disabled={!section.topic.slug}
-              onPress={() =>
-                section.topic.slug && router.push(`/jesus/theme/${section.topic.slug}`)
-              }
-              style={({ pressed }) => [styles.topicHeader, pressed && styles.pressed]}
-              accessibilityRole={section.topic.slug ? 'link' : undefined}
-              testID={`jesus-topic-section-${section.key}`}
-            >
-              <View style={styles.topicTitleRow}>
-                <Text style={styles.topicName} testID={`jesus-topic-name-${section.key}`}>
-                  {section.topic.name}
-                </Text>
-                <View style={styles.topicMeta}>
-                  <Text style={styles.topicCount}>
-                    {topicCount(
-                      section.topic,
-                      data?.type?.singular,
-                      data?.type?.plural,
-                      contentLanguage
-                    )}
+              <Pressable
+                disabled={!topic.slug}
+                onPress={() => topic.slug && router.push(`/jesus/theme/${topic.slug}`)}
+                style={({ pressed }) => [styles.topicHeader, pressed && styles.pressed]}
+                accessibilityRole={topic.slug ? 'link' : undefined}
+                testID={`jesus-topic-section-${key}`}
+              >
+                <View style={styles.topicTitleRow}>
+                  <Text style={styles.topicName} testID={`jesus-topic-name-${key}`}>
+                    {topic.name}
                   </Text>
-                  {section.topic.slug ? (
-                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                  ) : null}
+                  <View style={styles.topicMeta}>
+                    <Text style={styles.topicCount}>
+                      {topicCount(topic, data?.type?.singular, data?.type?.plural, contentLanguage)}
+                    </Text>
+                    {topic.slug ? (
+                      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-              {/* The brief says what He addresses HERE; the theme's blurb says
+                {/* The brief says what He addresses HERE; the theme's blurb says
                   what the theme is. Where a brief exists it replaces the blurb
                   rather than stacking on it — two descriptions under one
                   heading is one more than the reader will read. Same rule as
                   web's JesusTopicSection. */}
-              {section.topic.brief ? (
-                <Text style={styles.topicBrief} testID={`jesus-topic-brief-${section.key}`}>
-                  {section.topic.brief}
-                </Text>
-              ) : section.topic.description ? (
-                <Text style={styles.topicDescription}>{section.topic.description}</Text>
-              ) : null}
-              {topicGospels(section.topic) ? (
-                <Text style={styles.topicGospels}>{topicGospels(section.topic)}</Text>
-              ) : null}
-            </Pressable>
-          )}
+                {topic.brief ? (
+                  <Text style={styles.topicBrief} testID={`jesus-topic-brief-${key}`}>
+                    {topic.brief}
+                  </Text>
+                ) : topic.description ? (
+                  <Text style={styles.topicDescription}>{topic.description}</Text>
+                ) : null}
+                {topicGospels(topic) ? (
+                  <Text style={styles.topicGospels}>{topicGospels(topic)}</Text>
+                ) : null}
+              </Pressable>
+            ) : null
+          }
           renderItem={({ item }) => (
             <EventRow event={item.event} onPress={(slug) => router.push(`/jesus/event/${slug}`)} />
           )}

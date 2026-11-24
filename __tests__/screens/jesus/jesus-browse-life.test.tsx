@@ -232,6 +232,60 @@ describe('JesusBrowseScreen', () => {
   });
 });
 
+describe('JesusBrowseScreen, parables', () => {
+  const parable = (slug: string, title: string, sequence: number | null) => ({
+    ...EVENT,
+    slug,
+    title,
+    sequence,
+  });
+
+  beforeEach(() => {
+    mockBrowse.mockReturnValue({
+      isPending: false,
+      fetchStatus: 'idle',
+      data: {
+        type: { type: 'PARABLE', label: 'Parables', plural: 'Parables', facet_count: 3 },
+        topics: [
+          {
+            slug: 'kingdom',
+            name: 'Kingdom',
+            description: 'The reign of God.',
+            events: [
+              parable('sower', 'The Sower', 20),
+              parable('prodigal', 'The Prodigal Son', 50),
+            ],
+          },
+          {
+            slug: 'money',
+            name: 'Money',
+            description: 'Treasure.',
+            events: [parable('rich-fool', 'The Rich Fool', 40), parable('sower', 'The Sower', 20)],
+          },
+        ],
+        total_events: 3,
+        truncated: false,
+      },
+    });
+  });
+
+  it('lists every parable once, in Gospel order, with no topic groups', () => {
+    render(<JesusBrowseScreen />);
+    expect(screen.queryByTestId('jesus-topic-section-kingdom')).toBeNull();
+    expect(screen.queryByTestId('jesus-topic-nav')).toBeNull();
+    expect(screen.queryByText('Kingdom')).toBeNull();
+    const titles = screen
+      .getAllByTestId(/^jesus-event-/)
+      .map((row) => row.props.testID.replace('jesus-event-', ''));
+    expect(titles).toEqual(['sower', 'rich-fool', 'prodigal']);
+  });
+
+  it('does not count topics the screen no longer shows', () => {
+    render(<JesusBrowseScreen />);
+    expect(screen.getByTestId('jesus-category-stats').props.children).not.toMatch(/topic/i);
+  });
+});
+
 describe('JesusLifeScreen', () => {
   it('renders periods in the order the corpus curated', () => {
     render(<JesusLifeScreen />);
