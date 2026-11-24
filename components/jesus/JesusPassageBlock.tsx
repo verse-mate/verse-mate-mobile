@@ -182,7 +182,9 @@ export function JesusPassageBlock({
         accessibilityLabel={passage.display}
       >
         <Ionicons name="book-outline" size={13} color={colors.textSecondary} />
-        <Text style={styles.pillText}>{passage.display}</Text>
+        <Text style={styles.pillText} numberOfLines={1}>
+          {passage.display}
+        </Text>
       </Pressable>
 
       {verses.length > 0 ? (

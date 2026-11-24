@@ -1243,7 +1243,9 @@ function ChapterHeader({
             accessibilityState={{ selected: activeView === 'bible' }}
             testID="bible-view-toggle"
           >
-            <Animated.Text style={[styles.toggleText, bibleTextStyle]}>Bible</Animated.Text>
+            <Animated.Text style={[styles.toggleText, bibleTextStyle]} numberOfLines={1}>
+              Bible
+            </Animated.Text>
           </Pressable>
           <Pressable
             onPress={() => onViewChange('explanations')}
@@ -1254,7 +1256,9 @@ function ChapterHeader({
             accessibilityState={{ selected: activeView === 'explanations' }}
             testID="commentary-view-toggle"
           >
-            <Animated.Text style={[styles.toggleText, insightTextStyle]}>Insight</Animated.Text>
+            <Animated.Text style={[styles.toggleText, insightTextStyle]} numberOfLines={1}>
+              Insight
+            </Animated.Text>
           </Pressable>
         </View>
 

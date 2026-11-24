@@ -434,6 +434,9 @@ export function TopicExplanationsPanel({
               >
                 <Text
                   style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
                 >
                   {tab.label}
                 </Text>

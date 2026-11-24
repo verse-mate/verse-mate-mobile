@@ -488,7 +488,9 @@ export function WordDefinitionTooltip({
                           <View style={styles.seeAlsoChips}>
                             {state.eastonEntry.seeAlso.map((term) => (
                               <View key={term} style={styles.seeAlsoChip}>
-                                <Text style={styles.seeAlsoChipText}>{term}</Text>
+                                <Text style={styles.seeAlsoChipText} numberOfLines={1}>
+                                  {term}
+                                </Text>
                               </View>
                             ))}
                           </View>

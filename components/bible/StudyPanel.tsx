@@ -676,7 +676,9 @@ function ListsStep({
             {list.rows.map((row, i) => (
               <View key={`${row.ref}-${i}`} style={styles.listRow}>
                 <View style={styles.listRefPill}>
-                  <Text style={styles.listRefPillText}>{row.ref}</Text>
+                  <Text style={styles.listRefPillText} numberOfLines={1}>
+                    {row.ref}
+                  </Text>
                 </View>
                 <Text style={styles.listTruth}>{row.truth}</Text>
               </View>
@@ -703,7 +705,9 @@ function ContrastsStep({
         <View key={`${item.verses}-${i}`} style={styles.contrastRow}>
           <View style={styles.contrastMeta}>
             <View style={styles.contrastVersesPill}>
-              <Text style={styles.contrastVersesPillText}>{item.verses}</Text>
+              <Text style={styles.contrastVersesPillText} numberOfLines={1}>
+                {item.verses}
+              </Text>
             </View>
             <View style={[styles.contrastTypePill, contrastTypePillStyle(item.type, colors)]}>
               <Text
@@ -843,7 +847,9 @@ function ApplicationRow({
   return (
     <View style={styles.appRow} testID={testID}>
       <View style={styles.appRangePill}>
-        <Text style={styles.appRangePillText}>{question.range}</Text>
+        <Text style={styles.appRangePillText} numberOfLines={1}>
+          {question.range}
+        </Text>
       </View>
       <Text style={styles.appQuestion}>{question.question}</Text>
     </View>
@@ -901,7 +907,9 @@ function Card({
             <View style={styles.cardHeadingRow}>
               {subPill ? (
                 <View style={styles.rangePill}>
-                  <Text style={styles.rangePillText}>{subPill}</Text>
+                  <Text style={styles.rangePillText} numberOfLines={1}>
+                    {subPill}
+                  </Text>
                 </View>
               ) : null}
               {typeof stepNumber === 'number' ? (

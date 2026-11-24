@@ -305,7 +305,9 @@ export function JesusPill({
         pressed && styles.rowPressed,
       ]}
     >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+      <Text style={[styles.pillText, active && styles.pillTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
       {count !== undefined ? <Text style={styles.pillCount}>{count}</Text> : null}
     </Pressable>
   );
