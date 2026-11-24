@@ -54,6 +54,7 @@ import { useDeviceInfo } from '@/hooks/use-device-info';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { VersemateTooltipSource } from '@/lib/analytics/types';
+import { sheetDragDecision, sheetDragDismisses } from '@/lib/bible/sheet-drag';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfTimer, perfTrace } from '@/lib/perf';
 import { useBibleByLine } from '@/src/api';
@@ -557,7 +558,7 @@ export function VerseMateTooltip({
       // Swipe Down -> Dismiss. Velocity as well as distance: a quick flick
       // is a dismissal even when it covers little ground, which is most of
       // what "make it easier to close" means in practice.
-      else if (gestureState.dy > 70 || (gestureState.dy > 20 && gestureState.vy > 0.6)) {
+      else if (sheetDragDismisses(gestureState.dy, gestureState.vy * 1000)) {
         dismissRef.current();
       }
       // Snap back if dragged down but not enough
@@ -571,9 +572,8 @@ export function VerseMateTooltip({
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_, gestureState) =>
-        scrollOffsetRef.current <= 0 &&
-        gestureState.dy > 6 &&
-        Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+        Math.abs(gestureState.dy) > Math.abs(gestureState.dx) &&
+        sheetDragDecision(scrollOffsetRef.current, gestureState.dy) === 'activate',
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         dragFromTopRef.current = scrollOffsetRef.current <= 0;
@@ -585,6 +585,7 @@ export function VerseMateTooltip({
   const headerPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         dragFromTopRef.current = true;
       },
