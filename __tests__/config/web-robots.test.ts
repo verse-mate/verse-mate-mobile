@@ -3,21 +3,21 @@ import { join } from 'node:path';
 
 const robotsPath = join(__dirname, '../../public/robots.txt');
 
-type Group = { agents: string[]; disallow: string[]; allow: string[] };
+type Group = { agents: string[]; disallow: string[]; allow: string[]; signals: string[] };
 
 function groups(text: string): Group[] {
   const parsed: Group[] = [];
   let current: Group | null = null;
   let readingAgents = false;
   for (const raw of text.split('\n')) {
-    const line = raw.trim();
+    const line = raw.replace(/#.*/, '').trim();
     const colon = line.indexOf(':');
     if (!line || colon < 0) continue;
     const field = line.slice(0, colon).trim().toLowerCase();
     const value = line.slice(colon + 1).trim();
     if (field === 'user-agent') {
       if (!readingAgents || !current) {
-        current = { agents: [], disallow: [], allow: [] };
+        current = { agents: [], disallow: [], allow: [], signals: [] };
         parsed.push(current);
       }
       current.agents.push(value.toLowerCase());
@@ -27,6 +27,7 @@ function groups(text: string): Group[] {
     readingAgents = false;
     if (field === 'disallow' && current && value) current.disallow.push(value);
     if (field === 'allow' && current && value) current.allow.push(value);
+    if (field === 'content-signal' && current && value) current.signals.push(value);
   }
   return parsed;
 }
@@ -72,6 +73,11 @@ describe('the mobile web build robots.txt', () => {
     expect(at).toBeGreaterThanOrEqual(0);
     expect(lines[at + 1]).toBe('Allow: /');
     expect(rootDisallowedFor(text, 'OAI-SearchBot')).toBe(false);
+    const all = groups(text);
+    expect(all.find((group) => group.agents.includes('oai-searchbot'))?.signals).toEqual([]);
+    expect(all.find((group) => group.agents.includes('*'))?.signals).toEqual([
+      'search=yes, ai-input=yes, ai-train=no',
+    ]);
   });
 
   it('mentions Google-Extended only in a comment that explains why it is not blocked', () => {
